@@ -604,6 +604,8 @@ const SheetsAPI = (() => {
         memo: '포트폴리오 실시간 동기화',
       });
     }
+  }
+
   async function backupPortfolio() {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     if (!id || id.startsWith('YOUR_')) return;
