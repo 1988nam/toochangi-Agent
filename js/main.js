@@ -1788,7 +1788,9 @@ function bindSettingsEvents() {
       SOURCE_FOLDER_ID: document.getElementById('setting-source-folder-id').value.trim(),
       ARCHIVE_FOLDER_ID: document.getElementById('setting-archive-folder-id').value.trim(),
       GEMINI_API_KEY: document.getElementById('setting-gemini-key').value.trim(),
-      GEMINI_MODEL: document.getElementById('setting-gemini-model').value,
+      GEMINI_MODEL_ANALYSIS: document.getElementById('setting-gemini-model-analysis').value,
+      GEMINI_MODEL_RECOMMEND: document.getElementById('setting-gemini-model-recommend').value,
+      GEMINI_MODEL_VISION: document.getElementById('setting-gemini-model-vision').value,
       STRATEGY_CONTEXT: document.getElementById('setting-strategy-context')?.value || '',
     };
 
@@ -1874,7 +1876,9 @@ function initSettingsFields() {
   if (document.getElementById('setting-source-folder-id')) document.getElementById('setting-source-folder-id').value = cfg.SOURCE_FOLDER_ID || '';
   if (document.getElementById('setting-archive-folder-id')) document.getElementById('setting-archive-folder-id').value = cfg.ARCHIVE_FOLDER_ID || '';
   if (document.getElementById('setting-gemini-key')) document.getElementById('setting-gemini-key').value = cfg.GEMINI_API_KEY || '';
-  if (document.getElementById('setting-gemini-model')) document.getElementById('setting-gemini-model').value = cfg.GEMINI_MODEL || 'gemini-3.5-flash';
+  if (document.getElementById('setting-gemini-model-analysis')) document.getElementById('setting-gemini-model-analysis').value = cfg.GEMINI_MODEL_ANALYSIS || 'gemini-2.5-pro';
+  if (document.getElementById('setting-gemini-model-recommend')) document.getElementById('setting-gemini-model-recommend').value = cfg.GEMINI_MODEL_RECOMMEND || 'gemini-2.5-flash';
+  if (document.getElementById('setting-gemini-model-vision')) document.getElementById('setting-gemini-model-vision').value = cfg.GEMINI_MODEL_VISION || 'gemini-2.5-flash';
   if (document.getElementById('setting-strategy-context')) document.getElementById('setting-strategy-context').value = cfg.STRATEGY_CONTEXT || '';
 
   // 유튜브 채널 초기화
@@ -1900,7 +1904,9 @@ function initSettingsFields() {
     SOURCE_FOLDER_ID: cfg.SOURCE_FOLDER_ID || '',
     ARCHIVE_FOLDER_ID: cfg.ARCHIVE_FOLDER_ID || '',
     GEMINI_API_KEY: cfg.GEMINI_API_KEY || '',
-    GEMINI_MODEL: cfg.GEMINI_MODEL || 'gemini-3.5-flash',
+    GEMINI_MODEL_ANALYSIS: cfg.GEMINI_MODEL_ANALYSIS || 'gemini-2.5-pro',
+    GEMINI_MODEL_RECOMMEND: cfg.GEMINI_MODEL_RECOMMEND || 'gemini-2.5-flash',
+    GEMINI_MODEL_VISION: cfg.GEMINI_MODEL_VISION || 'gemini-2.5-flash',
     STRATEGY_CONTEXT: cfg.STRATEGY_CONTEXT || '',
     youtubeChannels: _tempYouTubeChannels,
   };

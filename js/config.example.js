@@ -21,7 +21,9 @@ const TOOCHANGI_CONFIG = {
 
   // ── Gemini AI ─────────────────────────────────────────────────
   GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY',
-  GEMINI_MODEL: 'gemini-3.5-flash',
+  GEMINI_MODEL_ANALYSIS: 'gemini-2.5-pro',
+  GEMINI_MODEL_RECOMMEND: 'gemini-2.5-flash',
+  GEMINI_MODEL_VISION: 'gemini-2.5-flash',
 
   // ── OAuth 스코프 ──────────────────────────────────────────────
   SCOPES: [

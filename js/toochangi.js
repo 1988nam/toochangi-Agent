@@ -145,7 +145,7 @@ ${gachangiContext}
 질문에 대해 구체적이고 실행 가능한 투자 의견을 한국어로 답하세요.
 분석 시 3단계 필터 기준을 명시하고, 투자 의견(매수/매도/관망)과 기간(단기/중기/장기)을 반드시 포함하세요.`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${window.TOOCHANGI_CONFIG.GEMINI_MODEL}:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${window.TOOCHANGI_CONFIG.GEMINI_MODEL_ANALYSIS}:generateContent?key=${apiKey}`;
     const body = {
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: [{ parts: [{ text: query }] }],
@@ -328,7 +328,7 @@ ${youtubeFeedText}
 마지막에 **[오늘의 시장 총평]** 섹션도 100자 내외로 추가해주세요.`;
 
     // ── Gemini API 호출 ────────────────────────────────────────────
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${window.TOOCHANGI_CONFIG.GEMINI_MODEL}:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${window.TOOCHANGI_CONFIG.GEMINI_MODEL_RECOMMEND}:generateContent?key=${apiKey}`;
     const body = {
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: [{ parts: [{ text: userPrompt }] }],
@@ -669,7 +669,7 @@ ${youtubeFeedText}
 2. 평균 단가(avgPrice) 및 현재가(curPrice)에 소수점 기호(.)가 들어간 경우도 마찬가지로 정확한 소수(float)로 추출해 주십시오. (예: 38.557)
 3. 텍스트 설명이나 마크업 기호(예: \`\`\`json) 없이 오직 유효한 JSON 배열만 반환하세요.`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${window.TOOCHANGI_CONFIG.GEMINI_MODEL}:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${window.TOOCHANGI_CONFIG.GEMINI_MODEL_VISION}:generateContent?key=${apiKey}`;
     const body = {
       contents: [{
         parts: [

@@ -695,17 +695,33 @@
             <span class="card-title">🔮 Gemini AI 설정</span>
           </div>
           <div class="card-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px;">
-            <div class="form-row">
+            <div class="form-group">
+              <label>Gemini API Key</label>
+              <input type="password" id="setting-gemini-key" placeholder="AI Studio에서 발급받은 API 키" style="width: 100%; box-sizing: border-box;" />
+            </div>
+            <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;">
               <div class="form-group">
-                <label>Gemini API Key</label>
-                <input type="password" id="setting-gemini-key" placeholder="AI Studio에서 발급받은 API 키" />
+                <label>수동 투자 분석 모델</label>
+                <select id="setting-gemini-model-analysis" style="width: 100%;">
+                  <option value="gemini-2.5-pro">gemini-2.5-pro (권장 - 고성능 추론)</option>
+                  <option value="gemini-2.5-flash">gemini-2.5-flash (고속 분석)</option>
+                  <option value="gemini-1.5-pro">gemini-1.5-pro (구버전 Pro)</option>
+                  <option value="gemini-1.5-flash">gemini-1.5-flash (구버전 Flash)</option>
+                </select>
               </div>
               <div class="form-group">
-                <label>Gemini Model</label>
-                <select id="setting-gemini-model">
-                  <option value="gemini-3.5-flash">gemini-3.5-flash (권장 - 고속/에이전트)</option>
-                  <option value="gemini-3.1-pro">gemini-3.1-pro (고성능 추론 - Pro 권장)</option>
-                  <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (경량화)</option>
+                <label>실시간 자동 종목 발굴 모델</label>
+                <select id="setting-gemini-model-recommend" style="width: 100%;">
+                  <option value="gemini-2.5-flash">gemini-2.5-flash (권장 - 무료 API 지원)</option>
+                  <option value="gemini-2.5-pro">gemini-2.5-pro (정교한 분석/추론)</option>
+                  <option value="gemini-3.5-flash">gemini-3.5-flash (유료/고성능 에이전트)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>계좌 스크린샷 판독 모델</label>
+                <select id="setting-gemini-model-vision" style="width: 100%;">
+                  <option value="gemini-2.5-flash">gemini-2.5-flash (권장 - 빠른 이미지 분석)</option>
+                  <option value="gemini-1.5-flash">gemini-1.5-flash (구버전 Flash)</option>
                 </select>
               </div>
             </div>
@@ -1113,7 +1129,9 @@
     SOURCE_FOLDER_ID: "1TSdAQ0stJ8IhK83K487n-zBx1TrP37Bt",
     ARCHIVE_FOLDER_ID: "1TSdAQ0stJ8IhK83K487n-zBx1TrP37Bt",
     GEMINI_API_KEY: "",
-    GEMINI_MODEL: "gemini-3.5-flash",
+    GEMINI_MODEL_ANALYSIS: "gemini-2.5-pro",
+    GEMINI_MODEL_RECOMMEND: "gemini-2.5-flash",
+    GEMINI_MODEL_VISION: "gemini-2.5-flash",
     STRATEGY_CONTEXT: `[가족 프로필 및 미션]
 - 정현(흰챙이): 7년 내 상급지 이동 시드 구축 및 고소득 세액 방어 (IRP 연 600만 유지, 나머지 가용 재원 ISA 집중)
 - 혜영(깜챙이): 2026년 출산 대비 유동성 확보 및 비과세 혜택 (ISA 비과세 활용, 6개월 생활비 현금 상시 유지)
@@ -1171,9 +1189,30 @@
       const parsed = JSON.parse(overrides);
       let updated = false;
 
-      // Gemini 모델 마이그레이션 (2.0-flash 만료 및 사용자 피드백 반영)
-      if (parsed.GEMINI_MODEL === 'gemini-2.0-flash') {
-        parsed.GEMINI_MODEL = 'gemini-3.5-flash';
+      // Gemini 모델 마이그레이션 (단일 모델 설정을 3가지 목적별 모델 설정으로 분할)
+      if (parsed.GEMINI_MODEL) {
+        let baseModel = parsed.GEMINI_MODEL;
+        if (baseModel === 'gemini-2.0-flash' || baseModel === 'gemini-3.5-flash') {
+          baseModel = 'gemini-2.5-flash';
+        }
+        parsed.GEMINI_MODEL_ANALYSIS = parsed.GEMINI_MODEL_ANALYSIS || 'gemini-2.5-pro';
+        parsed.GEMINI_MODEL_RECOMMEND = parsed.GEMINI_MODEL_RECOMMEND || baseModel;
+        parsed.GEMINI_MODEL_VISION = parsed.GEMINI_MODEL_VISION || baseModel;
+        delete parsed.GEMINI_MODEL;
+        updated = true;
+      }
+
+      // 개별 모델 설정 누락 시 기본값 적용
+      if (!parsed.GEMINI_MODEL_ANALYSIS) {
+        parsed.GEMINI_MODEL_ANALYSIS = 'gemini-2.5-pro';
+        updated = true;
+      }
+      if (!parsed.GEMINI_MODEL_RECOMMEND) {
+        parsed.GEMINI_MODEL_RECOMMEND = 'gemini-2.5-flash';
+        updated = true;
+      }
+      if (!parsed.GEMINI_MODEL_VISION) {
+        parsed.GEMINI_MODEL_VISION = 'gemini-2.5-flash';
         updated = true;
       }
 
