@@ -5,6 +5,58 @@
 const SheetsAPI = (() => {
   const cfg = () => window.TOOCHANGI_CONFIG || TOOCHANGI_CONFIG;
 
+  function ensureGapiWrapped() {
+    if (!window.gapi || !gapi.client || !gapi.client.sheets) return;
+    if (gapi.client.sheets._wrapped) return;
+
+    const wrapFunc = (fn) => {
+      return async function(...args) {
+        let delay = 1000;
+        const maxRetries = 5;
+        for (let i = 0; i < maxRetries; i++) {
+          try {
+            return await fn.apply(this, args);
+          } catch (err) {
+            const status = err.status || (err.result && err.result.error && err.result.error.code);
+            if (status === 429 && i < maxRetries - 1) {
+              console.warn(`[API Retry] 429 Too Many Requests. Retrying in ${Math.round(delay)}ms... (Attempt ${i + 1}/${maxRetries})`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              delay *= 2;
+              delay += Math.random() * 500;
+              continue;
+            }
+            throw err;
+          }
+        }
+      };
+    };
+
+    const spreadsheets = gapi.client.sheets.spreadsheets;
+    if (spreadsheets) {
+      if (typeof spreadsheets.create === 'function') spreadsheets.create = wrapFunc(spreadsheets.create);
+      if (typeof spreadsheets.get === 'function') spreadsheets.get = wrapFunc(spreadsheets.get);
+      if (typeof spreadsheets.batchUpdate === 'function') spreadsheets.batchUpdate = wrapFunc(spreadsheets.batchUpdate);
+      
+      const values = spreadsheets.values;
+      if (values) {
+        if (typeof values.get === 'function') values.get = wrapFunc(values.get);
+        if (typeof values.update === 'function') values.update = wrapFunc(values.update);
+        if (typeof values.append === 'function') values.append = wrapFunc(values.append);
+        if (typeof values.batchUpdate === 'function') values.batchUpdate = wrapFunc(values.batchUpdate);
+      }
+    }
+
+    const driveFiles = gapi.client.drive && gapi.client.drive.files;
+    if (driveFiles) {
+      if (typeof driveFiles.list === 'function') driveFiles.list = wrapFunc(driveFiles.list);
+      if (typeof driveFiles.create === 'function') driveFiles.create = wrapFunc(driveFiles.create);
+      if (typeof driveFiles.update === 'function') driveFiles.update = wrapFunc(driveFiles.update);
+    }
+
+    gapi.client.sheets._wrapped = true;
+    console.log('[API Retry] Google Sheets & Drive API 429 재시도 래퍼 적용 완료');
+  }
+
   // ── 시트 자동 생성 ──────────────────────────────────────────────
   /**
    * 투챙이 전용 스프레드시트가 없으면 자동 생성 후 config에 ID 저장
@@ -544,7 +596,7 @@ const SheetsAPI = (() => {
     }
   }
 
-  return {
+  const api = {
     setupToochangiSheet,
     getPortfolio, appendPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, applyFormulasToPortfolio,
     getTradeLog, appendTrade,
@@ -558,4 +610,17 @@ const SheetsAPI = (() => {
     deleteAsset,
     syncPortfolioToAssets,
   };
+
+  // 모든 API 호출 전에 ensureGapiWrapped()가 먼저 실행되도록 랩핑
+  Object.keys(api).forEach(key => {
+    if (typeof api[key] === 'function') {
+      const original = api[key];
+      api[key] = async function(...args) {
+        ensureGapiWrapped();
+        return await original.apply(this, args);
+      };
+    }
+  });
+
+  return api;
 })();
