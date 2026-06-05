@@ -2085,6 +2085,7 @@ async function saveBulkEdit() {
 
   try {
     const portfolio = Toochangi.getPortfolio();
+    const updates = [];
     for (const row of rows) {
       const rIdx = parseInt(row.dataset.rowindex, 10);
       const item = portfolio.find(p => p.rowIndex === rIdx);
@@ -2096,15 +2097,22 @@ async function saveBulkEdit() {
 
       if (qty <= 0 || avgPrice <= 0) continue;
 
-      await Toochangi.updatePortfolio(rIdx, {
-        name: item.name,
-        ticker: item.ticker,
-        market: item.market,
-        qty,
-        avgPrice,
-        curPrice: item.curPrice || avgPrice,
-        memo
+      updates.push({
+        rowIndex: rIdx,
+        row: {
+          name: item.name,
+          ticker: item.ticker,
+          market: item.market,
+          qty,
+          avgPrice,
+          curPrice: item.curPrice || avgPrice,
+          memo
+        }
       });
+    }
+
+    if (updates.length > 0) {
+      await Toochangi.updatePortfolioRows(updates);
     }
 
     toast('✅ 다중 수정 완료!', 'success');
@@ -2126,14 +2134,8 @@ async function deleteBulkHoldings() {
   toast('⏳ 다중 종목 삭제 중...', 'info');
 
   try {
-    // 행 번호 내림차순(역순) 정렬 중요 (행 삭제 시 순번 변경 영향 최소화)
-    const rowIndices = Array.from(checked)
-      .map(chk => parseInt(chk.dataset.rowindex, 10))
-      .sort((a, b) => b - a);
-
-    for (const rIdx of rowIndices) {
-      await Toochangi.deletePortfolio(rIdx);
-    }
+    const rowIndices = Array.from(checked).map(chk => parseInt(chk.dataset.rowindex, 10));
+    await Toochangi.deletePortfolioRows(rowIndices);
 
     toast('✅ 선택 삭제 완료!', 'success');
     renderPortfolioTab();

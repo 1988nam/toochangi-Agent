@@ -162,6 +162,64 @@ const SheetsAPI = (() => {
     });
   }
 
+  async function updatePortfolioRows(updates) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    const now = new Date().toLocaleDateString('ko-KR');
+
+    const data = updates.map(({ rowIndex, row }) => {
+      const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), GOOGLEFINANCE(B${rowIndex}, "price") * GOOGLEFINANCE("CURRENCY:USDKRW", "price"), IF(AND(ISNUMBER(VALUE(B${rowIndex})), LEN(B${rowIndex})=6), GOOGLEFINANCE("KRX:"&TEXT(B${rowIndex},"000000"), "price"), GOOGLEFINANCE(B${rowIndex}, "price"))))`;
+      const gFormula = `=D${rowIndex}*F${rowIndex}`;
+      const hFormula = `=IF(E${rowIndex}>0, (F${rowIndex}-E${rowIndex})/E${rowIndex}, 0)`;
+      const iFormula = `=IF(SUM(G$2:G$100)>0, G${rowIndex}/SUM(G$2:G$100), 0)`;
+
+      return {
+        range: `포트폴리오!A${rowIndex}:K${rowIndex}`,
+        values: [[
+          row.name, row.ticker, row.market,
+          row.qty, row.avgPrice, fFormula,
+          gFormula, hFormula, iFormula, row.memo || '수동 업데이트', now,
+        ]]
+      };
+    });
+
+    await gapi.client.sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: id,
+      resource: {
+        valueInputOption: 'USER_ENTERED',
+        data
+      }
+    });
+  }
+
+  async function deletePortfolioRows(rowIndices) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    const metaRes = await gapi.client.sheets.spreadsheets.get({
+      spreadsheetId: id,
+      fields: 'sheets.properties(title,sheetId)'
+    });
+    const sheet = (metaRes.result.sheets || []).find(s => s.properties.title === '포트폴리오');
+    if (!sheet) throw new Error('포트폴리오 시트를 찾을 수 없습니다.');
+    const sheetId = sheet.properties.sheetId;
+
+    const sortedIndices = [...rowIndices].sort((a, b) => b - a);
+
+    const requests = sortedIndices.map(rIdx => ({
+      deleteDimension: {
+        range: {
+          sheetId,
+          dimension: 'ROWS',
+          startIndex: rIdx - 1,
+          endIndex: rIdx
+        }
+      }
+    }));
+
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: id,
+      resource: { requests }
+    });
+  }
+
   async function applyFormulasToPortfolio() {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     if (!id || id.startsWith('YOUR_')) return;
@@ -488,7 +546,7 @@ const SheetsAPI = (() => {
 
   return {
     setupToochangiSheet,
-    getPortfolio, appendPortfolio, updatePortfolio, deletePortfolio, applyFormulasToPortfolio,
+    getPortfolio, appendPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, applyFormulasToPortfolio,
     getTradeLog, appendTrade,
     getAnalysisHistory, appendAnalysis,
     appendFilter,
