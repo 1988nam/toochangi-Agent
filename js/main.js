@@ -90,7 +90,14 @@ async function refreshAll() {
 // ── 탭 라우팅 ────────────────────────────────────────────────────
 function bindNavEvents() {
   document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
-    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    btn.addEventListener('click', () => {
+      switchTab(btn.dataset.tab);
+      // 모바일 환경에서 메뉴 클릭 시 사이드바 자동 닫기
+      const sidebar = document.querySelector('.sidebar');
+      if (sidebar && window.innerWidth <= 768) {
+        sidebar.classList.remove('active');
+      }
+    });
   });
   document.getElementById('go-analysis-btn')?.addEventListener('click', () => switchTab('auto-analysis'));
 
@@ -108,6 +115,31 @@ function bindNavEvents() {
     if (!appContainer) return;
     const collapsed = appContainer.classList.toggle('collapsed');
     localStorage.setItem('toochangi_sidebar_collapsed', collapsed);
+  });
+
+  // ── 모바일 사이드바 토글 및 닫기 버튼 바인딩 ─────────────────────
+  const toggleBtn = document.getElementById('sidebar-toggle-btn');
+  const closeBtn = document.getElementById('sidebar-close-btn');
+  const sidebar = document.querySelector('.sidebar');
+
+  if (toggleBtn && sidebar) {
+    toggleBtn.addEventListener('click', () => {
+      sidebar.classList.add('active');
+    });
+  }
+  if (closeBtn && sidebar) {
+    closeBtn.addEventListener('click', () => {
+      sidebar.classList.remove('active');
+    });
+  }
+  
+  // 모바일 환경에서 사이드바 바깥 영역 클릭 시 닫기
+  window.addEventListener('click', (e) => {
+    if (sidebar && sidebar.classList.contains('active') && window.innerWidth <= 768) {
+      if (!sidebar.contains(e.target) && (!toggleBtn || !toggleBtn.contains(e.target))) {
+        sidebar.classList.remove('active');
+      }
+    }
   });
 }
 
