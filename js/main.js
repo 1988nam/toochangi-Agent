@@ -93,6 +93,22 @@ function bindNavEvents() {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
   });
   document.getElementById('go-analysis-btn')?.addEventListener('click', () => switchTab('auto-analysis'));
+
+  // ── 사이드바 접기/열기 ──────────────────────────────────────────
+  const appContainer = document.getElementById('app');
+  const sidebarToggle = document.getElementById('sidebar-toggle');
+  
+  // 초기 상태 로드
+  const isCollapsed = localStorage.getItem('toochangi_sidebar_collapsed') === 'true';
+  if (isCollapsed && appContainer) {
+    appContainer.classList.add('collapsed');
+  }
+
+  sidebarToggle?.addEventListener('click', () => {
+    if (!appContainer) return;
+    const collapsed = appContainer.classList.toggle('collapsed');
+    localStorage.setItem('toochangi_sidebar_collapsed', collapsed);
+  });
 }
 
 function switchTab(tab) {

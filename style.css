@@ -140,7 +140,72 @@ html, body {
   grid-template-columns: var(--sidebar-w) 1fr;
   height: 100vh;
   overflow: hidden;
+  transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* ── Sidebar Collapsed State ── */
+.app.collapsed {
+  --sidebar-w: 72px;
+}
+
+.btn-sidebar-toggle {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+}
+.btn-sidebar-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--accent-purple);
+}
+
+.app.collapsed .sidebar-brand {
+  flex-direction: column;
+  padding: 0 0 16px;
+  gap: 8px;
+}
+.app.collapsed .sidebar-brand .brand-name {
+  display: none;
+}
+.app.collapsed .sidebar-brand .btn-sidebar-toggle {
+  margin-left: 0;
+  margin-top: 4px;
+}
+
+.app.collapsed .sidebar-nav {
+  padding: 0 8px;
+}
+.app.collapsed .nav-item {
+  justify-content: center;
+  padding: 10px;
+}
+.app.collapsed .nav-item span:not(.nav-icon) {
+  display: none;
+}
+.app.collapsed .nav-item .badge-soon {
+  display: none;
+}
+
+.app.collapsed .sidebar-footer {
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 0 0;
+}
+.app.collapsed .user-info {
+  justify-content: center;
+}
+.app.collapsed #user-name-sidebar {
+  display: none;
+}
+
 
 /* ── Sidebar ── */
 .sidebar {
