@@ -188,10 +188,10 @@ function renderDashboard() {
 
   // 총 투자 자산
   document.getElementById('m-total-asset').textContent =
-    metrics.totalValue > 0 ? `${metrics.totalValue.toLocaleString()}원` : '—';
+    metrics.totalValue > 0 ? `${Math.floor(metrics.totalValue).toLocaleString()}원` : '—';
   document.getElementById('m-total-asset-sub').textContent =
     metrics.totalPnL !== 0
-      ? `평가손익 ${metrics.totalPnL >= 0 ? '+' : ''}${metrics.totalPnL.toLocaleString()}원`
+      ? `평가손익 ${metrics.totalPnL >= 0 ? '+' : ''}${Math.floor(metrics.totalPnL).toLocaleString()}원`
       : '포트폴리오를 입력해주세요';
 
   // 총 수익률
@@ -261,7 +261,7 @@ function renderPortfolioTab() {
       <td>${p.qty.toLocaleString()}</td>
       <td>${p.avgPrice.toLocaleString()}원</td>
       <td>${(p.curPrice || p.avgPrice).toLocaleString()}원</td>
-      <td>${(p._value || 0).toLocaleString()}원</td>
+      <td>${Math.floor(p._value || 0).toLocaleString()}원</td>
       <td class="${yieldClass}">${yieldStr}</td>
       <td style="color:var(--text-muted)">${(p._weight || 0).toFixed(1)}%</td>
     </tr>`;
@@ -560,6 +560,7 @@ function bindModalEvents() {
         const market = row.querySelector('.import-market').value;
         const qty = parseFloat(row.querySelector('.import-qty').value) || 0;
         const avgPrice = parseFloat(row.querySelector('.import-avg').value) || 0;
+        const curPrice = parseFloat(row.dataset.curprice) || avgPrice;
         const memo = row.querySelector('.import-memo').value.trim();
 
         if (!name || qty <= 0 || avgPrice <= 0) continue;
@@ -570,7 +571,7 @@ function bindModalEvents() {
           market,
           qty,
           avgPrice,
-          curPrice: avgPrice,
+          curPrice: curPrice,
           memo
         });
       }
@@ -1663,7 +1664,7 @@ function renderScreenshotImportModal(holdings) {
   if (!tbody) return;
 
   tbody.innerHTML = holdings.map((item, idx) => {
-    return `<tr data-index="${idx}">
+    return `<tr data-index="${idx}" data-curprice="${item.curPrice || item.avgPrice || 0}">
       <td><input type="text" class="import-name" value="${item.name || ''}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px;" /></td>
       <td><input type="text" class="import-ticker" value="${item.ticker || ''}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px;" /></td>
       <td>
