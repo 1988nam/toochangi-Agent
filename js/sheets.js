@@ -66,7 +66,7 @@ const SheetsAPI = (() => {
     if (storedId) {
       TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID = storedId;
       console.log('[Sheets] 기존 투챙이 시트 ID 로드:', storedId);
-      await _ensureSheetTabs();
+      await _ensureSheetTabs(storedId);
       return storedId;
     }
 
@@ -78,6 +78,8 @@ const SheetsAPI = (() => {
         { properties: { title: '매매일지',   index: 1 } },
         { properties: { title: '분석기록',   index: 2 } },
         { properties: { title: '3단계필터',  index: 3 } },
+        { properties: { title: '예적금',     index: 4 } },
+        { properties: { title: '부동산',     index: 5 } },
       ],
     });
 
@@ -91,8 +93,60 @@ const SheetsAPI = (() => {
     return newId;
   }
 
-  async function _ensureSheetTabs() {
-    // 탭이 이미 있으면 패스 - 실제 운영에서는 탭 존재 여부 확인 로직 추가 가능
+  async function _ensureSheetTabs(sheetId) {
+    try {
+      const metaRes = await gapi.client.sheets.spreadsheets.get({
+        spreadsheetId: sheetId,
+        fields: 'sheets.properties(title,sheetId)'
+      });
+      const sheets = metaRes.result.sheets || [];
+      const titles = sheets.map(s => s.properties.title);
+
+      const requiredTabs = ['포트폴리오', '매매일지', '분석기록', '3단계필터', '예적금', '부동산'];
+      const requests = [];
+
+      requiredTabs.forEach(tab => {
+        if (!titles.includes(tab)) {
+          requests.push({
+            addSheet: {
+              properties: { title: tab }
+            }
+          });
+        }
+      });
+
+      if (requests.length > 0) {
+        await gapi.client.sheets.spreadsheets.batchUpdate({
+          spreadsheetId: sheetId,
+          resource: { requests }
+        });
+        console.log('✅ 누락된 시트 탭 추가 완료:', requests.map(r => r.addSheet.properties.title).join(', '));
+        
+        const headers = {
+          '예적금': [['자산명','금융기관','예적금종류','금리(%)','잔액(원)','만기일','자산용도','메모','등록일']],
+          '부동산': [['부동산명','매입가(원)','현재평가액(원)','담보대출액(원)','대출금리(%)','전세보증금(원)','연간유지비/이자(원)','자산용도','메모','등록일']]
+        };
+        
+        const batchData = [];
+        requiredTabs.forEach(tab => {
+          if (!titles.includes(tab) && headers[tab]) {
+            batchData.push({
+              range: `${tab}!A1`,
+              values: headers[tab]
+            });
+          }
+        });
+        
+        if (batchData.length > 0) {
+          await gapi.client.sheets.spreadsheets.values.batchUpdate({
+            spreadsheetId: sheetId,
+            resource: { valueInputOption: 'RAW', data: batchData }
+          });
+        }
+      }
+    } catch (e) {
+      console.error('[SheetsAPI] 시트 탭 무결성 검사 실패:', e);
+    }
   }
 
   async function _initHeaders(sheetId) {
@@ -100,12 +154,16 @@ const SheetsAPI = (() => {
     const tradeHeaders     = [['날짜','종목명','구분','수량','단가(원)','금액(원)','3단계필터','메모']];
     const analysisHeaders  = [['날짜','질문','AI분석결과','관련종목','투자의견','기간']];
     const filterHeaders    = [['날짜','시장신호','섹터신호','종목신호','최종판단','메모']];
+    const savingsHeaders   = [['자산명','금융기관','예적금종류','금리(%)','잔액(원)','만기일','자산용도','메모','등록일']];
+    const realEstateHeaders = [['부동산명','매입가(원)','현재평가액(원)','담보대출액(원)','대출금리(%)','전세보증금(원)','연간유지비/이자(원)','자산용도','메모','등록일']];
 
     const batchData = [
       { range: '포트폴리오!A1', values: portfolioHeaders },
       { range: '매매일지!A1',   values: tradeHeaders },
       { range: '분석기록!A1',   values: analysisHeaders },
       { range: '3단계필터!A1',  values: filterHeaders },
+      { range: '예적금!A1',     values: savingsHeaders },
+      { range: '부동산!A1',     values: realEstateHeaders },
     ];
 
     await gapi.client.sheets.spreadsheets.values.batchUpdate({
@@ -135,6 +193,57 @@ const SheetsAPI = (() => {
       weight:  parseFloat(r[8])  || 0,
       memo:    r[9]  || '',
     }));
+  }
+
+  async function getSavings() {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (!id || id.startsWith('YOUR_')) return [];
+    try {
+      const res = await gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: id, range: '예적금!A2:I',
+      });
+      return (res.result.values || []).map((r, idx) => ({
+        rowIndex: idx + 2,
+        name:     r[0] || '',
+        bank:     r[1] || '',
+        type:     r[2] || '',
+        rate:     parseFloat(r[3]) || 0,
+        balance:  parseFloat(r[4]) || 0,
+        maturity: r[5] || '',
+        purpose:  r[6] || '',
+        memo:     r[7] || '',
+        date:     r[8] || '',
+      }));
+    } catch (e) {
+      console.warn('[SheetsAPI] 예적금 로드 실패:', e);
+      return [];
+    }
+  }
+
+  async function getRealEstate() {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (!id || id.startsWith('YOUR_')) return [];
+    try {
+      const res = await gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: id, range: '부동산!A2:J',
+      });
+      return (res.result.values || []).map((r, idx) => ({
+        rowIndex: idx + 2,
+        name:     r[0] || '',
+        purchasePrice: parseFloat(r[1]) || 0,
+        currentValue:  parseFloat(r[2]) || 0,
+        loanAmount:    parseFloat(r[3]) || 0,
+        loanRate:      parseFloat(r[4]) || 0,
+        deposit:       parseFloat(r[5]) || 0,
+        maintenance:   parseFloat(r[6]) || 0,
+        purpose:       r[7] || '',
+        memo:          r[8] || '',
+        date:          r[9] || '',
+      }));
+    } catch (e) {
+      console.warn('[SheetsAPI] 부동산 로드 실패:', e);
+      return [];
+    }
   }
 
   async function appendPortfolio(row) {

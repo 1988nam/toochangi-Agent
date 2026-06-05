@@ -9,16 +9,20 @@ const Toochangi = (() => {
   let _analysisHistory = [];
   let _gachangiData = null;
   let _assetHistory = [];
+  let _savings = [];
+  let _realEstate = [];
 
   // ── 데이터 로드 ─────────────────────────────────────────────────
   async function loadAll() {
     try {
-      [_portfolio, _tradelog, _analysisHistory, _gachangiData, _assetHistory] = await Promise.all([
+      [_portfolio, _tradelog, _analysisHistory, _gachangiData, _assetHistory, _savings, _realEstate] = await Promise.all([
         SheetsAPI.getPortfolio(),
         SheetsAPI.getTradeLog(),
         SheetsAPI.getAnalysisHistory(),
         SheetsAPI.getGachangiMonthlySavings(),
         SheetsAPI.getAssetStatus(),
+        SheetsAPI.getSavings ? SheetsAPI.getSavings() : [],
+        SheetsAPI.getRealEstate ? SheetsAPI.getRealEstate() : [],
       ]);
       console.log('[Toochangi] 데이터 로드 완료');
     } catch (e) {
@@ -107,9 +111,19 @@ const Toochangi = (() => {
       return '⚠️ Gemini API 키가 설정되지 않았습니다. js/config.js의 GEMINI_API_KEY를 설정해주세요.';
     }
 
-    const portfolioSummary = _portfolio.length > 0
-      ? _portfolio.map(p => `${p.name}(${p.ticker}): ${p.qty}주 평단${p.avgPrice.toLocaleString()}원`).join(', ')
-      : '현재 보유 종목 없음';
+    const stocksSummary = _portfolio.length > 0
+      ? _portfolio.map(p => `- ${p.name}(${p.ticker}): ${p.qty}주, 평단 ${p.avgPrice.toLocaleString()}원, 현재가 ${(p.curPrice||p.avgPrice).toLocaleString()}원 (비중 ${(p._weight || 0).toFixed(1)}%, 용도: ${p.memo || '투자'})`).join('\n')
+      : '- 보유 주식 없음';
+
+    const savingsSummary = _savings.length > 0
+      ? _savings.map(s => `- ${s.name}(${s.bank}): 잔액 ${s.balance.toLocaleString()}원, 금리 ${s.rate}%, 만기일 ${s.maturity || '없음'}, 용도: ${s.purpose}`).join('\n')
+      : '- 보유 예적금 없음';
+
+    const realEstateSummary = _realEstate.length > 0
+      ? _realEstate.map(r => `- ${r.name}: 매입가 ${r.purchasePrice.toLocaleString()}원, 현재가 ${r.currentValue.toLocaleString()}원, 담보대출 ${r.loanAmount.toLocaleString()}원(금리 ${r.loanRate}%), 전세보증금 ${r.deposit.toLocaleString()}원, 연간유지비/이자 ${r.maintenance.toLocaleString()}원, 용도: ${r.purpose}`).join('\n')
+      : '- 보유 부동산 없음';
+
+    const assetSummary = `[보유 주식/ETF]\n${stocksSummary}\n\n[보유 예적금]\n${savingsSummary}\n\n[보유 부동산]\n${realEstateSummary}`;
 
     const gachangiContext = _gachangiData
       ? `이번 달 가계부 현황 - 수입: ${_gachangiData.income.toLocaleString()}원, 지출: ${_gachangiData.expense.toLocaleString()}원, 월 저축액: ${_gachangiData.savings.toLocaleString()}원`
@@ -139,7 +153,9 @@ const Toochangi = (() => {
 [흰챙이 커스텀 자산 운용 가이드라인 & 원칙]
 ${strategyContext}
 
-현재 포트폴리오: ${portfolioSummary}
+[현재 가구 전체 자산 현황]
+${assetSummary}
+
 ${gachangiContext}
 
 질문에 대해 구체적이고 실행 가능한 투자 의견을 한국어로 답하세요.
@@ -249,12 +265,19 @@ ${gachangiContext}
       youtubeFeedText = '[구독 유튜브 채널 실시간 피드] 구독 중인 유튜브 채널이 없습니다.';
     }
 
-    const portfolioSummary = _portfolio.length > 0
-      ? _portfolio.map(p =>
-          `${p.name}(${p.ticker}): ${p.qty}주, 평단 ${p.avgPrice.toLocaleString()}원, ` +
-          `현재가 ${(p.curPrice||p.avgPrice).toLocaleString()}원`
-        ).join('\n  ')
-      : '현재 보유 종목 없음';
+    const stocksSummary = _portfolio.length > 0
+      ? _portfolio.map(p => `- ${p.name}(${p.ticker}): ${p.qty}주, 평단 ${p.avgPrice.toLocaleString()}원, 현재가 ${(p.curPrice||p.avgPrice).toLocaleString()}원 (비중 ${(p._weight || 0).toFixed(1)}%, 용도: ${p.memo || '투자'})`).join('\n')
+      : '- 보유 주식 없음';
+
+    const savingsSummary = _savings.length > 0
+      ? _savings.map(s => `- ${s.name}(${s.bank}): 잔액 ${s.balance.toLocaleString()}원, 금리 ${s.rate}%, 만기일 ${s.maturity || '없음'}, 용도: ${s.purpose}`).join('\n')
+      : '- 보유 예적금 없음';
+
+    const realEstateSummary = _realEstate.length > 0
+      ? _realEstate.map(r => `- ${r.name}: 매입가 ${r.purchasePrice.toLocaleString()}원, 현재가 ${r.currentValue.toLocaleString()}원, 담보대출 ${r.loanAmount.toLocaleString()}원(금리 ${r.loanRate}%), 전세보증금 ${r.deposit.toLocaleString()}원, 연간유지비/이자 ${r.maintenance.toLocaleString()}원, 용도: ${r.purpose}`).join('\n')
+      : '- 보유 부동산 없음';
+
+    const assetSummary = `[보유 주식/ETF]\n${stocksSummary}\n\n[보유 예적금]\n${savingsSummary}\n\n[보유 부동산]\n${realEstateSummary}`;
 
     const gachangiContext = _gachangiData
       ? `이번 달 수입: ${_gachangiData.income.toLocaleString()}원, ` +
@@ -294,8 +317,8 @@ ${strategyContext}`;
     const userPrompt = `오늘(${today}) 기준으로 투자 검토할 만한 종목을 자동 발굴·추천해주세요.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-[현재 포트폴리오]
-  ${portfolioSummary}
+[현재 가구 전체 자산 현황]
+  ${assetSummary}
 
 [가계부 현황]
   ${gachangiContext}
@@ -622,6 +645,8 @@ ${youtubeFeedText}
   function getTradeLog()  { return _tradelog; }
   function getAnalysis()  { return _analysisHistory; }
   function getGachangiData() { return _gachangiData; }
+  function getSavings()   { return _savings; }
+  function getRealEstate() { return _realEstate; }
 
   async function addPortfolio(row) {
     await SheetsAPI.appendPortfolio(row);
@@ -762,7 +787,7 @@ ${youtubeFeedText}
     runGeminiAnalysis,
     runAutoRecommendation,
     renderCharts,
-    getPortfolio, getTradeLog, getAnalysis, getGachangiData,
+    getPortfolio, getTradeLog, getAnalysis, getGachangiData, getSavings, getRealEstate,
     addPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, addTrade, saveAnalysis, saveFilter, applyFormulasToPortfolio, restorePortfolioFromBackup,
     getAssetHistory, calcAssetMetrics, syncPortfolioAssets, renderAssetCharts,
     parseHoldingScreenshot
