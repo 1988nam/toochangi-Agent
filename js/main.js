@@ -31,6 +31,11 @@ function bindLoginEvents() {
     document.getElementById('app').classList.add('hidden');
     toast('로그아웃 되었습니다.', 'info');
   });
+  document.getElementById('open-config-btn')?.addEventListener('click', () => {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    switchTab('settings');
+  });
 }
 
 // ── 로그인 성공 ────────────────────────────────────────────────
