@@ -441,6 +441,15 @@ function bindModalEvents() {
       // 한 파일 실패해도 나머지는 계속 진행, 실패 파일은 원본 위치 유지
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+
+        // 여러 파일 순차 판독 시 분당 API 호출 제한(Rate Limit)을 우회하기 위해 3초 대기
+        if (i > 0) {
+          if (spinner) {
+            spinnerText.textContent = `API 요청 제한 방지 대기 중... (${i + 1} / ${files.length})`;
+          }
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+
         if (spinner) {
           spinnerText.textContent = `이미지 판독 중... (${i + 1} / ${files.length}) — ${file.name}`;
         }

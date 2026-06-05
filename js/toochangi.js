@@ -688,11 +688,22 @@ ${youtubeFeedText}
       }
     };
 
-    const res = await fetch(url, {
+    let res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+
+    // 429 (Rate Limit) 에러 발생 시 7초 대기 후 1회 자동 재시도
+    if (res.status === 429) {
+      console.warn('[Gemini API] 429 사용량 초과 감지. 7초 대기 후 재시도합니다...');
+      await new Promise(resolve => setTimeout(resolve, 7000));
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    }
 
     if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
     const data = await res.json();
