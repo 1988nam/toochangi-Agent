@@ -1,0 +1,11 @@
+# AI Coding Agent Instructions (toochangi-Agent)
+
+This repository uses GitHub Actions for immediate CI/CD deployment on GitHub Pages. To ensure maximum productivity and fast updates, any AI agent working on this codebase must follow these instructions:
+
+## Git Auto-Commit and Auto-Push Policy
+- **Rule**: Every time you complete a code modification or a set of related edits, you **MUST** automatically commit and push those changes to the remote repository.
+- **Workflow**:
+  1. Once changes are made and verified, run `git add .`
+  2. Commit the changes with a concise commit message: `git commit -m "fix/feat/refactor: <brief description>"`
+  3. Push the changes to the remote repository: `git push origin main`
+- **Goal**: Do not leave changes uncommitted or unpushed at the end of your turn.
