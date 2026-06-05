@@ -271,8 +271,8 @@ function renderPortfolioTab() {
       <td style="color:var(--text-muted)">${p.market}</td>
       <td>${p.memo || '-'}</td>
       <td>${p.qty.toLocaleString()}</td>
-      <td>${p.avgPrice.toLocaleString()}원</td>
-      <td>${(p.curPrice || p.avgPrice).toLocaleString()}원</td>
+      <td>${Math.floor(p.avgPrice).toLocaleString()}원</td>
+      <td>${Math.floor(p.curPrice || p.avgPrice).toLocaleString()}원</td>
       <td>${Math.floor(p._value || 0).toLocaleString()}원</td>
       <td class="${yieldClass}">${yieldStr}</td>
       <td style="color:var(--text-muted)">${(p._weight || 0).toFixed(1)}%</td>
