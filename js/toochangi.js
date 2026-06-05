@@ -627,6 +627,14 @@ ${youtubeFeedText}
     await SheetsAPI.appendPortfolio(row);
     await loadAll();
   }
+  async function updatePortfolio(rowIndex, row) {
+    await SheetsAPI.updatePortfolio(rowIndex, row);
+    await loadAll();
+  }
+  async function deletePortfolio(rowIndex) {
+    await SheetsAPI.deletePortfolio(rowIndex);
+    await loadAll();
+  }
   async function addTrade(row) {
     await SheetsAPI.appendTrade(row);
     await loadAll();
@@ -743,7 +751,7 @@ ${youtubeFeedText}
     runAutoRecommendation,
     renderCharts,
     getPortfolio, getTradeLog, getAnalysis, getGachangiData,
-    addPortfolio, addTrade, saveAnalysis, saveFilter, applyFormulasToPortfolio,
+    addPortfolio, updatePortfolio, deletePortfolio, addTrade, saveAnalysis, saveFilter, applyFormulasToPortfolio,
     getAssetHistory, calcAssetMetrics, syncPortfolioAssets, renderAssetCharts,
     parseHoldingScreenshot
   };

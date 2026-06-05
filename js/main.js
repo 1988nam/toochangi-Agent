@@ -244,16 +244,28 @@ function renderRecentAnalysis() {
 // ── 포트폴리오 탭 렌더링 ──────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 function renderPortfolioTab() {
+  const sheetLink = document.getElementById('btn-open-sheet');
+  if (sheetLink) {
+    const sheetId = (window.TOOCHANGI_CONFIG || {}).TOOCHANGI_SHEET_ID;
+    sheetLink.href = sheetId ? `https://docs.google.com/spreadsheets/d/${sheetId}/edit` : '#';
+  }
+
   const tbody = document.getElementById('portfolio-tbody');
   const portfolio = Toochangi.getPortfolio();
   if (portfolio.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">종목을 추가해주세요</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="empty-state">종목을 추가해주세요</td></tr>';
+    const chkAll = document.getElementById('chk-portfolio-all');
+    if (chkAll) chkAll.checked = false;
+    updateBulkActionsVisibility();
     return;
   }
   tbody.innerHTML = portfolio.map(p => {
     const yieldStr = p._yield >= 0 ? `+${p._yield.toFixed(2)}%` : `${p._yield.toFixed(2)}%`;
     const yieldClass = p._yield >= 0 ? 'pos' : 'neg';
-    return `<tr>
+    return `<tr data-rowindex="${p.rowIndex}">
+      <td style="text-align: center;">
+        <input type="checkbox" class="chk-portfolio-row" data-rowindex="${p.rowIndex}" style="cursor:pointer;" />
+      </td>
       <td>${p.name}</td>
       <td style="color:var(--text-muted)">${p.ticker}</td>
       <td style="color:var(--text-muted)">${p.market}</td>
@@ -264,8 +276,77 @@ function renderPortfolioTab() {
       <td>${Math.floor(p._value || 0).toLocaleString()}원</td>
       <td class="${yieldClass}">${yieldStr}</td>
       <td style="color:var(--text-muted)">${(p._weight || 0).toFixed(1)}%</td>
+      <td style="text-align: center;">
+        <div style="display:flex; gap:4px; justify-content:center;">
+          <button class="btn-primary-sm edit-holding-btn" data-rowindex="${p.rowIndex}" style="padding: 2px 8px; font-size: 11px;">수정</button>
+          <button class="btn-primary-sm delete-holding-btn" style="padding: 2px 8px; font-size: 11px; background:var(--accent-red); border-color:var(--accent-red);" data-rowindex="${p.rowIndex}">삭제</button>
+        </div>
+      </td>
     </tr>`;
   }).join('');
+
+  // 개별 수정 버튼 바인딩
+  tbody.querySelectorAll('.edit-holding-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const rIdx = parseInt(e.target.dataset.rowindex, 10);
+      const item = portfolio.find(p => p.rowIndex === rIdx);
+      if (!item) return;
+
+      document.getElementById('input-stock-row-index').value = rIdx;
+      document.getElementById('input-stock-name').value = item.name;
+      document.getElementById('input-stock-ticker').value = item.ticker;
+      document.getElementById('input-stock-market').value = item.market;
+      document.getElementById('input-stock-qty').value = item.qty;
+      document.getElementById('input-stock-avg').value = item.avgPrice;
+      document.getElementById('input-stock-cur').value = item.curPrice || item.avgPrice;
+      document.getElementById('input-stock-memo').value = item.memo || '';
+
+      document.querySelector('#modal-holding h3').textContent = '종목 수정';
+      document.getElementById('modal-holding').classList.remove('hidden');
+    });
+  });
+
+  // 개별 삭제 버튼 바인딩
+  tbody.querySelectorAll('.delete-holding-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const rIdx = parseInt(e.target.dataset.rowindex, 10);
+      const item = portfolio.find(p => p.rowIndex === rIdx);
+      if (!item) return;
+
+      if (!confirm(`"${item.name}" 종목을 정말로 삭제하시겠습니까?`)) return;
+
+      toast('⏳ 종목 삭제 중...', 'info');
+      try {
+        await Toochangi.deletePortfolio(rIdx);
+        toast(`✅ ${item.name} 삭제 완료`, 'success');
+        renderPortfolioTab();
+        renderDashboard();
+        updateBulkActionsVisibility();
+      } catch (err) {
+        toast('⚠️ 삭제 실패: ' + err.message, 'error');
+      }
+    });
+  });
+
+  // 개별 체크박스 선택 시 다중 선택 액션 버튼 가시성 제어
+  tbody.querySelectorAll('.chk-portfolio-row').forEach(chk => {
+    chk.addEventListener('change', () => {
+      updateBulkActionsVisibility();
+    });
+  });
+
+  // 전체 선택 체크박스 상태 동기화 및 가시성 제어
+  const chkAll = document.getElementById('chk-portfolio-all');
+  if (chkAll) {
+    chkAll.checked = false;
+    chkAll.addEventListener('change', (e) => {
+      const checked = e.target.checked;
+      tbody.querySelectorAll('.chk-portfolio-row').forEach(chk => {
+        chk.checked = checked;
+      });
+      updateBulkActionsVisibility();
+    });
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -360,8 +441,22 @@ function bindFilterEvents() {
 // ══════════════════════════════════════════════════════════════
 function bindModalEvents() {
   // 모달 열기
-  document.getElementById('add-holding-btn')?.addEventListener('click', () =>
-    document.getElementById('modal-holding').classList.remove('hidden'));
+  document.getElementById('add-holding-btn')?.addEventListener('click', () => {
+    document.querySelector('#modal-holding h3').textContent = '종목 추가';
+    document.getElementById('input-stock-row-index').value = '';
+    document.getElementById('input-stock-name').value = '';
+    document.getElementById('input-stock-ticker').value = '';
+    document.getElementById('input-stock-qty').value = '';
+    document.getElementById('input-stock-avg').value = '';
+    document.getElementById('input-stock-cur').value = '';
+    document.getElementById('input-stock-memo').value = '';
+    document.getElementById('modal-holding').classList.remove('hidden');
+  });
+
+  // 다중 수정 및 삭제 버튼 이벤트 바인딩
+  document.getElementById('btn-bulk-edit')?.addEventListener('click', openBulkEditModal);
+  document.getElementById('btn-bulk-delete')?.addEventListener('click', deleteBulkHoldings);
+  document.getElementById('btn-save-bulk-edit')?.addEventListener('click', saveBulkEdit);
   
   // 실시간 주가 수식 반영
   document.getElementById('apply-formulas-btn')?.addEventListener('click', async () => {
@@ -610,16 +705,25 @@ function bindModalEvents() {
     const qty  = parseFloat(document.getElementById('input-stock-qty').value);
     const avg  = parseFloat(document.getElementById('input-stock-avg').value);
     const memo = document.getElementById('input-stock-memo').value.trim();
+    const rowIndex = document.getElementById('input-stock-row-index')?.value;
     if (!name || !qty || !avg) { toast('필수 항목을 입력해주세요', 'error'); return; }
 
     try {
-      await Toochangi.addPortfolio({
+      const data = {
         name, ticker: document.getElementById('input-stock-ticker').value,
         market: document.getElementById('input-stock-market').value,
         qty, avgPrice: avg,
         curPrice: parseFloat(document.getElementById('input-stock-cur').value) || avg,
         memo,
-      });
+      };
+
+      if (rowIndex) {
+        await Toochangi.updatePortfolio(parseInt(rowIndex, 10), data);
+        toast(`✅ ${name} 수정 완료`, 'success');
+      } else {
+        await Toochangi.addPortfolio(data);
+        toast(`✅ ${name} 추가 완료`, 'success');
+      }
       document.getElementById('modal-holding').classList.add('hidden');
       
       // 입력 필드 초기화
@@ -629,10 +733,10 @@ function bindModalEvents() {
       document.getElementById('input-stock-avg').value = '';
       document.getElementById('input-stock-cur').value = '';
       document.getElementById('input-stock-memo').value = '';
+      if (document.getElementById('input-stock-row-index')) document.getElementById('input-stock-row-index').value = '';
 
       renderPortfolioTab();
       renderDashboard();
-      toast(`✅ ${name} 추가 완료`, 'success');
     } catch (e) {
       toast('⚠️ 저장 실패: ' + e.message, 'error');
     }
@@ -1870,6 +1974,11 @@ function bindSettingsEvents() {
 
 function initSettingsFields() {
   const cfg = window.TOOCHANGI_CONFIG || {};
+  const sheetLink = document.getElementById('btn-open-sheet');
+  if (sheetLink) {
+    const sheetId = cfg.TOOCHANGI_SHEET_ID;
+    sheetLink.href = sheetId ? `https://docs.google.com/spreadsheets/d/${sheetId}/edit` : '#';
+  }
   if (document.getElementById('setting-client-id')) document.getElementById('setting-client-id').value = cfg.CLIENT_ID || '';
   if (document.getElementById('setting-api-key')) document.getElementById('setting-api-key').value = cfg.API_KEY || '';
   if (document.getElementById('setting-toochangi-sheet-id')) document.getElementById('setting-toochangi-sheet-id').value = cfg.TOOCHANGI_SHEET_ID || '';
@@ -1918,5 +2027,119 @@ function initSettingsFields() {
     if (exportInput) exportInput.value = b64;
   } catch (e) {
     console.error('설정 토큰 생성 실패:', e);
+  }
+}
+
+// 다중 선택 상태 업데이트 및 버튼 제어
+function updateBulkActionsVisibility() {
+  const checked = document.querySelectorAll('.chk-portfolio-row:checked');
+  const bulkEditBtn = document.getElementById('btn-bulk-edit');
+  const bulkDeleteBtn = document.getElementById('btn-bulk-delete');
+  if (bulkEditBtn && bulkDeleteBtn) {
+    if (checked.length > 0) {
+      bulkEditBtn.classList.remove('hidden');
+      bulkDeleteBtn.classList.remove('hidden');
+    } else {
+      bulkEditBtn.classList.add('hidden');
+      bulkDeleteBtn.classList.add('hidden');
+    }
+  }
+}
+
+// 다중 수정 모달 채우기 및 열기
+function openBulkEditModal() {
+  const checked = document.querySelectorAll('.chk-portfolio-row:checked');
+  if (checked.length === 0) return;
+
+  const portfolio = Toochangi.getPortfolio();
+  const tbody = document.getElementById('bulk-edit-portfolio-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = Array.from(checked).map(chk => {
+    const rIdx = parseInt(chk.dataset.rowindex, 10);
+    const item = portfolio.find(p => p.rowIndex === rIdx);
+    if (!item) return '';
+
+    return `<tr data-rowindex="${rIdx}">
+      <td style="font-weight: 600;">${item.name}</td>
+      <td><code style="background:var(--bg-elevated); padding:2px 6px; border-radius:4px;">${item.ticker}</code></td>
+      <td><input type="number" step="any" class="bulk-qty" value="${item.qty || 0}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px; text-align: right;" /></td>
+      <td><input type="number" step="any" class="bulk-avg" value="${item.avgPrice || 0}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px; text-align: right;" /></td>
+      <td><input type="text" class="bulk-memo" value="${item.memo || ''}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px;" /></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('modal-bulk-edit-portfolio').classList.remove('hidden');
+}
+
+// 다중 수정 사항 저장
+async function saveBulkEdit() {
+  const tbody = document.getElementById('bulk-edit-portfolio-tbody');
+  if (!tbody) return;
+
+  const rows = tbody.querySelectorAll('tr');
+  if (rows.length === 0) return;
+
+  toast('⏳ 다중 수정사항 저장 중...', 'info');
+  document.getElementById('modal-bulk-edit-portfolio').classList.add('hidden');
+
+  try {
+    const portfolio = Toochangi.getPortfolio();
+    for (const row of rows) {
+      const rIdx = parseInt(row.dataset.rowindex, 10);
+      const item = portfolio.find(p => p.rowIndex === rIdx);
+      if (!item) continue;
+
+      const qty = parseFloat(row.querySelector('.bulk-qty').value) || 0;
+      const avgPrice = parseFloat(row.querySelector('.bulk-avg').value) || 0;
+      const memo = row.querySelector('.bulk-memo').value.trim();
+
+      if (qty <= 0 || avgPrice <= 0) continue;
+
+      await Toochangi.updatePortfolio(rIdx, {
+        name: item.name,
+        ticker: item.ticker,
+        market: item.market,
+        qty,
+        avgPrice,
+        curPrice: item.curPrice || avgPrice,
+        memo
+      });
+    }
+
+    toast('✅ 다중 수정 완료!', 'success');
+    renderPortfolioTab();
+    renderDashboard();
+    updateBulkActionsVisibility();
+  } catch (err) {
+    toast('⚠️ 다중 수정 실패: ' + err.message, 'error');
+  }
+}
+
+// 선택 종목 다중 삭제
+async function deleteBulkHoldings() {
+  const checked = document.querySelectorAll('.chk-portfolio-row:checked');
+  if (checked.length === 0) return;
+
+  if (!confirm(`선택한 ${checked.length}개 종목을 정말로 모두 삭제하시겠습니까?`)) return;
+
+  toast('⏳ 다중 종목 삭제 중...', 'info');
+
+  try {
+    // 행 번호 내림차순(역순) 정렬 중요 (행 삭제 시 순번 변경 영향 최소화)
+    const rowIndices = Array.from(checked)
+      .map(chk => parseInt(chk.dataset.rowindex, 10))
+      .sort((a, b) => b - a);
+
+    for (const rIdx of rowIndices) {
+      await Toochangi.deletePortfolio(rIdx);
+    }
+
+    toast('✅ 선택 삭제 완료!', 'success');
+    renderPortfolioTab();
+    renderDashboard();
+    updateBulkActionsVisibility();
+  } catch (err) {
+    toast('⚠️ 선택 삭제 실패: ' + err.message, 'error');
   }
 }
