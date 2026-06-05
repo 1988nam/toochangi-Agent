@@ -145,7 +145,7 @@ const SheetsAPI = (() => {
     const portfolio = await getPortfolio();
     const nextRow = portfolio.length + 2;
 
-    const fFormula = `=IF(ISBLANK(B${nextRow}), 0, IF(OR(C${nextRow}="나스닥", C${nextRow}="NYSE"), GOOGLEFINANCE(B${nextRow}, "price") * GOOGLEFINANCE("CURRENCY:USDKRW", "price"), IF(AND(ISNUMBER(VALUE(B${nextRow})), LEN(B${nextRow})=6), GOOGLEFINANCE("KRX:"&TEXT(B${nextRow},"000000"), "price"), GOOGLEFINANCE(B${nextRow}, "price"))))`;
+    const fFormula = `=IF(ISBLANK(B${nextRow}), 0, IF(OR(C${nextRow}="나스닥", C${nextRow}="NYSE"), INT(GOOGLEFINANCE(B${nextRow}) * GOOGLEFINANCE("USDKRW")), IF(OR(C${nextRow}="코스피", C${nextRow}="코스닥", C${nextRow}="KRX"), INT(GOOGLEFINANCE("KRX:"&TEXT(B${nextRow},"000000"))), INT(GOOGLEFINANCE(B${nextRow})))))`;
     const gFormula = `=D${nextRow}*F${nextRow}`;
     const hFormula = `=IF(E${nextRow}>0, (F${nextRow}-E${nextRow})/E${nextRow}, 0)`;
     const iFormula = `=IF(SUM(G$2:G$100)>0, G${nextRow}/SUM(G$2:G$100), 0)`;
@@ -168,7 +168,7 @@ const SheetsAPI = (() => {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     const now = new Date().toLocaleDateString('ko-KR');
 
-    const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), GOOGLEFINANCE(B${rowIndex}, "price") * GOOGLEFINANCE("CURRENCY:USDKRW", "price"), IF(AND(ISNUMBER(VALUE(B${rowIndex})), LEN(B${rowIndex})=6), GOOGLEFINANCE("KRX:"&TEXT(B${rowIndex},"000000"), "price"), GOOGLEFINANCE(B${rowIndex}, "price"))))`;
+    const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("USDKRW")), IF(OR(C${rowIndex}="코스피", C${rowIndex}="코스닥", C${rowIndex}="KRX"), INT(GOOGLEFINANCE("KRX:"&TEXT(B${rowIndex},"000000"))), INT(GOOGLEFINANCE(B${rowIndex})))))`;
     const gFormula = `=D${rowIndex}*F${rowIndex}`;
     const hFormula = `=IF(E${rowIndex}>0, (F${rowIndex}-E${rowIndex})/E${rowIndex}, 0)`;
     const iFormula = `=IF(SUM(G$2:G$100)>0, G${rowIndex}/SUM(G$2:G$100), 0)`;
@@ -219,7 +219,7 @@ const SheetsAPI = (() => {
     const now = new Date().toLocaleDateString('ko-KR');
 
     const data = updates.map(({ rowIndex, row }) => {
-      const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), GOOGLEFINANCE(B${rowIndex}, "price") * GOOGLEFINANCE("CURRENCY:USDKRW", "price"), IF(AND(ISNUMBER(VALUE(B${rowIndex})), LEN(B${rowIndex})=6), GOOGLEFINANCE("KRX:"&TEXT(B${rowIndex},"000000"), "price"), GOOGLEFINANCE(B${rowIndex}, "price"))))`;
+      const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("USDKRW")), IF(OR(C${rowIndex}="코스피", C${rowIndex}="코스닥", C${rowIndex}="KRX"), INT(GOOGLEFINANCE("KRX:"&TEXT(B${rowIndex},"000000"))), INT(GOOGLEFINANCE(B${rowIndex})))))`;
       const gFormula = `=D${rowIndex}*F${rowIndex}`;
       const hFormula = `=IF(E${rowIndex}>0, (F${rowIndex}-E${rowIndex})/E${rowIndex}, 0)`;
       const iFormula = `=IF(SUM(G$2:G$100)>0, G${rowIndex}/SUM(G$2:G$100), 0)`;
@@ -288,7 +288,7 @@ const SheetsAPI = (() => {
     rows.forEach((r, index) => {
       const rowIndex = index + 2; // 2행부터 시작
       const range = `포트폴리오!F${rowIndex}:I${rowIndex}`;
-      const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), GOOGLEFINANCE(B${rowIndex}, "price") * GOOGLEFINANCE("CURRENCY:USDKRW", "price"), IF(AND(ISNUMBER(VALUE(B${rowIndex})), LEN(B${rowIndex})=6), GOOGLEFINANCE("KRX:"&TEXT(B${rowIndex},"000000"), "price"), GOOGLEFINANCE(B${rowIndex}, "price"))))`;
+      const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("USDKRW")), IF(OR(C${rowIndex}="코스피", C${rowIndex}="코스닥", C${rowIndex}="KRX"), INT(GOOGLEFINANCE("KRX:"&TEXT(B${rowIndex},"000000"))), INT(GOOGLEFINANCE(B${rowIndex})))))`;
       const gFormula = `=D${rowIndex}*F${rowIndex}`;
       const hFormula = `=IF(E${rowIndex}>0, (F${rowIndex}-E${rowIndex})/E${rowIndex}, 0)`;
       const iFormula = `=IF(SUM(G$2:G$100)>0, G${rowIndex}/SUM(G$2:G$100), 0)`;
