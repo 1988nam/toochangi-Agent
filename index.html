@@ -55,7 +55,13 @@
         <span class="nav-icon">📊</span><span>대시보드</span>
       </button>
       <button class="nav-item" data-tab="portfolio" id="nav-portfolio">
-        <span class="nav-icon">💼</span><span>포트폴리오</span>
+        <span class="nav-icon">💼</span><span>주식</span>
+      </button>
+      <button class="nav-item" data-tab="savings" id="nav-savings">
+        <span class="nav-icon">🏦</span><span>예적금</span>
+      </button>
+      <button class="nav-item" data-tab="realestate" id="nav-realestate">
+        <span class="nav-icon">🏠</span><span>부동산</span>
       </button>
       <button class="nav-item" data-tab="filter" id="nav-filter">
         <span class="nav-icon">🚦</span><span>3단계 필터</span>
@@ -195,58 +201,75 @@
         </div>
       </div>
 
-      <!-- 예적금 보유 현황 -->
-      <div class="card" style="margin-top: 24px;">
+    </div>
+
+    <!-- ── 예적금 탭 ── -->
+    <div id="tab-savings" class="tab-panel hidden">
+      <div class="card">
         <div class="card-header">
           <span class="card-title">💵 예적금 보유 현황</span>
-          <span style="font-size: 12px; color: var(--text-muted);">※ 추가/수정/삭제는 상단 '구글 시트 열기'를 통해 관리해 주세요.</span>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <a id="btn-savings-open-sheet" class="btn-primary-sm" href="#" target="_blank" style="background:#10b981; border-color:#10b981; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600; padding:6px 12px; border-radius:6px; font-size:12px;">📊 구글 시트 열기</a>
+            <button id="btn-savings-bulk-edit" class="btn-primary-sm hidden" style="background:#4f46e5; border-color:#4f46e5; font-weight:600;">✏️ 선택 수정</button>
+            <button id="btn-savings-bulk-delete" class="btn-primary-sm hidden" style="background:#dc2626; border-color:#dc2626; font-weight:600;">🗑️ 선택 삭제</button>
+            <button id="restore-savings-btn" class="btn-primary-sm" style="background:#4b5563; border-color:#6b7280;">↩️ 직전 작업 취소 (원복)</button>
+            <button id="add-savings-btn" class="btn-primary-sm">+ 예적금 추가</button>
+          </div>
         </div>
         <div class="table-wrap">
           <table class="data-table" id="savings-table">
             <thead>
               <tr>
+                <th style="width: 40px; text-align: center;"><input type="checkbox" id="chk-savings-all" style="cursor:pointer;" /></th>
                 <th>자산명</th>
                 <th>금융기관</th>
                 <th>예적금종류</th>
-                <th>금리</th>
-                <th>잔액</th>
+                <th>금리(%)</th>
+                <th>잔액(원)</th>
                 <th>만기일</th>
                 <th>자산용도</th>
-                <th>등록일</th>
                 <th>메모</th>
+                <th>등록일</th>
+                <th style="width: 110px; text-align: center;">작업</th>
               </tr>
             </thead>
             <tbody id="savings-tbody">
-              <tr><td colspan="9" class="empty-state">자산을 추가해 주세요</td></tr>
+              <tr><td colspan="11" class="empty-state">자산을 추가해 주세요</td></tr>
             </tbody>
           </table>
         </div>
       </div>
+    </div>
 
-      <!-- 부동산 보유 현황 -->
-      <div class="card" style="margin-top: 24px;">
+    <!-- ── 부동산 탭 ── -->
+    <div id="tab-realestate" class="tab-panel hidden">
+      <div class="card">
         <div class="card-header">
           <span class="card-title">🏠 부동산 보유 현황</span>
-          <span style="font-size: 12px; color: var(--text-muted);">※ 추가/수정/삭제는 상단 '구글 시트 열기'를 통해 관리해 주세요.</span>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <a id="btn-realestate-open-sheet" class="btn-primary-sm" href="#" target="_blank" style="background:#10b981; border-color:#10b981; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600; padding:6px 12px; border-radius:6px; font-size:12px;">📊 구글 시트 열기</a>
+            <button id="add-realestate-btn" class="btn-primary-sm">+ 부동산 추가</button>
+          </div>
         </div>
         <div class="table-wrap">
           <table class="data-table" id="realestate-table">
             <thead>
               <tr>
                 <th>부동산명</th>
-                <th>매입가</th>
-                <th>현재평가액</th>
-                <th>담보대출액</th>
-                <th>대출금리</th>
-                <th>전세보증금</th>
-                <th>연간유지비/이자</th>
+                <th>매입가(원)</th>
+                <th>현재평가액(원)</th>
+                <th>담보대출액(원)</th>
+                <th>대출금리(%)</th>
+                <th>전세보증금(원)</th>
+                <th>연간유지비/이자(원)</th>
                 <th>자산용도</th>
-                <th>등록일</th>
                 <th>메모</th>
+                <th>등록일</th>
+                <th style="width: 110px; text-align: center;">작업</th>
               </tr>
             </thead>
             <tbody id="realestate-tbody">
-              <tr><td colspan="10" class="empty-state">자산을 추가해 주세요</td></tr>
+              <tr><td colspan="11" class="empty-state">부동산을 추가해 주세요</td></tr>
             </tbody>
           </table>
         </div>
@@ -766,25 +789,26 @@
               <div class="form-group">
                 <label>수동 투자 분석 모델</label>
                 <select id="setting-gemini-model-analysis" style="width: 100%;">
-                  <option value="gemini-2.5-pro">gemini-2.5-pro (권장 - 고성능 추론)</option>
-                  <option value="gemini-2.5-flash">gemini-2.5-flash (고속 분석)</option>
-                  <option value="gemini-1.5-pro">gemini-1.5-pro (구버전 Pro)</option>
-                  <option value="gemini-1.5-flash">gemini-1.5-flash (구버전 Flash)</option>
+                  <option value="gemini-2.5-pro">gemini-2.5-pro (Pro 고성능)</option>
+                  <option value="gemini-2.5-flash">gemini-2.5-flash (Flash 고속)</option>
+                  <option value="gemini-1.5-pro">gemini-1.5-pro (1.5 Pro)</option>
+                  <option value="gemini-1.5-flash">gemini-1.5-flash (1.5 Flash)</option>
                 </select>
               </div>
               <div class="form-group">
                 <label>자동 투자 추천 모델</label>
                 <select id="setting-gemini-model-recommend" style="width: 100%;">
-                  <option value="gemini-2.5-flash">gemini-2.5-flash (권장 - 무료 API 지원)</option>
-                  <option value="gemini-2.5-pro">gemini-2.5-pro (정교한 분석/추론)</option>
-                  <option value="gemini-3.5-flash">gemini-3.5-flash (유료/고성능 에이전트)</option>
+                  <option value="gemini-2.5-pro">gemini-2.5-pro (Pro 고성능)</option>
+                  <option value="gemini-2.5-flash">gemini-2.5-flash (Flash 고속)</option>
+                  <option value="gemini-1.5-pro">gemini-1.5-pro (1.5 Pro)</option>
+                  <option value="gemini-1.5-flash">gemini-1.5-flash (1.5 Flash)</option>
                 </select>
               </div>
               <div class="form-group">
                 <label>계좌 스크린샷 판독 모델</label>
                 <select id="setting-gemini-model-vision" style="width: 100%;">
-                  <option value="gemini-2.5-flash">gemini-2.5-flash (권장 - 빠른 이미지 분석)</option>
-                  <option value="gemini-1.5-flash">gemini-1.5-flash (구버전 Flash)</option>
+                  <option value="gemini-2.5-flash">gemini-2.5-flash (Flash 고속)</option>
+                  <option value="gemini-1.5-flash">gemini-1.5-flash (1.5 Flash)</option>
                 </select>
               </div>
             </div>
@@ -1210,6 +1234,156 @@
     <div class="modal-footer">
       <button class="btn-cancel" data-modal="modal-bulk-edit-portfolio">취소</button>
       <button id="btn-save-bulk-edit" class="btn-primary">변경사항 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ 예적금 추가/수정 모달 ════════════ -->
+<div id="modal-savings-add-edit" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="savings-modal-title">예적금 추가</h3>
+      <button class="modal-close" data-modal="modal-savings-add-edit">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="input-savings-row-index" />
+      <div class="form-group">
+        <label>자산명 *</label>
+        <input type="text" id="input-savings-name" placeholder="예: 청년우대형 주택청약종합저축" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>금융기관 *</label>
+          <input type="text" id="input-savings-bank" placeholder="예: 신한은행" />
+        </div>
+        <div class="form-group">
+          <label>예적금종류 *</label>
+          <input type="text" id="input-savings-type" placeholder="예: 정기예금" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>금리 (%) *</label>
+          <input type="number" step="0.01" id="input-savings-rate" placeholder="예: 3.5" />
+        </div>
+        <div class="form-group">
+          <label>잔액 (원) *</label>
+          <input type="number" id="input-savings-balance" placeholder="0" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>만기일</label>
+          <input type="date" id="input-savings-maturity" />
+        </div>
+        <div class="form-group">
+          <label>자산용도</label>
+          <input type="text" id="input-savings-purpose" placeholder="예: 주택교체자금" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>메모</label>
+        <input type="text" id="input-savings-memo" placeholder="추가 메모 입력" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" data-modal="modal-savings-add-edit">취소</button>
+      <button id="save-savings-btn" class="btn-primary">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ 예적금 다중 수정 모달 ════════════ -->
+<div id="modal-savings-bulk-edit" class="modal-overlay hidden">
+  <div class="modal" style="max-width: 800px; width: 90vw;">
+    <div class="modal-header">
+      <h3>예적금 다중 수정</h3>
+      <button class="modal-close" data-modal="modal-savings-bulk-edit">✕</button>
+    </div>
+    <div class="modal-body" style="padding: 20px 24px;">
+      <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 15px;">
+        💡 선택한 예적금의 잔액, 금리, 자산용도 정보를 한 번에 수정할 수 있습니다.
+      </div>
+      <div class="table-wrap" style="max-height: 300px; overflow-y: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>자산명</th>
+              <th>금융기관</th>
+              <th style="width: 100px;">금리 (%) *</th>
+              <th style="width: 160px;">잔액 (원) *</th>
+              <th>자산용도 *</th>
+              <th>메모</th>
+            </tr>
+          </thead>
+          <tbody id="bulk-edit-savings-tbody">
+            <!-- 선택한 예적금들이 동적으로 채워집니다 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" data-modal="modal-savings-bulk-edit">취소</button>
+      <button id="btn-savings-save-bulk-edit" class="btn-primary">변경사항 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ 부동산 추가/수정 모달 ════════════ -->
+<div id="modal-realestate-add-edit" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="realestate-modal-title">부동산 추가</h3>
+      <button class="modal-close" data-modal="modal-realestate-add-edit">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="input-realestate-row-index" />
+      <div class="form-group">
+        <label>부동산명 *</label>
+        <input type="text" id="input-realestate-name" placeholder="예: 마포 래미안 푸르지오 84㎡" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>매입가 (원) *</label>
+          <input type="number" id="input-realestate-purchasePrice" placeholder="0" />
+        </div>
+        <div class="form-group">
+          <label>현재평가액 (원) *</label>
+          <input type="number" id="input-realestate-currentValue" placeholder="0" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>담보대출액 (원)</label>
+          <input type="number" id="input-realestate-loanAmount" placeholder="0" />
+        </div>
+        <div class="form-group">
+          <label>대출금리 (%)</label>
+          <input type="number" step="0.01" id="input-realestate-loanRate" placeholder="0" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>전세보증금 (원)</label>
+          <input type="number" id="input-realestate-deposit" placeholder="0" />
+        </div>
+        <div class="form-group">
+          <label>연간유지비/이자 (원)</label>
+          <input type="number" id="input-realestate-maintenance" placeholder="0" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>자산용도</label>
+        <input type="text" id="input-realestate-purpose" placeholder="예: 주택교체 대상지, 실거주" />
+      </div>
+      <div class="form-group">
+        <label>메모</label>
+        <input type="text" id="input-realestate-memo" placeholder="추가 메모 입력" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" data-modal="modal-realestate-add-edit">취소</button>
+      <button id="save-realestate-btn" class="btn-primary">저장</button>
     </div>
   </div>
 </div>

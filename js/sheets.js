@@ -246,6 +246,320 @@ const SheetsAPI = (() => {
     }
   }
 
+  // ── 예적금 CRUD ──────────────────────────────────────────────
+  async function backupSavings() {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (!id || id.startsWith('YOUR_')) return;
+    try {
+      const res = await gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: id,
+        range: '예적금!A1:I',
+        valueRenderOption: 'FORMULA'
+      });
+      const values = res.result.values;
+      if (!values || values.length === 0) return;
+
+      const metaRes = await gapi.client.sheets.spreadsheets.get({
+        spreadsheetId: id,
+        fields: 'sheets.properties(title,sheetId)'
+      });
+      const sheets = metaRes.result.sheets || [];
+      const backupSheet = sheets.find(s => s.properties.title === '예적금_백업');
+      
+      if (!backupSheet) {
+        await gapi.client.sheets.spreadsheets.batchUpdate({
+          spreadsheetId: id,
+          resource: {
+            requests: [{
+              addSheet: {
+                properties: { title: '예적금_백업' }
+              }
+            }]
+          }
+        });
+      }
+
+      await gapi.client.sheets.spreadsheets.values.clear({
+        spreadsheetId: id,
+        range: '예적금_백업!A1:I'
+      });
+
+      await gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId: id,
+        range: '예적금_백업!A1',
+        valueInputOption: 'USER_ENTERED',
+        resource: { values }
+      });
+      console.log('✅ 예적금 백업 완료 (예적금_백업)');
+    } catch (e) {
+      console.warn('⚠️ 예적금 백업 실패:', e);
+    }
+  }
+
+  async function restoreSavingsFromBackup() {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (!id || id.startsWith('YOUR_')) return;
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: id,
+      range: '예적금_백업!A1:I',
+      valueRenderOption: 'FORMULA'
+    });
+    const values = res.result.values;
+    if (!values || values.length === 0) {
+      throw new Error('복원할 백업 데이터가 존재하지 않습니다.');
+    }
+    await gapi.client.sheets.spreadsheets.values.clear({
+      spreadsheetId: id,
+      range: '예적금!A1:I'
+    });
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: id,
+      range: '예적금!A1',
+      valueInputOption: 'USER_ENTERED',
+      resource: { values }
+    });
+    console.log('✅ 백업으로부터 예적금 복원 완료');
+  }
+
+  async function appendSavings(row) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    const now = new Date().toLocaleDateString('ko-KR');
+    await backupSavings();
+    const values = [[
+      row.name, row.bank, row.type,
+      parseFloat(row.rate) || 0, parseFloat(row.balance) || 0, row.maturity || '',
+      row.purpose || '', row.memo || '', now
+    ]];
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: id,
+      range: '예적금!A:I',
+      valueInputOption: 'USER_ENTERED',
+      resource: { values },
+    });
+  }
+
+  async function updateSavings(rowIndex, row) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    const now = new Date().toLocaleDateString('ko-KR');
+    await backupSavings();
+    const values = [[
+      row.name, row.bank, row.type,
+      parseFloat(row.rate) || 0, parseFloat(row.balance) || 0, row.maturity || '',
+      row.purpose || '', row.memo || '', now
+    ]];
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: id,
+      range: `예적금!A${rowIndex}:I${rowIndex}`,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values },
+    });
+  }
+
+  async function deleteSavings(rowIndex) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    await backupSavings();
+    const metaRes = await gapi.client.sheets.spreadsheets.get({
+      spreadsheetId: id,
+      fields: 'sheets.properties(title,sheetId)'
+    });
+    const sheet = (metaRes.result.sheets || []).find(s => s.properties.title === '예적금');
+    if (!sheet) throw new Error('예적금 시트를 찾을 수 없습니다.');
+    const sheetId = sheet.properties.sheetId;
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: id,
+      resource: {
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex - 1,
+              endIndex: rowIndex
+            }
+          }
+        }]
+      }
+    });
+  }
+
+  async function updateSavingsRows(updates) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    const now = new Date().toLocaleDateString('ko-KR');
+    await backupSavings();
+    const data = updates.map(({ rowIndex, row }) => {
+      return {
+        range: `예적금!A${rowIndex}:I${rowIndex}`,
+        values: [[
+          row.name, row.bank, row.type,
+          parseFloat(row.rate) || 0, parseFloat(row.balance) || 0, row.maturity || '',
+          row.purpose || '', row.memo || '', now
+        ]]
+      };
+    });
+    await gapi.client.sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: id,
+      resource: {
+        valueInputOption: 'USER_ENTERED',
+        data
+      }
+    });
+  }
+
+  async function deleteSavingsRows(rowIndices) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    await backupSavings();
+    const metaRes = await gapi.client.sheets.spreadsheets.get({
+      spreadsheetId: id,
+      fields: 'sheets.properties(title,sheetId)'
+    });
+    const sheet = (metaRes.result.sheets || []).find(s => s.properties.title === '예적금');
+    if (!sheet) throw new Error('예적금 시트를 찾을 수 없습니다.');
+    const sheetId = sheet.properties.sheetId;
+    const sortedIndices = [...rowIndices].sort((a, b) => b - a);
+    const requests = sortedIndices.map(rIdx => ({
+      deleteDimension: {
+        range: {
+          sheetId,
+          dimension: 'ROWS',
+          startIndex: rIdx - 1,
+          endIndex: rIdx
+        }
+      }
+    }));
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: id,
+      resource: { requests }
+    });
+  }
+
+  // ── 부동산 CRUD ──────────────────────────────────────────────
+  async function appendRealEstate(row) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    const now = new Date().toLocaleDateString('ko-KR');
+    const values = [[
+      row.name,
+      parseFloat(row.purchasePrice) || 0,
+      parseFloat(row.currentValue) || 0,
+      parseFloat(row.loanAmount) || 0,
+      parseFloat(row.loanRate) || 0,
+      parseFloat(row.deposit) || 0,
+      parseFloat(row.maintenance) || 0,
+      row.purpose || '',
+      row.memo || '',
+      now
+    ]];
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: id,
+      range: '부동산!A:J',
+      valueInputOption: 'USER_ENTERED',
+      resource: { values },
+    });
+  }
+
+  async function updateRealEstate(rowIndex, row) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    const now = new Date().toLocaleDateString('ko-KR');
+    const values = [[
+      row.name,
+      parseFloat(row.purchasePrice) || 0,
+      parseFloat(row.currentValue) || 0,
+      parseFloat(row.loanAmount) || 0,
+      parseFloat(row.loanRate) || 0,
+      parseFloat(row.deposit) || 0,
+      parseFloat(row.maintenance) || 0,
+      row.purpose || '',
+      row.memo || '',
+      now
+    ]];
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: id,
+      range: `부동산!A${rowIndex}:J${rowIndex}`,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values },
+    });
+  }
+
+  async function deleteRealEstate(rowIndex) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    const metaRes = await gapi.client.sheets.spreadsheets.get({
+      spreadsheetId: id,
+      fields: 'sheets.properties(title,sheetId)'
+    });
+    const sheet = (metaRes.result.sheets || []).find(s => s.properties.title === '부동산');
+    if (!sheet) throw new Error('부동산 시트를 찾을 수 없습니다.');
+    const sheetId = sheet.properties.sheetId;
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: id,
+      resource: {
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex - 1,
+              endIndex: rowIndex
+            }
+          }
+        }]
+      }
+    });
+  }
+
+  async function updateRealEstateRows(updates) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    const now = new Date().toLocaleDateString('ko-KR');
+    const data = updates.map(({ rowIndex, row }) => {
+      return {
+        range: `부동산!A${rowIndex}:J${rowIndex}`,
+        values: [[
+          row.name,
+          parseFloat(row.purchasePrice) || 0,
+          parseFloat(row.currentValue) || 0,
+          parseFloat(row.loanAmount) || 0,
+          parseFloat(row.loanRate) || 0,
+          parseFloat(row.deposit) || 0,
+          parseFloat(row.maintenance) || 0,
+          row.purpose || '',
+          row.memo || '',
+          now
+        ]]
+      };
+    });
+    await gapi.client.sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: id,
+      resource: {
+        valueInputOption: 'USER_ENTERED',
+        data
+      }
+    });
+  }
+
+  async function deleteRealEstateRows(rowIndices) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    const metaRes = await gapi.client.sheets.spreadsheets.get({
+      spreadsheetId: id,
+      fields: 'sheets.properties(title,sheetId)'
+    });
+    const sheet = (metaRes.result.sheets || []).find(s => s.properties.title === '부동산');
+    if (!sheet) throw new Error('부동산 시트를 찾을 수 없습니다.');
+    const sheetId = sheet.properties.sheetId;
+    const sortedIndices = [...rowIndices].sort((a, b) => b - a);
+    const requests = sortedIndices.map(rIdx => ({
+      deleteDimension: {
+        range: {
+          sheetId,
+          dimension: 'ROWS',
+          startIndex: rIdx - 1,
+          endIndex: rIdx
+        }
+      }
+    }));
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: id,
+      resource: { requests }
+    });
+  }
+
   async function appendPortfolio(row) {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     const now = new Date().toLocaleDateString('ko-KR');
@@ -797,6 +1111,8 @@ const SheetsAPI = (() => {
     setupToochangiSheet,
     getPortfolio, appendPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, applyFormulasToPortfolio,
     backupPortfolio, restorePortfolioFromBackup,
+    getSavings, appendSavings, updateSavings, deleteSavings, updateSavingsRows, deleteSavingsRows, backupSavings, restoreSavingsFromBackup,
+    getRealEstate, appendRealEstate, updateRealEstate, deleteRealEstate, updateRealEstateRows, deleteRealEstateRows,
     getTradeLog, appendTrade,
     getAnalysisHistory, appendAnalysis,
     appendFilter,

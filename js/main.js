@@ -63,6 +63,8 @@ async function refreshAll() {
     await Toochangi.loadAll();
     renderDashboard();
     renderPortfolioTab();
+    renderSavingsTab();
+    renderRealestateTab();
     renderTradelogTab();
     renderManualAnalysisTab();
     renderYouTubeFeed();
@@ -153,7 +155,8 @@ function switchTab(tab) {
   if (nav)   nav.classList.add('active');
 
   const titles = {
-    dashboard: '대시보드', portfolio: '포트폴리오',
+    dashboard: '대시보드', portfolio: '주식',
+    savings: '예적금', realestate: '부동산',
     filter: '3단계 필터', tradelog: '매매일지',
     assets: '자산현황',
     'auto-analysis': '자동 투자 추천',
@@ -164,6 +167,8 @@ function switchTab(tab) {
   document.getElementById('page-title').textContent = titles[tab] || tab;
 
   if (tab === 'dashboard') Toochangi.renderCharts();
+  if (tab === 'savings') renderSavingsTab();
+  if (tab === 'realestate') renderRealestateTab();
   if (tab === 'assets') {
     initAssetMonthSelector();
     renderAssetsTab();
@@ -287,53 +292,6 @@ function renderPortfolioTab() {
       </td>
     </tr>`;
   }).join('');
-
-  // 예적금 렌더링
-  const savingsTbody = document.getElementById('savings-tbody');
-  if (savingsTbody) {
-    const savings = Toochangi.getSavings();
-    if (savings.length === 0) {
-      savingsTbody.innerHTML = '<tr><td colspan="9" class="empty-state">등록된 예적금이 없습니다.</td></tr>';
-    } else {
-      savingsTbody.innerHTML = savings.map(s => `
-        <tr>
-          <td><strong>${s.name}</strong></td>
-          <td>${s.bank}</td>
-          <td><span class="badge" style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${s.type}</span></td>
-          <td>${s.rate}%</td>
-          <td>${s.balance.toLocaleString()}원</td>
-          <td>${s.maturity || '—'}</td>
-          <td><span style="color: var(--accent-orange); font-weight: 500;">${s.purpose || '—'}</span></td>
-          <td>${s.date || '—'}</td>
-          <td style="color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${s.memo}">${s.memo || '—'}</td>
-        </tr>
-      `).join('');
-    }
-  }
-
-  // 부동산 렌더링
-  const reTbody = document.getElementById('realestate-tbody');
-  if (reTbody) {
-    const realEstate = Toochangi.getRealEstate();
-    if (realEstate.length === 0) {
-      reTbody.innerHTML = '<tr><td colspan="10" class="empty-state">등록된 부동산 자산이 없습니다.</td></tr>';
-    } else {
-      reTbody.innerHTML = realEstate.map(r => `
-        <tr>
-          <td><strong>${r.name}</strong></td>
-          <td>${r.purchasePrice.toLocaleString()}원</td>
-          <td>${r.currentValue.toLocaleString()}원</td>
-          <td style="color: var(--accent-red);">${r.loanAmount > 0 ? r.loanAmount.toLocaleString() + '원' : '—'}</td>
-          <td>${r.loanRate > 0 ? r.loanRate + '%' : '—'}</td>
-          <td>${r.deposit > 0 ? r.deposit.toLocaleString() + '원' : '—'}</td>
-          <td style="color: var(--text-muted);">${r.maintenance > 0 ? r.maintenance.toLocaleString() + '원' : '—'}</td>
-          <td><span style="color: var(--accent-orange); font-weight: 500;">${r.purpose || '—'}</span></td>
-          <td>${r.date || '—'}</td>
-          <td style="color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${r.memo}">${r.memo || '—'}</td>
-        </tr>
-      `).join('');
-    }
-  }
 
   // 개별 수정 버튼 바인딩
   tbody.querySelectorAll('.edit-holding-btn').forEach(btn => {
@@ -825,6 +783,125 @@ function bindModalEvents() {
       document.getElementById('modal-trade').classList.add('hidden');
       renderTradelogTab();
       toast(`✅ 매매 기록 저장 완료`, 'success');
+    } catch (e) {
+      toast('⚠️ 저장 실패: ' + e.message, 'error');
+    }
+  });
+
+  // ── 예적금 이벤트 ──
+  document.getElementById('add-savings-btn')?.addEventListener('click', () => {
+    document.getElementById('savings-modal-title').textContent = '예적금 추가';
+    document.getElementById('input-savings-row-index').value = '';
+    document.getElementById('input-savings-name').value = '';
+    document.getElementById('input-savings-bank').value = '';
+    document.getElementById('input-savings-type').value = '';
+    document.getElementById('input-savings-rate').value = '';
+    document.getElementById('input-savings-balance').value = '';
+    document.getElementById('input-savings-maturity').value = '';
+    document.getElementById('input-savings-purpose').value = '';
+    document.getElementById('input-savings-memo').value = '';
+    document.getElementById('modal-savings-add-edit').classList.remove('hidden');
+  });
+
+  document.getElementById('btn-savings-bulk-edit')?.addEventListener('click', openSavingsBulkEditModal);
+  document.getElementById('btn-savings-bulk-delete')?.addEventListener('click', deleteSavingsBulk);
+  document.getElementById('btn-savings-save-bulk-edit')?.addEventListener('click', saveSavingsBulkEdit);
+
+  document.getElementById('restore-savings-btn')?.addEventListener('click', async () => {
+    if (!Auth.isLoggedIn()) { toast('먼저 로그인해주세요', 'error'); return; }
+    if (!confirm('정말로 직전 작업(추가, 수정, 삭제 등)을 취소하고 원래 상태로 되돌리시겠습니까?\n백업된 데이터로 구글 시트가 덮어씌워집니다.')) return;
+    
+    toast('⏳ 데이터 복원 중...', 'info');
+    try {
+      await Toochangi.restoreSavingsFromBackup();
+      toast('✅ 직전 작업 취소 완료!', 'success');
+      renderSavingsTab();
+      renderDashboard();
+      updateSavingsBulkActionsVisibility();
+    } catch (e) {
+      toast('⚠️ 복원 실패: ' + e.message, 'error');
+    }
+  });
+
+  document.getElementById('save-savings-btn')?.addEventListener('click', async () => {
+    const name = document.getElementById('input-savings-name').value.trim();
+    const bank = document.getElementById('input-savings-bank').value.trim();
+    const type = document.getElementById('input-savings-type').value.trim();
+    const rate = parseFloat(document.getElementById('input-savings-rate').value);
+    const balance = parseFloat(document.getElementById('input-savings-balance').value);
+    const maturity = document.getElementById('input-savings-maturity').value;
+    const purpose = document.getElementById('input-savings-purpose').value.trim();
+    const memo = document.getElementById('input-savings-memo').value.trim();
+    const rowIndex = document.getElementById('input-savings-row-index')?.value;
+
+    if (!name || !bank || !type || isNaN(rate) || isNaN(balance)) {
+      toast('필수 항목을 모두 입력해주세요', 'error');
+      return;
+    }
+
+    try {
+      const data = { name, bank, type, rate, balance, maturity, purpose, memo };
+      if (rowIndex) {
+        await Toochangi.updateSavings(parseInt(rowIndex, 10), data);
+        toast(`✅ ${name} 수정 완료`, 'success');
+      } else {
+        await Toochangi.addSavings(data);
+        toast(`✅ ${name} 추가 완료`, 'success');
+      }
+      document.getElementById('modal-savings-add-edit').classList.add('hidden');
+      renderSavingsTab();
+      renderDashboard();
+      updateSavingsBulkActionsVisibility();
+    } catch (e) {
+      toast('⚠️ 저장 실패: ' + e.message, 'error');
+    }
+  });
+
+  // ── 부동산 이벤트 ──
+  document.getElementById('add-realestate-btn')?.addEventListener('click', () => {
+    document.getElementById('realestate-modal-title').textContent = '부동산 추가';
+    document.getElementById('input-realestate-row-index').value = '';
+    document.getElementById('input-realestate-name').value = '';
+    document.getElementById('input-realestate-purchasePrice').value = '';
+    document.getElementById('input-realestate-currentValue').value = '';
+    document.getElementById('input-realestate-loanAmount').value = '';
+    document.getElementById('input-realestate-loanRate').value = '';
+    document.getElementById('input-realestate-deposit').value = '';
+    document.getElementById('input-realestate-maintenance').value = '';
+    document.getElementById('input-realestate-purpose').value = '';
+    document.getElementById('input-realestate-memo').value = '';
+    document.getElementById('modal-realestate-add-edit').classList.remove('hidden');
+  });
+
+  document.getElementById('save-realestate-btn')?.addEventListener('click', async () => {
+    const name = document.getElementById('input-realestate-name').value.trim();
+    const purchasePrice = parseFloat(document.getElementById('input-realestate-purchasePrice').value);
+    const currentValue = parseFloat(document.getElementById('input-realestate-currentValue').value);
+    const loanAmount = parseFloat(document.getElementById('input-realestate-loanAmount').value) || 0;
+    const loanRate = parseFloat(document.getElementById('input-realestate-loanRate').value) || 0;
+    const deposit = parseFloat(document.getElementById('input-realestate-deposit').value) || 0;
+    const maintenance = parseFloat(document.getElementById('input-realestate-maintenance').value) || 0;
+    const purpose = document.getElementById('input-realestate-purpose').value.trim();
+    const memo = document.getElementById('input-realestate-memo').value.trim();
+    const rowIndex = document.getElementById('input-realestate-row-index')?.value;
+
+    if (!name || isNaN(purchasePrice) || isNaN(currentValue)) {
+      toast('필수 항목을 모두 입력해주세요', 'error');
+      return;
+    }
+
+    try {
+      const data = { name, purchasePrice, currentValue, loanAmount, loanRate, deposit, maintenance, purpose, memo };
+      if (rowIndex) {
+        await Toochangi.updateRealEstate(parseInt(rowIndex, 10), data);
+        toast(`✅ ${name} 수정 완료`, 'success');
+      } else {
+        await Toochangi.addRealEstate(data);
+        toast(`✅ ${name} 추가 완료`, 'success');
+      }
+      document.getElementById('modal-realestate-add-edit').classList.add('hidden');
+      renderRealestateTab();
+      renderDashboard();
     } catch (e) {
       toast('⚠️ 저장 실패: ' + e.message, 'error');
     }
@@ -2210,4 +2287,310 @@ async function deleteBulkHoldings() {
   } catch (err) {
     toast('⚠️ 선택 삭제 실패: ' + err.message, 'error');
   }
+}
+
+// ── 예적금 / 부동산 탭 렌더링 및 벌크 액션 ──
+function renderSavingsTab() {
+  const sheetLink = document.getElementById('btn-savings-open-sheet');
+  if (sheetLink) {
+    const sheetId = (window.TOOCHANGI_CONFIG || {}).TOOCHANGI_SHEET_ID;
+    sheetLink.href = sheetId ? `https://docs.google.com/spreadsheets/d/${sheetId}/edit` : '#';
+  }
+
+  const tbody = document.getElementById('savings-tbody');
+  const savings = Toochangi.getSavings();
+
+  if (savings.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="11" class="empty-state">자산을 추가해 주세요</td></tr>';
+    const chkAll = document.getElementById('chk-savings-all');
+    if (chkAll) chkAll.checked = false;
+    updateSavingsBulkActionsVisibility();
+    return;
+  }
+
+  tbody.innerHTML = savings.map(s => {
+    return `<tr data-rowindex="${s.rowIndex}">
+      <td style="text-align: center;">
+        <input type="checkbox" class="chk-savings-row" data-rowindex="${s.rowIndex}" style="cursor:pointer;" />
+      </td>
+      <td><strong>${s.name}</strong></td>
+      <td>${s.bank}</td>
+      <td><span class="badge" style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${s.type}</span></td>
+      <td>${s.rate}%</td>
+      <td>${s.balance.toLocaleString()}원</td>
+      <td>${s.maturity || '—'}</td>
+      <td><span style="color: var(--accent-orange); font-weight: 500;">${s.purpose || '—'}</span></td>
+      <td style="color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${s.memo}">${s.memo || '—'}</td>
+      <td>${s.date || '—'}</td>
+      <td style="text-align: center;">
+        <div style="display:flex; gap:4px; justify-content:center;">
+          <button class="btn-primary-sm edit-savings-btn" data-rowindex="${s.rowIndex}" style="padding: 2px 8px; font-size: 11px;">수정</button>
+          <button class="btn-primary-sm delete-savings-btn" style="padding: 2px 8px; font-size: 11px; background:var(--accent-red); border-color:var(--accent-red);" data-rowindex="${s.rowIndex}">삭제</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('.edit-savings-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const rIdx = parseInt(e.target.dataset.rowindex, 10);
+      const item = savings.find(s => s.rowIndex === rIdx);
+      if (!item) return;
+
+      document.getElementById('input-savings-row-index').value = rIdx;
+      document.getElementById('input-savings-name').value = item.name;
+      document.getElementById('input-savings-bank').value = item.bank;
+      document.getElementById('input-savings-type').value = item.type;
+      document.getElementById('input-savings-rate').value = item.rate;
+      document.getElementById('input-savings-balance').value = item.balance;
+      
+      let matDate = '';
+      if (item.maturity) {
+        const match = item.maturity.match(/(\d{4})[.-]\s*(\d{1,2})[.-]\s*(\d{1,2})/);
+        if (match) {
+          matDate = `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+        } else {
+          matDate = item.maturity;
+        }
+      }
+      document.getElementById('input-savings-maturity').value = matDate;
+      document.getElementById('input-savings-purpose').value = item.purpose;
+      document.getElementById('input-savings-memo').value = item.memo || '';
+
+      document.getElementById('savings-modal-title').textContent = '예적금 수정';
+      document.getElementById('modal-savings-add-edit').classList.remove('hidden');
+    });
+  });
+
+  tbody.querySelectorAll('.delete-savings-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const rIdx = parseInt(e.target.dataset.rowindex, 10);
+      const item = savings.find(s => s.rowIndex === rIdx);
+      if (!item) return;
+
+      if (!confirm(`"${item.name}" 자산을 정말로 삭제하시겠습니까?`)) return;
+
+      toast('⏳ 예적금 삭제 중...', 'info');
+      try {
+        await Toochangi.deleteSavings(rIdx);
+        toast(`✅ ${item.name} 삭제 완료`, 'success');
+        renderSavingsTab();
+        renderDashboard();
+        updateSavingsBulkActionsVisibility();
+      } catch (err) {
+        toast('⚠️ 삭제 실패: ' + err.message, 'error');
+      }
+    });
+  });
+
+  tbody.querySelectorAll('.chk-savings-row').forEach(chk => {
+    chk.addEventListener('change', () => {
+      updateSavingsBulkActionsVisibility();
+    });
+  });
+
+  const chkAll = document.getElementById('chk-savings-all');
+  if (chkAll) {
+    const newChkAll = chkAll.cloneNode(true);
+    chkAll.parentNode.replaceChild(newChkAll, chkAll);
+    newChkAll.addEventListener('change', (e) => {
+      const checked = e.target.checked;
+      tbody.querySelectorAll('.chk-savings-row').forEach(chk => {
+        chk.checked = checked;
+      });
+      updateSavingsBulkActionsVisibility();
+    });
+  }
+}
+
+function updateSavingsBulkActionsVisibility() {
+  const checked = document.querySelectorAll('.chk-savings-row:checked');
+  const bulkEditBtn = document.getElementById('btn-savings-bulk-edit');
+  const bulkDeleteBtn = document.getElementById('btn-savings-bulk-delete');
+  if (bulkEditBtn && bulkDeleteBtn) {
+    if (checked.length > 0) {
+      bulkEditBtn.classList.remove('hidden');
+      bulkDeleteBtn.classList.remove('hidden');
+    } else {
+      bulkEditBtn.classList.add('hidden');
+      bulkDeleteBtn.classList.add('hidden');
+    }
+  }
+}
+
+function openSavingsBulkEditModal() {
+  const checked = document.querySelectorAll('.chk-savings-row:checked');
+  if (checked.length === 0) return;
+
+  const savings = Toochangi.getSavings();
+  const tbody = document.getElementById('bulk-edit-savings-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = Array.from(checked).map(chk => {
+    const rIdx = parseInt(chk.dataset.rowindex, 10);
+    const item = savings.find(s => s.rowIndex === rIdx);
+    if (!item) return '';
+
+    return `<tr data-rowindex="${rIdx}">
+      <td style="font-weight: 600;">${item.name}</td>
+      <td>${item.bank}</td>
+      <td><input type="number" step="0.01" class="bulk-savings-rate" value="${item.rate || 0}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px; text-align: right;" /></td>
+      <td><input type="number" class="bulk-savings-balance" value="${item.balance || 0}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px; text-align: right;" /></td>
+      <td><input type="text" class="bulk-savings-purpose" value="${item.purpose || ''}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px;" /></td>
+      <td><input type="text" class="bulk-savings-memo" value="${item.memo || ''}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px;" /></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('modal-savings-bulk-edit').classList.remove('hidden');
+}
+
+async function saveSavingsBulkEdit() {
+  const tbody = document.getElementById('bulk-edit-savings-tbody');
+  if (!tbody) return;
+
+  const rows = tbody.querySelectorAll('tr');
+  if (rows.length === 0) return;
+
+  toast('⏳ 예적금 다중 수정사항 저장 중...', 'info');
+  document.getElementById('modal-savings-bulk-edit').classList.add('hidden');
+
+  try {
+    const savings = Toochangi.getSavings();
+    const updates = [];
+    for (const row of rows) {
+      const rIdx = parseInt(row.dataset.rowindex, 10);
+      const item = savings.find(s => s.rowIndex === rIdx);
+      if (!item) continue;
+
+      const rate = parseFloat(row.querySelector('.bulk-savings-rate').value) || 0;
+      const balance = parseFloat(row.querySelector('.bulk-savings-balance').value) || 0;
+      const purpose = row.querySelector('.bulk-savings-purpose').value.trim();
+      const memo = row.querySelector('.bulk-savings-memo').value.trim();
+
+      updates.push({
+        rowIndex: rIdx,
+        row: {
+          name: item.name,
+          bank: item.bank,
+          type: item.type,
+          rate,
+          balance,
+          maturity: item.maturity,
+          purpose,
+          memo
+        }
+      });
+    }
+
+    if (updates.length > 0) {
+      await Toochangi.updateSavingsRows(updates);
+    }
+
+    toast('✅ 다중 수정 완료!', 'success');
+    renderSavingsTab();
+    renderDashboard();
+    updateSavingsBulkActionsVisibility();
+  } catch (err) {
+    toast('⚠️ 다중 수정 실패: ' + err.message, 'error');
+  }
+}
+
+async function deleteSavingsBulk() {
+  const checked = document.querySelectorAll('.chk-savings-row:checked');
+  if (checked.length === 0) return;
+
+  if (!confirm(`선택한 ${checked.length}개 예적금 자산을 정말로 모두 삭제하시겠습니까?`)) return;
+
+  toast('⏳ 다중 자산 삭제 중...', 'info');
+
+  try {
+    const rowIndices = Array.from(checked).map(chk => parseInt(chk.dataset.rowindex, 10));
+    await Toochangi.deleteSavingsRows(rowIndices);
+
+    toast('✅ 선택 삭제 완료!', 'success');
+    renderSavingsTab();
+    renderDashboard();
+    updateSavingsBulkActionsVisibility();
+  } catch (err) {
+    toast('⚠️ 선택 삭제 실패: ' + err.message, 'error');
+  }
+}
+
+function renderRealestateTab() {
+  const sheetLink = document.getElementById('btn-realestate-open-sheet');
+  if (sheetLink) {
+    const sheetId = (window.TOOCHANGI_CONFIG || {}).TOOCHANGI_SHEET_ID;
+    sheetLink.href = sheetId ? `https://docs.google.com/spreadsheets/d/${sheetId}/edit` : '#';
+  }
+
+  const tbody = document.getElementById('realestate-tbody');
+  const realEstate = Toochangi.getRealEstate();
+
+  if (realEstate.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="11" class="empty-state">부동산을 추가해 주세요</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = realEstate.map(r => {
+    return `<tr data-rowindex="${r.rowIndex}">
+      <td><strong>${r.name}</strong></td>
+      <td>${r.purchasePrice.toLocaleString()}원</td>
+      <td>${r.currentValue.toLocaleString()}원</td>
+      <td style="color: var(--accent-red);">${r.loanAmount > 0 ? r.loanAmount.toLocaleString() + '원' : '—'}</td>
+      <td>${r.loanRate > 0 ? r.loanRate + '%' : '—'}</td>
+      <td>${r.deposit > 0 ? r.deposit.toLocaleString() + '원' : '—'}</td>
+      <td style="color: var(--text-muted);">${r.maintenance > 0 ? r.maintenance.toLocaleString() + '원' : '—'}</td>
+      <td><span style="color: var(--accent-orange); font-weight: 500;">${r.purpose || '—'}</span></td>
+      <td style="color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${r.memo}">${r.memo || '—'}</td>
+      <td>${r.date || '—'}</td>
+      <td style="text-align: center;">
+        <div style="display:flex; gap:4px; justify-content:center;">
+          <button class="btn-primary-sm edit-realestate-btn" data-rowindex="${r.rowIndex}" style="padding: 2px 8px; font-size: 11px;">수정</button>
+          <button class="btn-primary-sm delete-realestate-btn" style="padding: 2px 8px; font-size: 11px; background:var(--accent-red); border-color:var(--accent-red);" data-rowindex="${r.rowIndex}">삭제</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('.edit-realestate-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const rIdx = parseInt(e.target.dataset.rowindex, 10);
+      const item = realEstate.find(r => r.rowIndex === rIdx);
+      if (!item) return;
+
+      document.getElementById('input-realestate-row-index').value = rIdx;
+      document.getElementById('input-realestate-name').value = item.name;
+      document.getElementById('input-realestate-purchasePrice').value = item.purchasePrice;
+      document.getElementById('input-realestate-currentValue').value = item.currentValue;
+      document.getElementById('input-realestate-loanAmount').value = item.loanAmount;
+      document.getElementById('input-realestate-loanRate').value = item.loanRate;
+      document.getElementById('input-realestate-deposit').value = item.deposit;
+      document.getElementById('input-realestate-maintenance').value = item.maintenance;
+      document.getElementById('input-realestate-purpose').value = item.purpose;
+      document.getElementById('input-realestate-memo').value = item.memo || '';
+
+      document.getElementById('realestate-modal-title').textContent = '부동산 수정';
+      document.getElementById('modal-realestate-add-edit').classList.remove('hidden');
+    });
+  });
+
+  tbody.querySelectorAll('.delete-realestate-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const rIdx = parseInt(e.target.dataset.rowindex, 10);
+      const item = realEstate.find(r => r.rowIndex === rIdx);
+      if (!item) return;
+
+      if (!confirm(`"${item.name}" 자산을 정말로 삭제하시겠습니까?`)) return;
+
+      toast('⏳ 부동산 삭제 중...', 'info');
+      try {
+        await Toochangi.deleteRealEstate(rIdx);
+        toast(`✅ ${item.name} 삭제 완료`, 'success');
+        renderRealestateTab();
+        renderDashboard();
+      } catch (err) {
+        toast('⚠️ 삭제 실패: ' + err.message, 'error');
+      }
+    });
+  });
 }

@@ -668,6 +668,54 @@ ${youtubeFeedText}
     await SheetsAPI.deletePortfolioRows(rowIndices);
     await loadAll();
   }
+
+  // ── 예적금 CRUD ──
+  async function addSavings(row) {
+    await SheetsAPI.appendSavings(row);
+    await loadAll();
+  }
+  async function updateSavings(rowIndex, row) {
+    await SheetsAPI.updateSavings(rowIndex, row);
+    await loadAll();
+  }
+  async function deleteSavings(rowIndex) {
+    await SheetsAPI.deleteSavings(rowIndex);
+    await loadAll();
+  }
+  async function updateSavingsRows(updates) {
+    await SheetsAPI.updateSavingsRows(updates);
+    await loadAll();
+  }
+  async function deleteSavingsRows(rowIndices) {
+    await SheetsAPI.deleteSavingsRows(rowIndices);
+    await loadAll();
+  }
+  async function restoreSavingsFromBackup() {
+    await SheetsAPI.restoreSavingsFromBackup();
+    await loadAll();
+  }
+
+  // ── 부동산 CRUD ──
+  async function addRealEstate(row) {
+    await SheetsAPI.appendRealEstate(row);
+    await loadAll();
+  }
+  async function updateRealEstate(rowIndex, row) {
+    await SheetsAPI.updateRealEstate(rowIndex, row);
+    await loadAll();
+  }
+  async function deleteRealEstate(rowIndex) {
+    await SheetsAPI.deleteRealEstate(rowIndex);
+    await loadAll();
+  }
+  async function updateRealEstateRows(updates) {
+    await SheetsAPI.updateRealEstateRows(updates);
+    await loadAll();
+  }
+  async function deleteRealEstateRows(rowIndices) {
+    await SheetsAPI.deleteRealEstateRows(rowIndices);
+    await loadAll();
+  }
   async function addTrade(row) {
     await SheetsAPI.appendTrade(row);
     await loadAll();
@@ -789,6 +837,8 @@ ${youtubeFeedText}
     renderCharts,
     getPortfolio, getTradeLog, getAnalysis, getGachangiData, getSavings, getRealEstate,
     addPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, addTrade, saveAnalysis, saveFilter, applyFormulasToPortfolio, restorePortfolioFromBackup,
+    addSavings, updateSavings, deleteSavings, updateSavingsRows, deleteSavingsRows, restoreSavingsFromBackup,
+    addRealEstate, updateRealEstate, deleteRealEstate, updateRealEstateRows, deleteRealEstateRows,
     getAssetHistory, calcAssetMetrics, syncPortfolioAssets, renderAssetCharts,
     parseHoldingScreenshot
   };
