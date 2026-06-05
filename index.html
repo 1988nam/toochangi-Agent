@@ -194,6 +194,63 @@
           </table>
         </div>
       </div>
+
+      <!-- 예적금 보유 현황 -->
+      <div class="card" style="margin-top: 24px;">
+        <div class="card-header">
+          <span class="card-title">💵 예적금 보유 현황</span>
+          <span style="font-size: 12px; color: var(--text-muted);">※ 추가/수정/삭제는 상단 '구글 시트 열기'를 통해 관리해 주세요.</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="savings-table">
+            <thead>
+              <tr>
+                <th>자산명</th>
+                <th>금융기관</th>
+                <th>예적금종류</th>
+                <th>금리</th>
+                <th>잔액</th>
+                <th>만기일</th>
+                <th>자산용도</th>
+                <th>등록일</th>
+                <th>메모</th>
+              </tr>
+            </thead>
+            <tbody id="savings-tbody">
+              <tr><td colspan="9" class="empty-state">자산을 추가해 주세요</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 부동산 보유 현황 -->
+      <div class="card" style="margin-top: 24px;">
+        <div class="card-header">
+          <span class="card-title">🏠 부동산 보유 현황</span>
+          <span style="font-size: 12px; color: var(--text-muted);">※ 추가/수정/삭제는 상단 '구글 시트 열기'를 통해 관리해 주세요.</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="realestate-table">
+            <thead>
+              <tr>
+                <th>부동산명</th>
+                <th>매입가</th>
+                <th>현재평가액</th>
+                <th>담보대출액</th>
+                <th>대출금리</th>
+                <th>전세보증금</th>
+                <th>연간유지비/이자</th>
+                <th>자산용도</th>
+                <th>등록일</th>
+                <th>메모</th>
+              </tr>
+            </thead>
+            <tbody id="realestate-tbody">
+              <tr><td colspan="10" class="empty-state">자산을 추가해 주세요</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- ── 3단계 필터 탭 ── -->

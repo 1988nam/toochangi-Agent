@@ -288,6 +288,53 @@ function renderPortfolioTab() {
     </tr>`;
   }).join('');
 
+  // 예적금 렌더링
+  const savingsTbody = document.getElementById('savings-tbody');
+  if (savingsTbody) {
+    const savings = Toochangi.getSavings();
+    if (savings.length === 0) {
+      savingsTbody.innerHTML = '<tr><td colspan="9" class="empty-state">등록된 예적금이 없습니다.</td></tr>';
+    } else {
+      savingsTbody.innerHTML = savings.map(s => `
+        <tr>
+          <td><strong>${s.name}</strong></td>
+          <td>${s.bank}</td>
+          <td><span class="badge" style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${s.type}</span></td>
+          <td>${s.rate}%</td>
+          <td>${s.balance.toLocaleString()}원</td>
+          <td>${s.maturity || '—'}</td>
+          <td><span style="color: var(--accent-orange); font-weight: 500;">${s.purpose || '—'}</span></td>
+          <td>${s.date || '—'}</td>
+          <td style="color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${s.memo}">${s.memo || '—'}</td>
+        </tr>
+      `).join('');
+    }
+  }
+
+  // 부동산 렌더링
+  const reTbody = document.getElementById('realestate-tbody');
+  if (reTbody) {
+    const realEstate = Toochangi.getRealEstate();
+    if (realEstate.length === 0) {
+      reTbody.innerHTML = '<tr><td colspan="10" class="empty-state">등록된 부동산 자산이 없습니다.</td></tr>';
+    } else {
+      reTbody.innerHTML = realEstate.map(r => `
+        <tr>
+          <td><strong>${r.name}</strong></td>
+          <td>${r.purchasePrice.toLocaleString()}원</td>
+          <td>${r.currentValue.toLocaleString()}원</td>
+          <td style="color: var(--accent-red);">${r.loanAmount > 0 ? r.loanAmount.toLocaleString() + '원' : '—'}</td>
+          <td>${r.loanRate > 0 ? r.loanRate + '%' : '—'}</td>
+          <td>${r.deposit > 0 ? r.deposit.toLocaleString() + '원' : '—'}</td>
+          <td style="color: var(--text-muted);">${r.maintenance > 0 ? r.maintenance.toLocaleString() + '원' : '—'}</td>
+          <td><span style="color: var(--accent-orange); font-weight: 500;">${r.purpose || '—'}</span></td>
+          <td>${r.date || '—'}</td>
+          <td style="color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${r.memo}">${r.memo || '—'}</td>
+        </tr>
+      `).join('');
+    }
+  }
+
   // 개별 수정 버튼 바인딩
   tbody.querySelectorAll('.edit-holding-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
