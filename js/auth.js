@@ -12,43 +12,55 @@ const Auth = (() => {
   /** GAPI 초기화 */
   function initGapi() {
     gapi.load('client', async () => {
-      await gapi.client.init({
-        apiKey: TOOCHANGI_CONFIG.API_KEY,
-        discoveryDocs: [
-          'https://sheets.googleapis.com/$discovery/rest?version=v4',
-          'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
-        ],
-      });
-      gapiInited = true;
-      console.log('[Auth] GAPI 초기화 완료.');
-      _tryLocalLogin();
+      try {
+        await gapi.client.init({
+          apiKey: window.TOOCHANGI_CONFIG.API_KEY,
+          discoveryDocs: [
+            'https://sheets.googleapis.com/$discovery/rest?version=v4',
+            'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
+          ],
+        });
+        gapiInited = true;
+        console.log('[Auth] GAPI 초기화 완료.');
+        _tryLocalLogin();
+      } catch (error) {
+        console.error('[Auth] GAPI 초기화 실패:', error);
+      }
     });
   }
 
   /** GIS 초기화 */
   function initGis() {
-    const cfg = window.TOOCHANGI_CONFIG || {};
-    if (!cfg.CLIENT_ID || cfg.CLIENT_ID.indexOf('YOUR_') === 0) {
-      console.warn('[Auth] CLIENT_ID가 설정되지 않았습니다.');
-      return;
+    try {
+      const cfg = window.TOOCHANGI_CONFIG || TOOCHANGI_CONFIG || {};
+      if (!cfg.CLIENT_ID || cfg.CLIENT_ID.indexOf('YOUR_') === 0) {
+        console.warn('[Auth] CLIENT_ID가 설정되지 않았습니다.');
+        return;
+      }
+      if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+        console.error('[Auth] Google Identity Services (GSI) 라이브러리가 존재하지 않습니다.');
+        return;
+      }
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: cfg.CLIENT_ID,
+        scope: cfg.SCOPES,
+        callback: (tokenResponse) => {
+          if (tokenResponse.error !== undefined) throw tokenResponse;
+          accessToken = tokenResponse.access_token;
+          const expiry = Date.now() + tokenResponse.expires_in * 1000;
+          localStorage.setItem('toochangi_access_token', accessToken);
+          localStorage.setItem('toochangi_token_expiry', expiry);
+          gapi.client.setToken({ access_token: accessToken });
+          console.log('✅ 구글 로그인 완료.');
+          if (onLoginCallback) onLoginCallback({ name: '흰챙이' });
+        },
+      });
+      gisInited = true;
+      console.log('[Auth] GIS 초기화 완료.');
+      _tryLocalLogin();
+    } catch (e) {
+      console.error('[Auth] GIS 초기화 중 예외 발생:', e);
     }
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: cfg.CLIENT_ID,
-      scope: cfg.SCOPES,
-      callback: (tokenResponse) => {
-        if (tokenResponse.error !== undefined) throw tokenResponse;
-        accessToken = tokenResponse.access_token;
-        const expiry = Date.now() + tokenResponse.expires_in * 1000;
-        localStorage.setItem('toochangi_access_token', accessToken);
-        localStorage.setItem('toochangi_token_expiry', expiry);
-        gapi.client.setToken({ access_token: accessToken });
-        console.log('✅ 구글 로그인 완료.');
-        if (onLoginCallback) onLoginCallback({ name: '흰챙이' });
-      },
-    });
-    gisInited = true;
-    console.log('[Auth] GIS 초기화 완료.');
-    _tryLocalLogin();
   }
 
   function _tryLocalLogin() {

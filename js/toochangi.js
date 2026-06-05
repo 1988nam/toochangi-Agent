@@ -8,15 +8,17 @@ const Toochangi = (() => {
   let _tradelog  = [];
   let _analysisHistory = [];
   let _gachangiData = null;
+  let _assetHistory = [];
 
   // ── 데이터 로드 ─────────────────────────────────────────────────
   async function loadAll() {
     try {
-      [_portfolio, _tradelog, _analysisHistory, _gachangiData] = await Promise.all([
+      [_portfolio, _tradelog, _analysisHistory, _gachangiData, _assetHistory] = await Promise.all([
         SheetsAPI.getPortfolio(),
         SheetsAPI.getTradeLog(),
         SheetsAPI.getAnalysisHistory(),
         SheetsAPI.getGachangiMonthlySavings(),
+        SheetsAPI.getAssetStatus(),
       ]);
       console.log('[Toochangi] 데이터 로드 완료');
     } catch (e) {
@@ -100,7 +102,7 @@ const Toochangi = (() => {
 
   // ── Gemini AI 분석 ──────────────────────────────────────────────
   async function runGeminiAnalysis(query) {
-    const apiKey = TOOCHANGI_CONFIG.GEMINI_API_KEY;
+    const apiKey = window.TOOCHANGI_CONFIG.GEMINI_API_KEY;
     if (!apiKey || apiKey.startsWith('YOUR_')) {
       return '⚠️ Gemini API 키가 설정되지 않았습니다. js/config.js의 GEMINI_API_KEY를 설정해주세요.';
     }
@@ -113,14 +115,29 @@ const Toochangi = (() => {
       ? `이번 달 가계부 현황 - 수입: ${_gachangiData.income.toLocaleString()}원, 지출: ${_gachangiData.expense.toLocaleString()}원, 월 저축액: ${_gachangiData.savings.toLocaleString()}원`
       : '';
 
+    const strategyContext = window.TOOCHANGI_CONFIG.STRATEGY_CONTEXT || `[가족 프로필 및 미션]
+- 정현(흰챙이): 7년 내 상급지 이동 시드 구축 및 고소득 세액 방어 (IRP 연 600만 유지, 나머지 가용 재원 ISA 집중)
+- 혜영(깜챙이): 2026년 출산 대비 유동성 확보 및 비과세 혜택 (ISA 비과세 활용, 6개월 생활비 현금 상시 유지)
+- 아챙이(2026 예정): S&P500 적립식 매수 (증여세 면제 한도 2천만 원 내 초장기 복리엔진)
+- 양가 어머니: 인컴 전략 및 수급권 방어 (서울 2억/고창 3억 이하 유지 및 원금 방어 배당주)
+
+[운용 원칙 및 3단계 필터]
+- 1단계(전략 부합성): 은퇴(IRP)보다 주택 교체(ISA) 우선. 7년 내 인출 자금은 IRP 추가 납입 금지. 지수형 ETF 중심 복리 투자.
+- 2단계(부채 허들): 대출 금리(3.67%)보다 변동성이 크거나 기대수익률이 낮으면 대출 상환 우선.
+- 3단계(생애 주기): 합산 소득 2억 원 금융소득종합과세 방어(ISA 활용). 2026년 출산 시 일부 ISA를 파킹형 안전자산으로 전환.
+
+[가계부 매핑 지침]
+- 가용 재원 = 수입 총액 - 고정 지출(대출 원리금 240만 포함) - 변동 지출
+- 'ISA/투자' 및 '정현/혜영' 이름 태그 자산은 '7년 뒤 상급지 주택 자금' 분류.
+- IRP 연 600만 원 한도는 환급금 데이터와 연동 관리.`;
+
     const systemPrompt = `당신은 투챙이 - 흰챙이 가족의 AI 투자 비서입니다.
 
-투자 원칙:
-- 3단계 필터 원칙: ①시장흐름 ②섹터흐름 ③개별종목 모두 충족 시 매수
-- 안전자산 30%, 위험자산 70% 원칙
-- 국내 주식 중심, 장기 우상향 관점
-- 2033년 상급지 주택 이전을 위한 시드 구축이 목표
-- 2026년 출산 예정으로 유동성 주의
+구글 검색 기능 연동 (Google Search Grounding):
+- 당신에게는 실시간 인터넷 검색 기능이 주어져 있습니다. 질문에 나타난 종목에 대해 실시간 네이버/구글 뉴스 보도 내용 및 유튜브(YouTube) 영상 여론/댓글 트렌드, 시장 토론방 분위기를 적극적으로 검색하여 분석에 반영하세요.
+
+[흰챙이 커스텀 자산 운용 가이드라인 & 원칙]
+${strategyContext}
 
 현재 포트폴리오: ${portfolioSummary}
 ${gachangiContext}
@@ -128,10 +145,11 @@ ${gachangiContext}
 질문에 대해 구체적이고 실행 가능한 투자 의견을 한국어로 답하세요.
 분석 시 3단계 필터 기준을 명시하고, 투자 의견(매수/매도/관망)과 기간(단기/중기/장기)을 반드시 포함하세요.`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${TOOCHANGI_CONFIG.GEMINI_MODEL}:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${window.TOOCHANGI_CONFIG.GEMINI_MODEL}:generateContent?key=${apiKey}`;
     const body = {
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: [{ parts: [{ text: query }] }],
+      tools: [{ googleSearch: {} }], // Enables Google Search Grounding for real-time news/YouTube search
       generationConfig: { temperature: 0.7, maxOutputTokens: 1500 },
     };
 
@@ -143,7 +161,200 @@ ${gachangiContext}
 
     if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
     const data = await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '분석 결과를 받지 못했습니다.';
+    const candidate = data.candidates?.[0];
+    const text = candidate?.content?.parts?.[0]?.text || '분석 결과를 받지 못했습니다.';
+    const chunks = candidate?.groundingMetadata?.groundingChunks || [];
+    const sources = chunks.map(c => {
+      if (c.web) {
+        return { title: c.web.title, url: c.web.uri };
+      }
+      return null;
+    }).filter(Boolean);
+    return { text, sources };
+  }
+
+  // ── 자동 투자 추천 ──────────────────────────────────────────────
+  // KIS 거래량 데이터 + Google Search Grounding(뉴스/유튜브) + 포트폴리오 + 전략 Context를
+  // 통합하여 흰챙이 가족 원칙에 맞는 종목을 자동 발굴·추천하는 함수
+  async function runAutoRecommendation() {
+    const apiKey = window.TOOCHANGI_CONFIG.GEMINI_API_KEY;
+    if (!apiKey || apiKey.startsWith('YOUR_')) {
+      throw new Error('Gemini API 키가 설정되지 않았습니다.');
+    }
+
+    // ── 데이터 수집 (KIS + 포트폴리오 + 전략 + 유튜브 RSS) ──────────────────
+    let marketData = null;
+    if (typeof Broker !== 'undefined') {
+      try {
+        marketData = await Broker.fetchMarketData();
+      } catch (e) {
+        console.warn('[AutoRec] KIS 시장 데이터 수집 실패 (Gemini 검색 전용으로 계속):', e.message);
+      }
+    }
+
+    // 유튜브 채널 로드 및 RSS 피드 실시간 조회
+    let youtubeChannels = [];
+    try {
+      const stored = localStorage.getItem('toochangi_youtube_channels');
+      if (stored) {
+        youtubeChannels = JSON.parse(stored);
+      } else {
+        youtubeChannels = window.TOOCHANGI_CONFIG.DEFAULT_YOUTUBE_CHANNELS || [];
+      }
+    } catch (e) {
+      console.error('[AutoRec] YouTube 채널 로드 실패:', e);
+      youtubeChannels = window.TOOCHANGI_CONFIG.DEFAULT_YOUTUBE_CHANNELS || [];
+    }
+
+    let youtubeFeedText = '';
+    if (youtubeChannels.length > 0) {
+      const fetchPromises = youtubeChannels.map(async (ch) => {
+        try {
+          const res = await fetch(`/api/youtube-rss?channelId=${ch.id}`);
+          if (!res.ok) throw new Error(`Status ${res.status}`);
+          const data = await res.json();
+          return { name: ch.name, entries: data.entries || [] };
+        } catch (err) {
+          console.warn(`[AutoRec] YouTube feed fetch failed for ${ch.name} (${ch.id}):`, err.message);
+          return { name: ch.name, entries: [], error: err.message };
+        }
+      });
+
+      try {
+        const settled = await Promise.allSettled(fetchPromises);
+        const feeds = settled
+          .filter(s => s.status === 'fulfilled')
+          .map(s => s.value);
+
+        const feedLines = [];
+        feeds.forEach(f => {
+          if (f.entries && f.entries.length > 0) {
+            feedLines.push(`- ${f.name}:`);
+            f.entries.slice(0, 3).forEach(entry => {
+              const dateStr = entry.published ? entry.published.substring(0, 10) : '';
+              feedLines.push(`  * "${entry.title}" (${dateStr})`);
+            });
+          }
+        });
+        if (feedLines.length > 0) {
+          youtubeFeedText = `[구독 유튜브 채널 실시간 피드 (최신 업로드)]\n${feedLines.join('\n')}`;
+        } else {
+          youtubeFeedText = '[구독 유튜브 채널 실시간 피드] 유튜브 피드 데이터를 가져오지 못했습니다.';
+        }
+      } catch (err) {
+        console.error('[AutoRec] YouTube RSS 전체 조회 중 오류:', err);
+        youtubeFeedText = '[구독 유튜브 채널 실시간 피드] 피드 조회 중 에러가 발생했습니다.';
+      }
+    } else {
+      youtubeFeedText = '[구독 유튜브 채널 실시간 피드] 구독 중인 유튜브 채널이 없습니다.';
+    }
+
+    const portfolioSummary = _portfolio.length > 0
+      ? _portfolio.map(p =>
+          `${p.name}(${p.ticker}): ${p.qty}주, 평단 ${p.avgPrice.toLocaleString()}원, ` +
+          `현재가 ${(p.curPrice||p.avgPrice).toLocaleString()}원`
+        ).join('\n  ')
+      : '현재 보유 종목 없음';
+
+    const gachangiContext = _gachangiData
+      ? `이번 달 수입: ${_gachangiData.income.toLocaleString()}원, ` +
+        `지출: ${_gachangiData.expense.toLocaleString()}원, ` +
+        `가용 저축액: ${_gachangiData.savings.toLocaleString()}원`
+      : '가계부 데이터 미연동';
+
+    const strategyContext = window.TOOCHANGI_CONFIG.STRATEGY_CONTEXT || '';
+
+    // ── KIS 데이터 요약 텍스트 생성 ──────────────────────────────
+    let kisSection = '';
+    if (marketData && marketData.volumeRank && marketData.volumeRank.length > 0) {
+      const rankLines = marketData.volumeRank
+        .map(r => `  ${r.rank}위 ${r.name}(${r.ticker}): ${r.price}, 등락 ${r.change}, 거래량 ${r.volume} ${r.volChange}`)
+        .join('\n');
+      kisSection = `[KIS 실시간 거래량 순위 TOP ${marketData.volumeRank.length}]
+${rankLines}`;
+      if (marketData.indices) {
+        const idxLines = Object.entries(marketData.indices)
+          .map(([k, v]) => `  ${k}: ${v.current} (${v.rate}%)`)
+          .join('\n');
+        kisSection += `\n\n[코스피/코스닥 지수]\n${idxLines}`;
+      }
+    } else {
+      kisSection = '[KIS 거래량 데이터] KIS 미연동 또는 모의환경 — 아래 검색 지시에 따라 직접 검색하세요.';
+    }
+
+    // ── Gemini 프롬프트 구성 ──────────────────────────────────────
+    const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+
+    const systemPrompt = `당신은 투챙이 - 흰챙이 가족의 AI 자동 투자 발굴 엔진입니다.
+실시간 인터넷 검색 기능(Google Search Grounding)이 활성화되어 있습니다.
+
+[흰챙이 커스텀 자산 운용 가이드라인]
+${strategyContext}`;
+
+    const userPrompt = `오늘(${today}) 기준으로 투자 검토할 만한 종목을 자동 발굴·추천해주세요.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[현재 포트폴리오]
+  ${portfolioSummary}
+
+[가계부 현황]
+  ${gachangiContext}
+
+${kisSection}
+
+${youtubeFeedText}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[필수 검색 지시 — 아래 항목을 Google Search로 반드시 검색하세요]
+1. 오늘 국내외 주요 증시 특징 및 거래량 급등 테마/섹터 뉴스 검색
+2. 위 구독 유튜브 채널의 실시간 피드에 기록된 최신 영상 주제들을 면밀히 파악하고, 최근 시장 여론과 주목받는 종목들을 추천 후보군에 적극 반영하십시오.
+3. 위 KIS 거래량 상위 종목들의 급등 원인(공시, 실적, 이슈) 검색
+4. 미국 시장(S&P500, 나스닥) 오늘 주요 이슈 및 ETF 자금 흐름 검색
+5. 현재 ISA 계좌에 담기 적합한 국내 ETF 트렌드 검색
+
+[추천 출력 형식]
+추천 종목 3~5개를 아래 형식으로 각각 작성하세요:
+
+**[종목명(티커)]**
+- 📊 추천 이유: (검색 결과 기반, 구체적으로)
+- 🎯 3단계 필터 통과 여부:
+  - 1단계(전략 부합성): ✅/❌ — 이유
+  - 2단계(부채 허들 3.67%): ✅/❌ — 기대수익률 vs 대출금리
+  - 3단계(생애주기/ISA 적합성): ✅/❌ — 2026 출산·2033 주택교체 관점
+- 💡 흰챙이 전략 부합성: (ISA/IRP 중 어디에 담을지, 아챙이 계좌 적합 여부 등)
+- ⏰ 진입 고려 시점: 단기/중기/장기, 분할매수 vs 일시매수 의견
+- ⚠️ 리스크 요인: (주의할 점)
+
+마지막에 **[오늘의 시장 총평]** 섹션도 100자 내외로 추가해주세요.`;
+
+    // ── Gemini API 호출 ────────────────────────────────────────────
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${window.TOOCHANGI_CONFIG.GEMINI_MODEL}:generateContent?key=${apiKey}`;
+    const body = {
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ parts: [{ text: userPrompt }] }],
+      tools: [{ googleSearch: {} }],
+      generationConfig: { temperature: 0.6, maxOutputTokens: 3000 },
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
+    const data = await res.json();
+    const candidate = data.candidates?.[0];
+    const text = candidate?.content?.parts?.[0]?.text || '추천 결과를 받지 못했습니다.';
+    const chunks = candidate?.groundingMetadata?.groundingChunks || [];
+    const sources = chunks.map(c => c.web ? { title: c.web.title, url: c.web.uri } : null).filter(Boolean);
+
+    return {
+      text,
+      sources,
+      hadKisData: !!(marketData && marketData.volumeRank?.length > 0),
+      generatedAt: new Date().toLocaleString('ko-KR')
+    };
   }
 
   // ── Chart.js 렌더링 ──────────────────────────────────────────────
@@ -223,6 +434,189 @@ ${gachangiContext}
     });
   }
 
+  // ── 자산현황 계산 및 연동 ──────────────────────────────────────
+  function getAssetHistory() { return _assetHistory; }
+
+  function calcAssetMetrics(selectedMonthKey) {
+    let totalAssets = 0;
+    let totalDebt = 0;
+
+    const monthEntries = _assetHistory.filter(a => a.date && a.date.startsWith(selectedMonthKey));
+    monthEntries.forEach(a => {
+      const balance = a.balance || 0;
+      if (a.category === '대출(부채)') {
+        totalDebt += balance;
+      } else {
+        totalAssets += balance;
+      }
+    });
+
+    return {
+      totalAssets,
+      totalDebt,
+      netWorth: totalAssets - totalDebt
+    };
+  }
+
+  async function syncPortfolioAssets(targetDate) {
+    let domesticVal = 0;
+    let foreignVal = 0;
+    _portfolio.forEach(p => {
+      const val = p.qty * (p.curPrice || p.avgPrice);
+      if (p.market === '코스피' || p.market === '코스닥') {
+        domesticVal += val;
+      } else {
+        foreignVal += val;
+      }
+    });
+
+    await SheetsAPI.syncPortfolioToAssets(domesticVal, foreignVal, targetDate);
+    _assetHistory = await SheetsAPI.getAssetStatus();
+  }
+
+  // ── 자산현황 차트 렌더링 ──────────────────────────────────────
+  let _chartAssetAllocation = null;
+  let _chartNetWorthTrend = null;
+
+  function renderAssetCharts(selectedMonthKey) {
+    renderAssetAllocationChart(selectedMonthKey);
+    renderNetWorthTrendChart();
+  }
+
+  function renderAssetAllocationChart(selectedMonthKey) {
+    const ctx = document.getElementById('chart-asset-allocation');
+    if (!ctx) return;
+    if (_chartAssetAllocation) _chartAssetAllocation.destroy();
+
+    const monthEntries = _assetHistory.filter(a => a.date && a.date.startsWith(selectedMonthKey) && a.category !== '대출(부채)');
+    const catTotals = {};
+    monthEntries.forEach(a => {
+      catTotals[a.category] = (catTotals[a.category] || 0) + a.balance;
+    });
+
+    const labels = Object.keys(catTotals);
+    const data = Object.values(catTotals);
+
+    if (labels.length === 0) {
+      labels.push('등록된 자산 없음');
+      data.push(1);
+    }
+
+    const colors = [
+      '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b',
+      '#ef4444', '#06b6d4', '#ec4899', '#84cc16'
+    ];
+
+    _chartAssetAllocation = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#111827' }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Outfit', size: 11 }, boxWidth: 10 } },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const val = ctx.raw;
+                if (ctx.label === '등록된 자산 없음') return ctx.label;
+                return `${ctx.label}: ${val.toLocaleString()}원`;
+              }
+            }
+          }
+        },
+        cutout: '60%',
+      },
+    });
+  }
+
+  function renderNetWorthTrendChart() {
+    const ctx = document.getElementById('chart-networth-trend');
+    if (!ctx) return;
+    if (_chartNetWorthTrend) _chartNetWorthTrend.destroy();
+
+    const monthsMap = {};
+    _assetHistory.forEach(a => {
+      if (!a.date) return;
+      const monthKey = a.date.substring(0, 7); // "YYYY-MM"
+      if (!monthsMap[monthKey]) {
+        monthsMap[monthKey] = { assets: 0, debt: 0 };
+      }
+      if (a.category === '대출(부채)') {
+        monthsMap[monthKey].debt += a.balance;
+      } else {
+        monthsMap[monthKey].assets += a.balance;
+      }
+    });
+
+    const sortedMonths = Object.keys(monthsMap).sort().slice(-6);
+    const netWorthData = sortedMonths.map(m => monthsMap[m].assets - monthsMap[m].debt);
+    const assetData = sortedMonths.map(m => monthsMap[m].assets);
+
+    const labels = sortedMonths.map(m => {
+      const parts = m.split('-');
+      return `${parts[0].substring(2)}-${parts[1]}`;
+    });
+
+    _chartNetWorthTrend = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: '순자산',
+            data: netWorthData,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            fill: true,
+            tension: 0.3,
+            borderWidth: 2,
+            pointBackgroundColor: '#10b981'
+          },
+          {
+            label: '총자산',
+            data: assetData,
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.05)',
+            fill: false,
+            tension: 0.3,
+            borderWidth: 2,
+            borderDash: [5, 5],
+            pointBackgroundColor: '#3b82f6'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#94a3b8', font: { family: 'Outfit', size: 11 } } }
+        },
+        scales: {
+          x: { ticks: { color: '#94a3b8', font: { family: 'Outfit', size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: {
+            ticks: {
+              color: '#94a3b8',
+              font: { family: 'Outfit', size: 10 },
+              callback: v => {
+                if (Math.abs(v) >= 100000000) {
+                  return `${(v / 100000000).toFixed(1)}억원`;
+                }
+                if (Math.abs(v) >= 10000) {
+                  return `${(v / 10000).toLocaleString()}만원`;
+                }
+                return v.toLocaleString();
+              }
+            },
+            grid: { color: 'rgba(255,255,255,0.05)' }
+          }
+        }
+      }
+    });
+  }
+
   // ── getters ──────────────────────────────────────────────────────
   function getPortfolio() { return _portfolio; }
   function getTradeLog()  { return _tradelog; }
@@ -244,14 +638,85 @@ ${gachangiContext}
   async function saveFilter(row) {
     await SheetsAPI.appendFilter(row);
   }
+  async function applyFormulasToPortfolio() {
+    await SheetsAPI.applyFormulasToPortfolio();
+    await loadAll();
+  }
+
+  async function parseHoldingScreenshot(base64Data, mimeType) {
+    const apiKey = window.TOOCHANGI_CONFIG.GEMINI_API_KEY;
+    if (!apiKey || apiKey.startsWith('YOUR_')) {
+      throw new Error('Gemini API 키가 설정되지 않았습니다.');
+    }
+
+    const systemPrompt = `당신은 이미지 분석 및 금융 데이터 추출 전문가입니다. 
+제시된 이미지는 사용자의 증권사 계좌 보유 종목 잔고 화면(스마트폰 MTS 또는 PC HTS 스크린샷)입니다.
+이미지에서 보유 주식 및 ETF 종목들을 분석하여 다음 JSON 스키마를 만족하는 배열을 추출해주세요:
+[
+  {
+    "name": "종목명",
+    "ticker": "6자리 종목코드 (알 수 없는 해외 주식의 경우 AAPL/TSLA 등 알파벳 티커, 확인 불가능시 빈 문자열)",
+    "market": "코스피, 코스닥, 나스닥, NYSE 중 판별하여 작성. 모호하거나 모를 시 '기타'",
+    "qty": 보유 수량 (실수형 숫자, 소수점 이하 자리수가 있다면 반드시 소수로 추출하세요. 예: 1.886, 91.127),
+    "avgPrice": 평균 단가 (숫자, 소수점 이하가 있다면 반드시 소수로 추출하세요. 예: 38.557),
+    "curPrice": 현재가 (숫자),
+    "memo": "해당 증권사 이름 (예: 미래에셋, 키움, 토스, 한국투자 등)"
+  }
+]
+
+⚠️ **주의사항 (반드시 준수)**:
+1. **소수점(실수) 수량 파싱**: 해외 소수점 주식이나 소수점 투자 수량(예: 1.886주, 91.127주 등)에서 마침표(.)를 천 단위 구분 기호와 혼동하지 마세요. 소수점 이하 자리가 있으면 반드시 소수형 숫자(float)로 추출하셔야 합니다. 91.127을 91127로 파싱해서는 절대 안 됩니다.
+2. 평균 단가(avgPrice) 및 현재가(curPrice)에 소수점 기호(.)가 들어간 경우도 마찬가지로 정확한 소수(float)로 추출해 주십시오. (예: 38.557)
+3. 텍스트 설명이나 마크업 기호(예: \`\`\`json) 없이 오직 유효한 JSON 배열만 반환하세요.`;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${window.TOOCHANGI_CONFIG.GEMINI_MODEL}:generateContent?key=${apiKey}`;
+    const body = {
+      contents: [{
+        parts: [
+          { text: systemPrompt },
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Data
+            }
+          }
+        ]
+      }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.1
+      }
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
+    const data = await res.json();
+    const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!resultText) throw new Error('판독된 데이터를 받지 못했습니다.');
+
+    try {
+      return JSON.parse(resultText.trim());
+    } catch (e) {
+      console.error('JSON 파싱 실패:', resultText);
+      throw new Error('판독 데이터가 유효한 JSON 포맷이 아닙니다.');
+    }
+  }
 
   return {
     loadAll,
     calcPortfolioMetrics,
     evaluateFilter, updateFilterSignal, evaluateFinalVerdict,
     runGeminiAnalysis,
+    runAutoRecommendation,
     renderCharts,
     getPortfolio, getTradeLog, getAnalysis, getGachangiData,
-    addPortfolio, addTrade, saveAnalysis, saveFilter,
+    addPortfolio, addTrade, saveAnalysis, saveFilter, applyFormulasToPortfolio,
+    getAssetHistory, calcAssetMetrics, syncPortfolioAssets, renderAssetCharts,
+    parseHoldingScreenshot
   };
 })();

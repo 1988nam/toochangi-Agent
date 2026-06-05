@@ -61,12 +61,20 @@
       <button class="nav-item" data-tab="tradelog" id="nav-tradelog">
         <span class="nav-icon">📋</span><span>매매일지</span>
       </button>
-      <button class="nav-item" data-tab="analysis" id="nav-analysis">
-        <span class="nav-icon">🤖</span><span>AI 분석</span>
+      <button class="nav-item" data-tab="assets" id="nav-assets">
+        <span class="nav-icon">💰</span><span>자산현황</span>
+      </button>
+      <button class="nav-item" data-tab="auto-analysis" id="nav-auto-analysis">
+        <span class="nav-icon">🤖</span><span>자동 투자 추천</span>
+      </button>
+      <button class="nav-item" data-tab="manual-analysis" id="nav-manual-analysis">
+        <span class="nav-icon">🔮</span><span>수동 AI 분석</span>
       </button>
       <button class="nav-item" data-tab="broker" id="nav-broker">
         <span class="nav-icon">🏦</span><span>증권사 연동</span>
-        <span class="badge-soon">예정</span>
+      </button>
+      <button class="nav-item" data-tab="settings" id="nav-settings">
+        <span class="nav-icon">⚙️</span><span>환경 설정</span>
       </button>
     </nav>
     <div class="sidebar-footer">
@@ -156,19 +164,23 @@
       <div class="card">
         <div class="card-header">
           <span class="card-title">💼 보유 종목 현황</span>
-          <button id="add-holding-btn" class="btn-primary-sm">+ 종목 추가</button>
+          <div style="display: flex; gap: 8px;">
+            <button id="scan-drive-screenshots-btn" class="btn-primary-sm" style="background:#ea580c; border-color:#ea580c;">📸 드라이브 이미지 판독</button>
+            <button id="apply-formulas-btn" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 실시간 주가 수식 반영</button>
+            <button id="add-holding-btn" class="btn-primary-sm">+ 종목 추가</button>
+          </div>
         </div>
         <div class="table-wrap">
           <table class="data-table" id="portfolio-table">
             <thead>
               <tr>
-                <th>종목명</th><th>티커</th><th>시장</th>
+                <th>종목명</th><th>티커</th><th>시장</th><th>보유 계좌</th>
                 <th>보유수량</th><th>평균단가</th><th>현재가</th>
                 <th>평가금액</th><th>수익률</th><th>비중</th>
               </tr>
             </thead>
             <tbody id="portfolio-tbody">
-              <tr><td colspan="9" class="empty-state">종목을 추가해주세요</td></tr>
+              <tr><td colspan="10" class="empty-state">종목을 추가해주세요</td></tr>
             </tbody>
           </table>
         </div>
@@ -177,8 +189,13 @@
 
     <!-- ── 3단계 필터 탭 ── -->
     <div id="tab-filter" class="tab-panel hidden">
-      <div class="filter-intro">
-        <p>흰챙이 커스텀 투자 원칙 — 3단계 모두 GREEN일 때만 매수</p>
+      <div class="filter-intro" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+        <p style="margin: 0;">흰챙이 커스텀 투자 원칙 — 3단계 모두 GREEN일 때만 매수</p>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <label style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">분석 대상 종목:</label>
+          <input type="text" id="input-filter-stock-name" placeholder="종목명 (예: 삼성전자)" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; color: var(--text-primary); outline: none; font-size: 13px; width: 140px;" />
+          <input type="text" id="input-filter-stock-ticker" placeholder="종목코드 (예: 005930)" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; color: var(--text-primary); outline: none; font-size: 13px; width: 140px;" maxlength="6" />
+        </div>
       </div>
       <div class="filter-grid">
         <!-- 필터 1 -->
@@ -267,13 +284,81 @@
       </div>
     </div>
 
-    <!-- ── AI 분석 탭 ── -->
-    <div id="tab-analysis" class="tab-panel hidden">
+    <!-- ── 자동 투자 추천 탭 ── -->
+    <div id="tab-auto-analysis" class="tab-panel hidden">
+      <div class="analysis-layout">
+        <!-- 🤖 자동 투자 추천 카드 -->
+        <div class="auto-rec-card" id="auto-rec-card">
+          <div class="auto-rec-header">
+            <div class="auto-rec-title">
+              🤖 자동 투자 추천
+              <span class="auto-rec-badge">AI POWERED</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div class="auto-rec-meta">
+                <span id="auto-rec-kis-status" class="auto-rec-kis-badge offline">📡 KIS 미연동</span>
+                <span id="auto-rec-generated-at" style="display:none;"></span>
+              </div>
+              <button id="btn-auto-recommend" class="btn-auto-recommend">
+                ✨ 지금 시장 분석하기
+              </button>
+            </div>
+          </div>
+          <div class="auto-rec-body">
+            <!-- 초기 안내 상태 -->
+            <div id="auto-rec-empty" class="auto-rec-empty">
+              <div class="empty-icon">🔮</div>
+              <div><strong>버튼을 누르면 Gemini가 지금 시장을 자동 분석합니다</strong></div>
+              <div style="margin-top:8px; font-size:13px; line-height:1.7;">
+                📰 최신 뉴스 · 📺 유튜브 구독 채널 여론 · 📊 KIS 거래량을 통합하여<br>
+                흰챙이 가족 3단계 필터에 맞는 종목을 자동 발굴합니다
+              </div>
+            </div>
+            <!-- 로딩 스피너 -->
+            <div id="auto-rec-loading" class="auto-rec-spinner hidden">
+              <div class="spinner-ring"></div>
+              <div class="auto-rec-spinner-text">
+                <strong>Gemini AI 분석 중...</strong><br>
+                뉴스 · 유튜브 · KIS 데이터를 실시간으로 분석하고 있습니다<br>
+                <span style="font-size:11px; opacity:0.7;">약 15~30초 소요됩니다</span>
+              </div>
+            </div>
+            <!-- 추천 결과 -->
+            <div id="auto-rec-result" class="auto-rec-result hidden"></div>
+            <!-- 출처 -->
+            <div id="auto-rec-sources-wrap" class="auto-rec-sources hidden">
+              <div class="auto-rec-sources-title">🔍 실시간 검색 참고 출처</div>
+              <div id="auto-rec-source-chips" class="auto-rec-source-chips"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 📺 실시간 유튜브 피드 카드 -->
+        <div class="card youtube-feed-card">
+          <div class="card-header">
+            <span class="card-title">📺 구독 채널 실시간 피드</span>
+            <button id="btn-refresh-youtube" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 피드 새로고침</button>
+          </div>
+          <div class="youtube-feed-body" style="padding-top: 15px;">
+            <div id="youtube-feed-loading" class="youtube-feed-spinner hidden" style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 30px; color: var(--text-muted);">
+              <div class="spinner-ring" style="width: 20px; height: 20px; border-width: 2px;"></div>
+              <span>유튜브 피드를 가져오는 중...</span>
+            </div>
+            <div id="youtube-feed-list" class="youtube-feed-list">
+              <div class="empty-state">로딩 중이거나 구독 중인 채널이 없습니다. 환경설정에서 채널을 설정하세요.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 수동 AI 분석 탭 ── -->
+    <div id="tab-manual-analysis" class="tab-panel hidden">
       <div class="analysis-layout">
         <!-- 분석 실행 패널 -->
         <div class="card analysis-input-card">
           <div class="card-header">
-            <span class="card-title">🤖 Gemini AI 투자 분석</span>
+            <span class="card-title">🤖 Gemini AI 투자 분석 (수동)</span>
           </div>
           <div class="analysis-input-area">
             <label class="input-label">분석할 종목 또는 내용 입력</label>
@@ -294,6 +379,14 @@
           <div id="analysis-result" class="analysis-result">
             <div class="empty-state">분석을 실행하면 결과가 표시됩니다</div>
           </div>
+          <!-- 🔍 실시간 구글 검색 참고 출처 -->
+          <div id="analysis-sources-container" class="hidden" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); font-size: 13px;">
+            <div style="font-weight: 600; color: var(--accent-orange); display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+              🔍 구글 실시간 검색 참고 출처
+            </div>
+            <div id="analysis-sources" style="display: flex; flex-wrap: wrap; gap: 8px;">
+            </div>
+          </div>
         </div>
 
         <!-- 분석 히스토리 -->
@@ -310,32 +403,506 @@
 
     <!-- ── 증권사 연동 탭 ── -->
     <div id="tab-broker" class="tab-panel hidden">
-      <div class="card broker-coming-soon">
-        <div class="coming-soon-icon">🏦</div>
-        <h2>국내 증권사 API 연동</h2>
-        <p>한국투자증권(KIS), 키움증권 OpenAPI 연동을 통한 자동매매 기능이 준비 중입니다.</p>
-        <div class="broker-features">
-          <div class="broker-feature"><span>✅</span> 실시간 잔고 조회</div>
-          <div class="broker-feature"><span>✅</span> 자동 매수/매도 주문</div>
-          <div class="broker-feature"><span>✅</span> 3단계 필터 기반 자동 실행</div>
-          <div class="broker-feature"><span>✅</span> 손절/익절 자동 설정</div>
+      <!-- 증권사 연동 상단 레이아웃: 설정 및 수동 주문 / 계좌 요약 및 보유 종목 -->
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        
+        <!-- 상단 요약 대시보드 (로그인 되어 연동되었을 때 표시) -->
+        <div id="broker-dashboard" class="hidden" style="display: flex; flex-direction: column; gap: 20px;">
+          <!-- 핵심 지표 카드 -->
+          <div class="metrics-grid">
+            <div class="metric-card accent-blue">
+              <div class="metric-label">예수금 (현금)</div>
+              <div class="metric-value" id="broker-cash">—</div>
+              <div class="metric-sub">주문 가능 현금 잔고</div>
+            </div>
+            <div class="metric-card accent-purple">
+              <div class="metric-label">총 평가금액</div>
+              <div class="metric-value" id="broker-eval-amt">—</div>
+              <div class="metric-sub">주식 평가금액 + 예수금</div>
+            </div>
+            <div class="metric-card" id="broker-pnl-card">
+              <div class="metric-label">총 평가손익</div>
+              <div class="metric-value" id="broker-pnl">—</div>
+              <div class="metric-sub">보유 주식 전체 손익</div>
+            </div>
+            <div class="metric-card" id="broker-yield-card">
+              <div class="metric-label">총 수익률</div>
+              <div class="metric-value" id="broker-yield">—</div>
+              <div class="metric-sub">평가 대비 수익비율</div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; align-items: start;" class="broker-cols">
+            <!-- 보유 주식 리스트 -->
+            <div class="card" style="margin-bottom: 0;">
+              <div class="card-header">
+                <span class="card-title">📈 보유 종목 현황</span>
+                <button id="refresh-broker-btn" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 실시간 동기화</button>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table" id="broker-holdings-table">
+                  <thead>
+                    <tr>
+                      <th>종목명</th>
+                      <th>종목코드</th>
+                      <th>수량</th>
+                      <th>평균단가</th>
+                      <th>현재가</th>
+                      <th>평가금액</th>
+                      <th>평가손익</th>
+                      <th>수익률</th>
+                      <th>액션</th>
+                    </tr>
+                  </thead>
+                  <tbody id="broker-holdings-tbody">
+                    <tr><td colspan="9" class="empty-state">조회된 보유 종목이 없습니다.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 수동 주문 카드 -->
+            <div class="card" style="margin-bottom: 0;">
+              <div class="card-header">
+                <span class="card-title">⚡️ KIS 수동 주문</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 15px; padding: 15px 0 0 0;">
+                <div class="form-group">
+                  <label>거래 구분</label>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button type="button" id="order-side-buy" class="btn-side active-buy" style="padding: 10px; border-radius: 8px; font-weight: bold; background: #ef4444; color: white; border: none; cursor: pointer;">매수</button>
+                    <button type="button" id="order-side-sell" class="btn-side" style="padding: 10px; border-radius: 6px; font-weight: bold; background: #374151; color: #9ca3af; border: none; cursor: pointer;">매도</button>
+                  </div>
+                </div>
+                
+                <div class="form-group">
+                  <label>종목코드 (6자리)</label>
+                  <input type="text" id="input-order-ticker" placeholder="예: 005930" class="input-dark" maxlength="6" style="width: 100%;" />
+                </div>
+
+                <div class="form-group">
+                  <label>호가 구분</label>
+                  <select id="input-order-type" class="input-dark" style="width: 100%;">
+                    <option value="01">시장가 (Market)</option>
+                    <option value="00">지정가 (Limit)</option>
+                  </select>
+                </div>
+
+                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                  <div class="form-group">
+                    <label>주문수량 (주)</label>
+                    <input type="number" id="input-order-qty" placeholder="수량" class="input-dark" min="1" style="width: 100%;" />
+                  </div>
+                  <div class="form-group">
+                    <label>주문단가 (원)</label>
+                    <input type="number" id="input-order-price" placeholder="단가" class="input-dark" min="0" disabled style="width: 100%;" />
+                  </div>
+                </div>
+
+                <button id="btn-submit-order" class="btn-primary" style="background: #ef4444; width: 100%; font-size: 15px; font-weight: bold; padding: 12px; margin-top: 10px;">즉시 매수 주문 전송</button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="broker-options">
-          <div class="broker-option">
-            <div class="broker-logo">🏢</div>
-            <div>한국투자증권 KIS API</div>
-            <span class="badge-soon">연동 예정</span>
+
+        <!-- API 설정 카드 -->
+        <div class="card" style="max-width: 800px; margin: 0 auto; width: 100%;">
+          <div class="card-header">
+            <span class="card-title">🔑 한국투자증권 KIS API 연동 설정</span>
           </div>
-          <div class="broker-option">
-            <div class="broker-logo">🏢</div>
-            <div>키움증권 OpenAPI+</div>
-            <span class="badge-soon">연동 예정</span>
+          <div style="display: flex; flex-direction: column; gap: 15px; padding-top: 15px;">
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <div class="form-group">
+                <label>App Key *</label>
+                <input type="password" id="input-kis-appkey" placeholder="한국투자증권 App Key" class="input-dark" />
+              </div>
+              <div class="form-group">
+                <label>App Secret *</label>
+                <input type="password" id="input-kis-secret" placeholder="한국투자증권 App Secret" class="input-dark" />
+              </div>
+            </div>
+            
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <div class="form-group">
+                <label>계좌번호 * (지점코드 포함 10자리 숫자만)</label>
+                <input type="text" id="input-kis-account" placeholder="예: 50023456-01 -> 5002345601" class="input-dark" maxlength="11" />
+              </div>
+              <div class="form-group">
+                <label>거래 환경</label>
+                <select id="input-kis-mock" class="input-dark">
+                  <option value="true">모의투자 (Mock Trading)</option>
+                  <option value="false">실전투자 (Real Trading)</option>
+                </select>
+              </div>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #374151; margin: 10px 0;" />
+
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; align-items: center;">
+              <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+                  <input type="checkbox" id="input-kis-autotrade" style="width: 18px; height: 18px; cursor: pointer;" />
+                  <strong>AI 3단계 매수 신호 시 자동매매 활성화</strong>
+                </label>
+              </div>
+              <div class="form-group">
+                <label>자동매매 예산 한도 (원/회)</label>
+                <input type="number" id="input-kis-autotrade-amount" placeholder="예: 500000" class="input-dark" value="500000" />
+              </div>
+            </div>
+
+            <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; padding: 12px; border-radius: 4px; font-size: 13px; color: #9ca3af; line-height: 1.5;">
+              💡 <strong>안내:</strong> API Key 정보는 서버나 데이터베이스에 절대 저장되지 않으며, 사용자 브라우저의 <code>localStorage</code>에 암호화되지 않은 상태로 보관됩니다. 개인 PC가 아닌 공용 환경에서는 사용을 자제하고 완료 후 설정을 초기화하십시오. KIS API는 CORS 제한을 우회하기 위해 로컬 백엔드 프록시(Express) 서버를 거쳐 동작합니다.
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+              <button id="btn-clear-broker-settings" class="btn-cancel" style="background:#374151; color:#f3f4f6;">설정 초기화</button>
+              <button id="btn-save-broker-settings" class="btn-primary">연동 설정 저장 & 불러오기</button>
+            </div>
           </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── 자산현황 탭 ── -->
+    <div id="tab-assets" class="tab-panel hidden">
+      <!-- 핵심 지표 카드 -->
+      <div class="metrics-grid">
+        <div class="metric-card accent-purple">
+          <div class="metric-label">총 자산</div>
+          <div class="metric-value" id="asset-total-val">—</div>
+          <div class="metric-sub">부채 제외 실자산 합계</div>
+        </div>
+        <div class="metric-card accent-red">
+          <div class="metric-label">부채 총액</div>
+          <div class="metric-value" id="asset-debt-val">—</div>
+          <div class="metric-sub">대출 및 부채 합계</div>
+        </div>
+        <div class="metric-card accent-green">
+          <div class="metric-label">순자산 (Net Worth)</div>
+          <div class="metric-value" id="asset-net-val">—</div>
+          <div class="metric-sub">총 자산 - 부채 총액</div>
+        </div>
+      </div>
+
+      <!-- 차트 행 -->
+      <div class="chart-row">
+        <div class="card chart-card">
+          <div class="card-header">
+            <span class="card-title">자산 구성 비중</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-asset-allocation"></canvas>
+          </div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-header">
+            <span class="card-title">순자산 변화 추이</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-networth-trend"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- 자산 상세 관리 및 동기화 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">💰 자산 세부 목록</span>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <select id="asset-month-select" class="month-selector-sm" style="background:#1f2937; border:1px solid #374151; color:#f3f4f6; border-radius:4px; padding:4px 8px; font-family:Outfit; font-size:13px; outline:none; cursor:pointer;">
+              <!-- JS로 연/월 옵션 생성 -->
+            </select>
+            <button id="sync-portfolio-asset-btn" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 포트폴리오 주식 동기화</button>
+            <button id="add-asset-btn" class="btn-primary-sm">+ 자산 추가</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="asset-table">
+            <thead>
+              <tr>
+                <th>날짜</th><th>자산구분</th><th>자산명</th><th>잔고 (금액)</th><th>메모</th><th>최종수정일</th><th>작업</th>
+              </tr>
+            </thead>
+            <tbody id="asset-tbody">
+              <tr><td colspan="7" class="empty-state">자산 데이터를 불러오는 중...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
 
+    <!-- ── 환경 설정 탭 ── -->
+    <div id="tab-settings" class="tab-panel hidden">
+      <div style="display: flex; flex-direction: column; gap: 20px; max-width: 800px; margin: 0 auto;">
+        
+        <!-- Google API 설정 카드 -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">🔑 Google API 및 OAuth 설정</span>
+          </div>
+          <div class="card-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="background: rgba(139, 92, 246, 0.1); border-left: 4px solid var(--accent-purple); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+              💡 GitHub Pages에 배포하여 사용할 때, API 키 유출을 방지하기 위해 개인 API 자격증명 정보를 안전하게 브라우저 로컬 저장소에 저장하여 사용합니다.
+            </div>
+            <div class="form-group">
+              <label>Google OAuth Client ID</label>
+              <input type="text" id="setting-client-id" placeholder="예: 651656383566-...apps.googleusercontent.com" style="width: 100%; box-sizing: border-box;" />
+            </div>
+            <div class="form-group">
+              <label>Google API Key</label>
+              <input type="password" id="setting-api-key" placeholder="Google API Key 입력" style="width: 100%; box-sizing: border-box;" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Google Sheets & Drive 설정 카드 -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📁 Google Sheets & Drive 연동 설정</span>
+          </div>
+          <div class="card-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-row">
+              <div class="form-group">
+                <label>투챙이 스프레드시트 ID (TOOCHANGI_SHEET_ID)</label>
+                <input type="text" id="setting-toochangi-sheet-id" placeholder="시트 초기화 시 자동 입력됩니다" />
+              </div>
+              <div class="form-group">
+                <label>가챙이 스프레드시트 ID (GACHANGI_SHEET_ID)</label>
+                <input type="text" id="setting-gachangi-sheet-id" placeholder="1RahTa8uculzZR_nv9..." />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>드라이브 스캔 업로드 폴더 ID (SOURCE_FOLDER_ID)</label>
+                <input type="text" id="setting-source-folder-id" placeholder="스크린샷을 업로드할 드라이브 폴더 ID" />
+              </div>
+              <div class="form-group">
+                <label>드라이브 스캔 보관 폴더 ID (ARCHIVE_FOLDER_ID)</label>
+                <input type="text" id="setting-archive-folder-id" placeholder="판독 완료 후 스크린샷이 이동될 아카이브 폴더 ID" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gemini AI 설정 카드 -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">🔮 Gemini AI 설정</span>
+          </div>
+          <div class="card-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Gemini API Key</label>
+                <input type="password" id="setting-gemini-key" placeholder="AI Studio에서 발급받은 API 키" />
+              </div>
+              <div class="form-group">
+                <label>Gemini Model</label>
+                <select id="setting-gemini-model">
+                  <option value="gemini-3.5-flash">gemini-3.5-flash (권장 - 고속/에이전트)</option>
+                  <option value="gemini-3.1-pro">gemini-3.1-pro (고성능 추론 - Pro 권장)</option>
+                  <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (경량화)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 🎯 투자 운용 원칙 및 필터 전략 설정 카드 -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">🎯 투자 운용 원칙 및 필터 전략 설정 (Strategy Context)</span>
+          </div>
+          <div class="card-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+              💡 <strong>흰챙이 커스텀 운용 시스템 V3:</strong> Gemini AI 분석을 실행할 때 아래의 투자 원칙이 프롬프트 컨텍스트로 자동 주입되어 가족의 재정 미션에 특화된 진단을 제공합니다.
+            </div>
+            <div class="form-group" style="margin-top: 8px;">
+              <textarea id="setting-strategy-context" rows="8" placeholder="정현(흰챙이) 가족의 자산 운용 원칙 및 3단계 필터를 작성해 주세요..." style="width: 100%; box-sizing: border-box; background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 13px; line-height: 1.5; resize: vertical; min-height: 180px;"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 📺 YouTube RSS 구독 채널 설정 카드 -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📺 YouTube RSS 구독 채널 설정</span>
+          </div>
+          <div class="card-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+              💡 <strong>YouTube RSS 연동:</strong> 분석할 유튜브 채널의 URL(예: <code>https://www.youtube.com/@syukaworld</code>) 또는 핸들(예: <code>@syukaworld</code>)을 아래에 붙여넣고 추가 버튼을 누르면, 백엔드에서 채널 이름과 고유 ID를 자동으로 찾아 등록합니다.
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <input type="text" id="youtube-channel-resolve-input" placeholder="유튜브 채널 URL 또는 핸들 (예: @syukaworld)" style="flex: 1; min-width: 280px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-primary); padding: 10px 12px; border-radius: 8px; font-size: 14px;" />
+              <button id="btn-add-youtube-channel" class="btn-primary" style="padding: 10px 20px; font-size: 14px; border-radius: 8px; background: var(--accent-purple); border-color: var(--accent-purple); white-space: nowrap;">➕ 채널 추가</button>
+            </div>
+            <div style="border-top: 1px solid var(--border); padding-top: 15px;">
+              <label style="font-weight: 600; margin-bottom: 8px; display: block;">현재 구독 중인 채널 목록</label>
+              <div id="youtube-channels-list" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- 채널 리스트 렌더링 영역 -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 설정 내보내기/가져오기 카드 -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">🔄 설정 내보내기 & 가져오기</span>
+          </div>
+          <div class="card-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid var(--accent-orange); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+              💡 다른 기기(회사, 집, 모바일 등)에서 이 설정을 그대로 쓰시려면 아래의 **설정 토큰**을 복사하여 다른 기기에서 붙여넣고 가져오기를 진행해 주세요.
+            </div>
+            <div class="form-group">
+              <label>현재 설정 토큰 (복사해서 다른 기기에 붙여넣으세요)</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="setting-export-token" readonly style="flex: 1; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-muted); padding: 10px 12px; border-radius: 8px; font-size: 14px; box-sizing: border-box;" onclick="this.select()" />
+                <button id="btn-copy-settings-token" class="btn-primary" style="background: var(--bg-elevated); border-color: var(--border); color: var(--text-primary); padding: 10px 16px; font-size: 13px; white-space: nowrap; border-radius: 8px;">📋 복사</button>
+              </div>
+            </div>
+            <div class="form-group" style="margin-top: 8px;">
+              <label>설정 토큰 가져오기 (다른 기기에서 복사한 토큰 붙여넣기)</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="setting-import-token" placeholder="여기에 설정 토큰을 붙여넣으세요" style="flex: 1; box-sizing: border-box; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-primary); padding: 10px 12px; border-radius: 8px; font-size: 14px;" />
+                <button id="btn-import-settings-token" class="btn-primary" style="background: var(--accent-orange); border-color: var(--accent-orange); padding: 10px 16px; font-size: 13px; white-space: nowrap; border-radius: 8px;">📥 가져오기</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 저장 버튼 -->
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-bottom: 30px;">
+          <button id="btn-reset-settings" class="btn-cancel" style="background:#374151; color:#f3f4f6;">설정 초기화</button>
+          <button id="btn-save-settings" class="btn-primary" style="background: var(--accent-purple); border-color: var(--accent-purple);">💾 설정 저장 & 적용</button>
+        </div>
+
+      </div>
+    </div>
+
   </main>
+</div>
+
+<!-- ════════════ 자산 추가/수정 모달 ════════════ -->
+<div id="modal-asset" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="asset-modal-title">자산 추가</h3>
+      <button class="modal-close" data-modal="modal-asset">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="input-asset-row-index" />
+      <div class="form-row">
+        <div class="form-group">
+          <label>날짜 *</label>
+          <input type="date" id="input-asset-date" />
+        </div>
+        <div class="form-group">
+          <label>자산구분 *</label>
+          <select id="input-asset-category">
+            <!-- JS로 TOOCHANGI_CONFIG.ASSET_CATEGORIES 옵션 로드 -->
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>자산명 *</label>
+        <input type="text" id="input-asset-name" placeholder="예: 신한 보통예금, 마포 아파트" />
+      </div>
+
+      <!-- 1. 일반 자산 그룹 (현금, 주식 등) -->
+      <div id="group-asset-standard" class="form-group-sub">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label>잔고 (원) *</label>
+          <input type="number" id="input-asset-balance" placeholder="0" />
+        </div>
+        <div class="form-group">
+          <label>메모</label>
+          <input type="text" id="input-asset-memo" placeholder="용도, 계좌번호 등 간략한 메모" />
+        </div>
+      </div>
+
+      <!-- 2. 부동산 그룹 -->
+      <div id="group-asset-real-estate" class="form-group-sub hidden" style="display: flex; flex-direction: column; gap: 12px;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>평가액 / 매입가 (원) *</label>
+            <input type="number" id="input-asset-re-price" placeholder="0" />
+          </div>
+          <div class="form-group">
+            <label>담보 대출금 (원)</label>
+            <input type="number" id="input-asset-re-loan" placeholder="0" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>대출 이율 (%)</label>
+            <input type="number" id="input-asset-re-rate" step="0.01" placeholder="예: 4.2" />
+          </div>
+          <div class="form-group">
+            <label>투자 원금 (원)</label>
+            <input type="number" id="input-asset-re-principal" placeholder="0" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>기타 메모</label>
+          <input type="text" id="input-asset-re-memo" placeholder="추가 메모 입력" />
+        </div>
+      </div>
+
+      <!-- 3. 적금/정기예금 그룹 -->
+      <div id="group-asset-savings" class="form-group-sub hidden" style="display: flex; flex-direction: column; gap: 12px;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>예금 원금 (원) *</label>
+            <input type="number" id="input-asset-sav-principal" placeholder="0" />
+          </div>
+          <div class="form-group">
+            <label>약정 금리 (%)</label>
+            <input type="number" id="input-asset-sav-rate" step="0.01" placeholder="예: 3.5" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>만기일</label>
+            <input type="date" id="input-asset-sav-maturity" />
+          </div>
+          <div class="form-group">
+            <label>기타 메모</label>
+            <input type="text" id="input-asset-sav-memo" placeholder="추가 메모 입력" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. 대출(부채) 그룹 -->
+      <div id="group-asset-loan" class="form-group-sub hidden" style="display: flex; flex-direction: column; gap: 12px;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>대출 금액 (원) *</label>
+            <input type="number" id="input-asset-loan-principal" placeholder="0" />
+          </div>
+          <div class="form-group">
+            <label>대출 금리 (%)</label>
+            <input type="number" id="input-asset-loan-rate" step="0.01" placeholder="예: 5.8" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>만기일 / 상환일</label>
+            <input type="date" id="input-asset-loan-maturity" />
+          </div>
+          <div class="form-group">
+            <label>기타 메모</label>
+            <input type="text" id="input-asset-loan-memo" placeholder="추가 메모 입력" />
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" data-modal="modal-asset">취소</button>
+      <button id="save-asset-btn" class="btn-primary">저장</button>
+    </div>
+  </div>
 </div>
 
 <!-- ════════════ 종목 추가 모달 ════════════ -->
@@ -366,16 +933,20 @@
       <div class="form-row">
         <div class="form-group">
           <label>보유수량 *</label>
-          <input type="number" id="input-stock-qty" placeholder="0" />
+          <input type="number" step="any" id="input-stock-qty" placeholder="0" />
         </div>
         <div class="form-group">
           <label>평균단가 (원) *</label>
-          <input type="number" id="input-stock-avg" placeholder="0" />
+          <input type="number" step="any" id="input-stock-avg" placeholder="0" />
         </div>
       </div>
       <div class="form-group">
         <label>현재가 (원)</label>
-        <input type="number" id="input-stock-cur" placeholder="0 (비워두면 수동 업데이트)" />
+        <input type="number" step="any" id="input-stock-cur" placeholder="0 (비워두면 수동 업데이트)" />
+      </div>
+      <div class="form-group">
+        <label>보유 계좌 / 증권사</label>
+        <input type="text" id="input-stock-memo" placeholder="예: 미래에셋, 토스, 키움 등" />
       </div>
     </div>
     <div class="modal-footer">
@@ -413,11 +984,11 @@
       <div class="form-row">
         <div class="form-group">
           <label>수량 *</label>
-          <input type="number" id="input-trade-qty" placeholder="0" />
+          <input type="number" step="any" id="input-trade-qty" placeholder="0" />
         </div>
         <div class="form-group">
           <label>단가 (원) *</label>
-          <input type="number" id="input-trade-price" placeholder="0" />
+          <input type="number" step="any" id="input-trade-price" placeholder="0" />
         </div>
       </div>
       <div class="form-group">
@@ -432,17 +1003,228 @@
   </div>
 </div>
 
+<!-- ════════════ KIS 자동매매 최종 확인 모달 ════════════ -->
+<div id="modal-kis-order" class="modal-overlay hidden">
+  <div class="modal" style="max-width: 450px;">
+    <div class="modal-header" style="border-bottom: 1px solid var(--border);">
+      <h3 style="color: var(--accent-orange); display: flex; align-items: center; gap: 8px;">🔮 KIS 자동매매 최종 승인</h3>
+      <button class="modal-close" data-modal="modal-kis-order">✕</button>
+    </div>
+    <div class="modal-body" style="padding: 20px 24px; gap: 16px;">
+      <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid var(--accent-orange); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px;">
+        ⚠️ <strong>경고:</strong> 본 주문은 한국투자증권 API를 통해 실제 시장으로 전송됩니다. 주문 명세를 다시 한번 면밀히 확인해주십시오.
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 10px 0; color: var(--text-muted); font-weight: 500;">거래 종류</td>
+          <td style="padding: 10px 0; text-align: right; font-weight: 600; color: var(--accent-red);" id="kis-modal-side">매수</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 10px 0; color: var(--text-muted); font-weight: 500;">주문 종목</td>
+          <td style="padding: 10px 0; text-align: right; font-weight: 600;" id="kis-modal-stock">삼성전자 (005930)</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 10px 0; color: var(--text-muted); font-weight: 500; vertical-align: middle;">주문 수량</td>
+          <td style="padding: 10px 0; text-align: right;">
+            <input type="number" id="kis-modal-qty-input" value="10" min="1" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; color: var(--text-primary); text-align: right; outline: none; font-size: 14px; width: 100px; font-weight: 600;" />
+            <span style="font-weight: 600; margin-left: 4px;">주</span>
+          </td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 10px 0; color: var(--text-muted); font-weight: 500;">주문 가격</td>
+          <td style="padding: 10px 0; text-align: right; font-weight: 600;" id="kis-modal-price">시장가 (Market)</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 10px 0; color: var(--text-muted); font-weight: 500;">실행 계좌</td>
+          <td style="padding: 10px 0; text-align: right; font-weight: 600; color: var(--accent-purple);" id="kis-modal-account">50012345-01 (모의)</td>
+        </tr>
+      </table>
+    </div>
+    <div class="modal-footer" style="border-top: 1px solid var(--border);">
+      <button class="btn-cancel" data-modal="modal-kis-order">주문 취소</button>
+      <button id="btn-kis-order-confirm" class="btn-primary" style="background: var(--accent-orange); border-color: var(--accent-orange);">주문 전송 승인</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ 스크린샷 판독 결과 모달 ════════════ -->
+<div id="modal-screenshot-import" class="modal-overlay hidden" style="z-index: 210;">
+  <div class="modal" style="max-width: 900px; width: 90vw;">
+    <div class="modal-header">
+      <h3 style="color: var(--accent-orange); display: flex; align-items: center; gap: 8px;">📸 스크린샷 잔고 판독 결과</h3>
+      <button class="modal-close" data-modal="modal-screenshot-import">✕</button>
+    </div>
+    <div class="modal-body" style="padding: 20px 24px;">
+      <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid var(--accent-orange); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 15px;">
+        💡 <strong>안내:</strong> Gemini AI가 이미지에서 추출해 낸 계좌 잔고 데이터입니다. 잘못된 정보가 있다면 표에서 직접 수정한 후 가져오기를 진행해 주세요.
+      </div>
+      <div class="table-wrap" style="max-height: 350px; overflow-y: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>종목명 *</th>
+              <th style="width: 100px;">티커</th>
+              <th style="width: 100px;">시장</th>
+              <th style="width: 100px;">보유수량 *</th>
+              <th style="width: 140px;">평균단가 *</th>
+              <th>보유 계좌/증권사</th>
+              <th style="width: 70px;">작업</th>
+            </tr>
+          </thead>
+          <tbody id="screenshot-import-tbody">
+            <!-- 판독된 종목 행들이 동적으로 추가됩니다 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" data-modal="modal-screenshot-import">가져오기 취소</button>
+      <button id="btn-confirm-screenshot-import" class="btn-primary" style="background: var(--accent-orange); border-color: var(--accent-orange);">포트폴리오 일괄 추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ 이미지 판독 중 로딩 스피너 ════════════ -->
+<div id="modal-scanning-spinner" class="modal-overlay hidden" style="z-index: 300;">
+  <div style="text-align: center; color: var(--text-primary); background: var(--bg-surface); padding: 30px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+    <div class="scanner-container" style="position: relative; width: 80px; height: 80px; margin: 0 auto 20px; border: 2px solid var(--border-hover); border-radius: 8px; overflow: hidden; background: var(--bg-elevated);">
+      <div class="scanner-grid" style="width: 100%; height: 100%; opacity: 0.15; background-image: linear-gradient(rgba(245,158,11,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(245,158,11,0.3) 1px, transparent 1px); background-size: 10px 10px;"></div>
+      <div class="scan-line" style="position: absolute; left: 0; right: 0; height: 3px; background: var(--accent-orange); box-shadow: 0 0 10px var(--accent-orange); animation: scanAnimation 2s infinite ease-in-out;"></div>
+    </div>
+    <div id="scanning-spinner-text" style="font-size: 15px; font-weight: 600; color: var(--text-primary);">구글 드라이브 스캔 중...</div>
+    <div id="scanning-spinner-sub" style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">스마트폰에서 업로드한 스크린샷 파일을 분석하고 있습니다.</div>
+  </div>
+</div>
+
 <!-- ════════════ 토스트 알림 ════════════ -->
 <div id="toast" class="toast hidden"></div>
 
 <!-- ════════════ SCRIPTS ════════════ -->
+<script>
+  // Fallback default config to prevent crashes when js/config.js is missing (e.g. on GitHub Pages)
+  window.TOOCHANGI_CONFIG = {
+    CLIENT_ID: "",
+    API_KEY: "",
+    TOOCHANGI_SHEET_ID: "",
+    GACHANGI_SHEET_ID: "",
+    SOURCE_FOLDER_ID: "1TSdAQ0stJ8IhK83K487n-zBx1TrP37Bt",
+    ARCHIVE_FOLDER_ID: "1TSdAQ0stJ8IhK83K487n-zBx1TrP37Bt",
+    GEMINI_API_KEY: "",
+    GEMINI_MODEL: "gemini-3.5-flash",
+    STRATEGY_CONTEXT: `[가족 프로필 및 미션]
+- 정현(흰챙이): 7년 내 상급지 이동 시드 구축 및 고소득 세액 방어 (IRP 연 600만 유지, 나머지 가용 재원 ISA 집중)
+- 혜영(깜챙이): 2026년 출산 대비 유동성 확보 및 비과세 혜택 (ISA 비과세 활용, 6개월 생활비 현금 상시 유지)
+- 아챙이(2026 예정): S&P500 적립식 매수 (증여세 면제 한도 2천만 원 내 초장기 복리엔진)
+- 양가 어머니: 인컴 전략 및 수급권 방어 (서울 2억/고창 3억 이하 유지 및 원금 방어 배당주)
+
+[운용 원칙 및 3단계 필터]
+- 1단계(전략 부합성): 은퇴(IRP)보다 주택 교체(ISA) 우선. 7년 내 인출 자금은 IRP 추가 납입 금지. 지수형 ETF 중심 복리 투자.
+- 2단계(부채 허들): 대출 금리(3.67%)보다 변동성이 크거나 기대수익률이 낮으면 대출 상환 우선.
+- 3단계(생애 주기): 합산 소득 2억 원 금융소득종합과세 방어(ISA 활용). 2026년 출산 시 일부 ISA를 파킹형 안전자산으로 전환.
+
+[가계부 매핑 지침]
+- 가용 재원 = 수입 총액 - 고정 지출(대출 원리금 240만 포함) - 변동 지출
+- 'ISA/투자' 및 '정현/혜영' 이름 태그 자산은 '7년 뒤 상급지 주택 자금' 분류.
+- IRP 연 600만 원 한도는 환급금 데이터와 연동 관리.`,
+    SCOPES: [
+      'https://www.googleapis.com/auth/spreadsheets',
+      'https://www.googleapis.com/auth/drive',
+    ].join(' '),
+    SHEET_NAMES: {
+      PORTFOLIO: '포트폴리오',
+      TRADE_LOG: '매매일지',
+      ANALYSIS: '분석기록',
+      ASSET: '자산현황',
+    },
+    ASSET_CATEGORIES: [
+      '현금/보통예금',
+      '적금/정기예금',
+      '국내주식/투자',
+      '해외주식/투자',
+      '부동산',
+      '연금',
+      '기타(금, 암호화폐 등)',
+      '대출(부채)',
+    ],
+    KIS_HOSTS: {
+      REAL: 'https://openapi.koreainvestment.com:29443',
+      MOCK: 'https://openapivts.koreainvestment.com:29443',
+    },
+    STRATEGY: {
+      FILTER_1_MARKET_TREND: true,
+      FILTER_2_SECTOR_TREND: true,
+      FILTER_3_INDIVIDUAL: true,
+      SAFE_ASSET_RATIO: 0.3,
+      RISK_ASSET_RATIO: 0.7,
+    }
+  };
+</script>
 <script src="js/config.js"></script>
+<script>
+  // Merge overrides from localStorage AFTER config.js is loaded
+  try {
+    const overrides = localStorage.getItem('toochangi_config_overrides');
+    if (overrides) {
+      const parsed = JSON.parse(overrides);
+      let updated = false;
+
+      // Gemini 모델 마이그레이션 (2.0-flash 만료 및 사용자 피드백 반영)
+      if (parsed.GEMINI_MODEL === 'gemini-2.0-flash') {
+        parsed.GEMINI_MODEL = 'gemini-3.5-flash';
+        updated = true;
+      }
+
+      // 새 구글 드라이브 연동 폴더 강제 설정 마이그레이션
+      const targetFolderId = '1TSdAQ0stJ8IhK83K487n-zBx1TrP37Bt';
+      if (parsed.SOURCE_FOLDER_ID !== targetFolderId) {
+        parsed.SOURCE_FOLDER_ID = targetFolderId;
+        updated = true;
+      }
+      if (parsed.ARCHIVE_FOLDER_ID !== targetFolderId) {
+        parsed.ARCHIVE_FOLDER_ID = targetFolderId;
+        updated = true;
+      }
+
+      // 투자 운용 원칙 기본값 마이그레이션
+      if (!parsed.STRATEGY_CONTEXT) {
+        parsed.STRATEGY_CONTEXT = `[가족 프로필 및 미션]
+- 정현(흰챙이): 7년 내 상급지 이동 시드 구축 및 고소득 세액 방어 (IRP 연 600만 유지, 나머지 가용 재원 ISA 집중)
+- 혜영(깜챙이): 2026년 출산 대비 유동성 확보 및 비과세 혜택 (ISA 비과세 활용, 6개월 생활비 현금 상시 유지)
+- 아챙이(2026 예정): S&P500 적립식 매수 (증여세 면제 한도 2천만 원 내 초장기 복리엔진)
+- 양가 어머니: 인컴 전략 및 수급권 방어 (서울 2억/고창 3억 이하 유지 및 원금 방어 배당주)
+
+[운용 원칙 및 3단계 필터]
+- 1단계(전략 부합성): 은퇴(IRP)보다 주택 교체(ISA) 우선. 7년 내 인출 자금은 IRP 추가 납입 금지. 지수형 ETF 중심 복리 투자.
+- 2단계(부채 허들): 대출 금리(3.67%)보다 변동성이 크거나 기대수익률이 낮으면 대출 상환 우선.
+- 3단계(생애 주기): 합산 소득 2억 원 금융소득종합과세 방어(ISA 활용). 2026년 출산 시 일부 ISA를 파킹형 안전자산으로 전환.
+
+[가계부 매핑 지침]
+- 가용 재원 = 수입 총액 - 고정 지출(대출 원리금 240만 포함) - 변동 지출
+- 'ISA/투자' 및 '정현/혜영' 이름 태그 자산은 '7년 뒤 상급지 주택 자금' 분류.
+- IRP 연 600만 원 한도는 환급금 데이터와 연동 관리.`;
+        updated = true;
+      }
+
+      if (updated) {
+        localStorage.setItem('toochangi_config_overrides', JSON.stringify(parsed));
+      }
+
+      if (!window.TOOCHANGI_CONFIG) {
+        window.TOOCHANGI_CONFIG = {};
+      }
+      Object.assign(window.TOOCHANGI_CONFIG, parsed);
+    }
+  } catch (e) {
+    console.error('설정 오버라이드 병합 실패:', e);
+  }
+</script>
 <script src="js/auth.js"></script>
 <script src="js/sheets.js"></script>
 <script src="js/toochangi.js"></script>
+<script src="js/broker.js"></script>
 <script src="js/main.js"></script>
-<script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
-<script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+<script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
+<script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 
 </body>
 </html>

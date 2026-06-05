@@ -3,12 +3,15 @@
   "version": "1.0.0",
   "description": "흰챙이 가족 투자 분석 에이전트 - AI 기반 투자 전략 대시보드",
   "scripts": {
-    "start": "npx serve . -l 3001",
-    "dev": "npx serve . -l 3001"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
   "keywords": ["investment", "portfolio", "gemini-ai", "google-sheets"],
   "author": "1988nam",
   "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2"
+  },
   "devDependencies": {
     "serve": "^14.0.0"
   }
