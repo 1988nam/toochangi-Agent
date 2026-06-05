@@ -250,6 +250,9 @@ function renderPortfolioTab() {
     sheetLink.href = sheetId ? `https://docs.google.com/spreadsheets/d/${sheetId}/edit` : '#';
   }
 
+  // 계산되지 않은 지표들을 위해 먼저 계산을 호출하여 p._yield, p._weight 등이 올바르게 설정되도록 보장
+  Toochangi.calcPortfolioMetrics();
+
   const tbody = document.getElementById('portfolio-tbody');
   const portfolio = Toochangi.getPortfolio();
   if (portfolio.length === 0) {
