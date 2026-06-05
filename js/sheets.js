@@ -141,6 +141,8 @@ const SheetsAPI = (() => {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     const now = new Date().toLocaleDateString('ko-KR');
     
+    await backupPortfolio();
+    
     // 현재 포트폴리오를 읽어 다음에 삽입될 행(ROW) 번호 계산 (헤더가 1행이므로 데이터는 length + 2부터 시작)
     const portfolio = await getPortfolio();
     const nextRow = portfolio.length + 2;
@@ -168,6 +170,8 @@ const SheetsAPI = (() => {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     const now = new Date().toLocaleDateString('ko-KR');
 
+    await backupPortfolio();
+
     const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(REGEXMATCH(TO_TEXT(B${rowIndex}), "^[0-9]{1,6}$"), INT(GOOGLEFINANCE("KRX:"&TEXT(B${rowIndex},"000000"))), IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("USDKRW")), INT(GOOGLEFINANCE(B${rowIndex})))))`;
     const gFormula = `=D${rowIndex}*F${rowIndex}`;
     const hFormula = `=IF(E${rowIndex}>0, (F${rowIndex}-E${rowIndex})/E${rowIndex}, 0)`;
@@ -189,6 +193,7 @@ const SheetsAPI = (() => {
 
   async function deletePortfolio(rowIndex) {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    await backupPortfolio();
     const metaRes = await gapi.client.sheets.spreadsheets.get({
       spreadsheetId: id,
       fields: 'sheets.properties(title,sheetId)'
@@ -218,6 +223,8 @@ const SheetsAPI = (() => {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     const now = new Date().toLocaleDateString('ko-KR');
 
+    await backupPortfolio();
+
     const data = updates.map(({ rowIndex, row }) => {
       const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(REGEXMATCH(TO_TEXT(B${rowIndex}), "^[0-9]{1,6}$"), INT(GOOGLEFINANCE("KRX:"&TEXT(B${rowIndex},"000000"))), IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("USDKRW")), INT(GOOGLEFINANCE(B${rowIndex})))))`;
       const gFormula = `=D${rowIndex}*F${rowIndex}`;
@@ -245,6 +252,7 @@ const SheetsAPI = (() => {
 
   async function deletePortfolioRows(rowIndices) {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    await backupPortfolio();
     const metaRes = await gapi.client.sheets.spreadsheets.get({
       spreadsheetId: id,
       fields: 'sheets.properties(title,sheetId)'
@@ -275,6 +283,8 @@ const SheetsAPI = (() => {
   async function applyFormulasToPortfolio() {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     if (!id || id.startsWith('YOUR_')) return;
+
+    await backupPortfolio();
 
     // 현재 포트폴리오 값을 가져와 행의 개수를 파악
     const res = await gapi.client.sheets.spreadsheets.values.get({
@@ -594,11 +604,88 @@ const SheetsAPI = (() => {
         memo: '포트폴리오 실시간 동기화',
       });
     }
+  async function backupPortfolio() {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (!id || id.startsWith('YOUR_')) return;
+
+    try {
+      const res = await gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: id,
+        range: '포트폴리오!A1:K',
+        valueRenderOption: 'FORMULA'
+      });
+      const values = res.result.values;
+      if (!values || values.length === 0) return;
+
+      const metaRes = await gapi.client.sheets.spreadsheets.get({
+        spreadsheetId: id,
+        fields: 'sheets.properties(title,sheetId)'
+      });
+      const sheets = metaRes.result.sheets || [];
+      const backupSheet = sheets.find(s => s.properties.title === '포트폴리오_백업');
+      
+      if (!backupSheet) {
+        await gapi.client.sheets.spreadsheets.batchUpdate({
+          spreadsheetId: id,
+          resource: {
+            requests: [{
+              addSheet: {
+                properties: { title: '포트폴리오_백업' }
+              }
+            }]
+          }
+        });
+      }
+
+      await gapi.client.sheets.spreadsheets.values.clear({
+        spreadsheetId: id,
+        range: '포트폴리오_백업!A1:K'
+      });
+
+      await gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId: id,
+        range: '포트폴리오_백업!A1',
+        valueInputOption: 'USER_ENTERED',
+        resource: { values }
+      });
+      console.log('✅ 포트폴리오 백업 완료 (포트폴리오_백업)');
+    } catch (e) {
+      console.warn('⚠️ 포트폴리오 백업 실패:', e);
+    }
+  }
+
+  async function restorePortfolioFromBackup() {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (!id || id.startsWith('YOUR_')) return;
+
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: id,
+      range: '포트폴리오_백업!A1:K',
+      valueRenderOption: 'FORMULA'
+    });
+    const values = res.result.values;
+    if (!values || values.length === 0) {
+      throw new Error('복원할 백업 데이터가 존재하지 않습니다.');
+    }
+
+    await gapi.client.sheets.spreadsheets.values.clear({
+      spreadsheetId: id,
+      range: '포트폴리오!A1:K'
+    });
+
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: id,
+      range: '포트폴리오!A1',
+      valueInputOption: 'USER_ENTERED',
+      resource: { values }
+    });
+    console.log('✅ 백업으로부터 포트폴리오 복원 완료');
   }
 
   const api = {
     setupToochangiSheet,
     getPortfolio, appendPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, applyFormulasToPortfolio,
+    backupPortfolio, restorePortfolioFromBackup,
     getTradeLog, appendTrade,
     getAnalysisHistory, appendAnalysis,
     appendFilter,

@@ -658,6 +658,10 @@ ${youtubeFeedText}
     await SheetsAPI.applyFormulasToPortfolio();
     await loadAll();
   }
+  async function restorePortfolioFromBackup() {
+    await SheetsAPI.restorePortfolioFromBackup();
+    await loadAll();
+  }
 
   async function parseHoldingScreenshot(base64Data, mimeType) {
     const apiKey = window.TOOCHANGI_CONFIG.GEMINI_API_KEY;
@@ -759,7 +763,7 @@ ${youtubeFeedText}
     runAutoRecommendation,
     renderCharts,
     getPortfolio, getTradeLog, getAnalysis, getGachangiData,
-    addPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, addTrade, saveAnalysis, saveFilter, applyFormulasToPortfolio,
+    addPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, addTrade, saveAnalysis, saveFilter, applyFormulasToPortfolio, restorePortfolioFromBackup,
     getAssetHistory, calcAssetMetrics, syncPortfolioAssets, renderAssetCharts,
     parseHoldingScreenshot
   };

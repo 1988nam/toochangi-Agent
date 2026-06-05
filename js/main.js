@@ -477,6 +477,22 @@ function bindModalEvents() {
     }
   });
 
+  // 직전 작업 취소 (원복)
+  document.getElementById('restore-portfolio-btn')?.addEventListener('click', async () => {
+    if (!Auth.isLoggedIn()) { toast('먼저 로그인해주세요', 'error'); return; }
+    if (!confirm('정말로 직전 작업(수식 반영, 추가, 수정, 삭제 등)을 취소하고 원래 상태로 되돌리시겠습니까?\n백업된 데이터로 구글 시트가 덮어씌워집니다.')) return;
+    
+    toast('⏳ 데이터 복원 중...', 'info');
+    try {
+      await Toochangi.restorePortfolioFromBackup();
+      toast('✅ 직전 작업 취소 완료!', 'success');
+      renderPortfolioTab();
+      renderDashboard();
+    } catch (e) {
+      toast('⚠️ 복원 실패: ' + e.message, 'error');
+    }
+  });
+
   // 구글 드라이브 스크린샷 이미지 스캔 및 판독
   document.getElementById('scan-drive-screenshots-btn')?.addEventListener('click', async () => {
     if (!Auth.isLoggedIn()) { toast('먼저 로그인해주세요', 'error'); return; }
