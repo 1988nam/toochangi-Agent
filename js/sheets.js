@@ -4,6 +4,20 @@
  */
 const SheetsAPI = (() => {
   const cfg = () => window.TOOCHANGI_CONFIG || TOOCHANGI_CONFIG;
+  const SAVINGS_SHEET = '\uC608\uC801\uAE08';
+  const SAVINGS_HEADER_RANGE = `${SAVINGS_SHEET}!A1:J1`;
+  const SAVINGS_HEADERS = [[
+    '\uC790\uC0B0\uBA85',
+    '\uAE08\uC735\uAE30\uAD00',
+    '\uBA85\uC758',
+    '\uC608\uC801\uAE08\uC885\uB958',
+    '\uAE08\uB9AC(%)',
+    '\uC794\uC561(\uC6D0)',
+    '\uB9CC\uAE30\uC77C',
+    '\uC790\uC0B0\uC6A9\uB3C4',
+    '\uBA54\uBAA8',
+    '\uB4F1\uB85D\uC77C'
+  ]];
   const REAL_ESTATE_SHEET = '\uBD80\uB3D9\uC0B0';
   const REAL_ESTATE_HEADER_RANGE = `${REAL_ESTATE_SHEET}!A1:L1`;
   const REAL_ESTATE_HEADERS = [[
@@ -41,6 +55,29 @@ const SheetsAPI = (() => {
       range: REAL_ESTATE_HEADER_RANGE,
       valueInputOption: 'RAW',
       resource: { values: REAL_ESTATE_HEADERS }
+    });
+  }
+
+  async function ensureSavingsSheet(spreadsheetId) {
+    const metaRes = await gapi.client.sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties(title)'
+    });
+    const titles = (metaRes.result.sheets || []).map(s => s.properties.title);
+    if (!titles.includes(SAVINGS_SHEET)) {
+      await gapi.client.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        resource: {
+          requests: [{ addSheet: { properties: { title: SAVINGS_SHEET } } }]
+        }
+      });
+    }
+
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: SAVINGS_HEADER_RANGE,
+      valueInputOption: 'RAW',
+      resource: { values: SAVINGS_HEADERS }
     });
   }
 
@@ -238,6 +275,7 @@ const SheetsAPI = (() => {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     if (!id || id.startsWith('YOUR_')) return [];
     try {
+      await ensureSavingsSheet(id);
       const res = await gapi.client.sheets.spreadsheets.values.get({
         spreadsheetId: id, range: '예적금!A2:J',
       });
@@ -300,6 +338,7 @@ const SheetsAPI = (() => {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     if (!id || id.startsWith('YOUR_')) return;
     try {
+      await ensureSavingsSheet(id);
       const res = await gapi.client.sheets.spreadsheets.values.get({
         spreadsheetId: id,
         range: '예적금!A1:J',
@@ -348,6 +387,7 @@ const SheetsAPI = (() => {
   async function restoreSavingsFromBackup() {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     if (!id || id.startsWith('YOUR_')) return;
+    await ensureSavingsSheet(id);
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: id,
       range: '예적금_백업!A1:J',
@@ -373,6 +413,7 @@ const SheetsAPI = (() => {
   async function appendSavings(row) {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     const now = new Date().toLocaleDateString('ko-KR');
+    await ensureSavingsSheet(id);
     await backupSavings();
     const values = [[
       row.name, row.bank, row.owner || '', row.type,
@@ -390,6 +431,7 @@ const SheetsAPI = (() => {
   async function updateSavings(rowIndex, row) {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     const now = new Date().toLocaleDateString('ko-KR');
+    await ensureSavingsSheet(id);
     await backupSavings();
     const values = [[
       row.name, row.bank, row.owner || '', row.type,
@@ -406,6 +448,7 @@ const SheetsAPI = (() => {
 
   async function deleteSavings(rowIndex) {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    await ensureSavingsSheet(id);
     await backupSavings();
     const metaRes = await gapi.client.sheets.spreadsheets.get({
       spreadsheetId: id,
@@ -434,6 +477,7 @@ const SheetsAPI = (() => {
   async function updateSavingsRows(updates) {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     const now = new Date().toLocaleDateString('ko-KR');
+    await ensureSavingsSheet(id);
     await backupSavings();
     const data = updates.map(({ rowIndex, row }) => {
       return {
@@ -456,6 +500,7 @@ const SheetsAPI = (() => {
 
   async function deleteSavingsRows(rowIndices) {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    await ensureSavingsSheet(id);
     await backupSavings();
     const metaRes = await gapi.client.sheets.spreadsheets.get({
       spreadsheetId: id,
