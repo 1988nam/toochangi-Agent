@@ -382,6 +382,7 @@ function renderPortfolioTab() {
       <td>${p.name}</td>
       <td style="color:var(--text-muted)">${p.ticker}</td>
       <td><span class="market-pill" data-market="${p.market || '기타'}">${p.market}</span></td>
+      <td>${p.owner || '-'}</td>
       <td>${p.memo || '-'}</td>
       <td>${p.qty.toLocaleString()}</td>
       <td>${Math.floor(p.avgPrice).toLocaleString()}원</td>
@@ -412,6 +413,7 @@ function renderPortfolioTab() {
       document.getElementById('input-stock-qty').value = item.qty;
       document.getElementById('input-stock-avg').value = item.avgPrice;
       document.getElementById('input-stock-cur').value = item.curPrice || item.avgPrice;
+      if (document.getElementById('input-stock-owner')) document.getElementById('input-stock-owner').value = item.owner || '';
       document.getElementById('input-stock-memo').value = item.memo || '';
 
       document.querySelector('#modal-holding h3').textContent = '종목 수정';
@@ -835,6 +837,10 @@ function bindModalEvents() {
     const avg  = parseFloat(document.getElementById('input-stock-avg').value);
     const memo = document.getElementById('input-stock-memo').value.trim();
     const rowIndex = document.getElementById('input-stock-row-index')?.value;
+    const currentPortfolio = Toochangi.getPortfolio ? Toochangi.getPortfolio() : [];
+    const existingItem = rowIndex ? currentPortfolio.find(p => p.rowIndex === parseInt(rowIndex, 10)) : null;
+    const ownerInput = document.getElementById('input-stock-owner');
+    const owner = ownerInput ? ownerInput.value.trim() : (existingItem?.owner || '');
     if (!name || !qty || !avg) { toast('필수 항목을 입력해주세요', 'error'); return; }
 
     try {
@@ -843,6 +849,7 @@ function bindModalEvents() {
         market: document.getElementById('input-stock-market').value,
         qty, avgPrice: avg,
         curPrice: parseFloat(document.getElementById('input-stock-cur').value) || avg,
+        owner,
         memo,
       };
 
@@ -2396,6 +2403,7 @@ async function saveBulkEdit() {
           qty,
           avgPrice,
           curPrice: item.curPrice || avgPrice,
+          owner: item.owner || '',
           memo
         }
       });

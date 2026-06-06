@@ -300,9 +300,11 @@ const SheetsAPI = (() => {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     if (!id || id.startsWith('YOUR_')) return [];
     const res = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId: id, range: '포트폴리오!A2:K',
+      spreadsheetId: id, range: '포트폴리오!A2:L',
     });
-    return (res.result.values || []).map((r, idx) => ({
+    return (res.result.values || []).map((r, idx) => {
+      const hasOwnerColumns = r.length >= 12;
+      return {
       rowIndex: idx + 2, // 헤더가 1행이므로 데이터는 2행부터 시작
       name:    r[0]  || '',
       ticker:  r[1]  || '',
@@ -313,8 +315,11 @@ const SheetsAPI = (() => {
       value:   parseFloat(r[6])  || 0,
       yield:   parseFloat(r[7])  || 0,
       weight:  parseFloat(r[8])  || 0,
-      memo:    r[9]  || '',
-    }));
+      owner:   hasOwnerColumns ? (r[9] || '') : '',
+      memo:    hasOwnerColumns ? (r[10] || '') : (r[9] || ''),
+      date:    hasOwnerColumns ? (r[11] || '') : (r[10] || ''),
+    };
+    });
   }
 
   async function getSavings() {
@@ -730,12 +735,12 @@ const SheetsAPI = (() => {
     const values = [[
       row.name, row.ticker, row.market,
       row.qty, row.avgPrice, fFormula,
-      gFormula, hFormula, iFormula, row.memo || '구글파이낸스 연동', now,
+      gFormula, hFormula, iFormula, row.owner || '', row.memo || '구글파이낸스 연동', now,
     ]];
 
     await gapi.client.sheets.spreadsheets.values.append({
       spreadsheetId: id,
-      range: '포트폴리오!A:K',
+      range: '포트폴리오!A:L',
       valueInputOption: 'USER_ENTERED',
       resource: { values },
     });
@@ -755,12 +760,12 @@ const SheetsAPI = (() => {
     const values = [[
       row.name, row.ticker, row.market,
       row.qty, row.avgPrice, fFormula,
-      gFormula, hFormula, iFormula, row.memo || '수동 업데이트', now,
+      gFormula, hFormula, iFormula, row.owner || '', row.memo || '수동 업데이트', now,
     ]];
 
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: id,
-      range: `포트폴리오!A${rowIndex}:K${rowIndex}`,
+      range: `포트폴리오!A${rowIndex}:L${rowIndex}`,
       valueInputOption: 'USER_ENTERED',
       resource: { values },
     });
@@ -807,11 +812,11 @@ const SheetsAPI = (() => {
       const iFormula = `=IF(SUM(G$2:G$100)>0, G${rowIndex}/SUM(G$2:G$100), 0)`;
 
       return {
-        range: `포트폴리오!A${rowIndex}:K${rowIndex}`,
+        range: `포트폴리오!A${rowIndex}:L${rowIndex}`,
         values: [[
           row.name, row.ticker, row.market,
           row.qty, row.avgPrice, fFormula,
-          gFormula, hFormula, iFormula, row.memo || '수동 업데이트', now,
+          gFormula, hFormula, iFormula, row.owner || '', row.memo || '수동 업데이트', now,
         ]]
       };
     });
