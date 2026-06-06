@@ -230,6 +230,8 @@ function switchTab(tab) {
 function renderDashboard() {
   const metrics = Toochangi.calcPortfolioMetrics();
   const gaData  = Toochangi.getGachangiData();
+  const savings = Toochangi.getSavings ? Toochangi.getSavings() : [];
+  const totalCashAssets = savings.reduce((sum, item) => sum + (parseFloat(item.balance) || 0), 0);
 
   // 총 투자 자산
   document.getElementById('m-total-asset').textContent =
@@ -253,6 +255,8 @@ function renderDashboard() {
   } else {
     availEl.textContent = '—';
   }
+
+  availEl.textContent = totalCashAssets > 0 ? `${Math.floor(totalCashAssets).toLocaleString()}원` : '—';
 
   // 3단계 신호 요약
   const signalEl = document.getElementById('m-signal');
