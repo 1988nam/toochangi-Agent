@@ -4,6 +4,43 @@
  */
 const SheetsAPI = (() => {
   const cfg = () => window.TOOCHANGI_CONFIG || TOOCHANGI_CONFIG;
+  const REAL_ESTATE_SHEET = '\uBD80\uB3D9\uC0B0';
+  const REAL_ESTATE_HEADER_RANGE = `${REAL_ESTATE_SHEET}!A1:J1`;
+  const REAL_ESTATE_HEADERS = [[
+    '\uBD80\uB3D9\uC0B0\uBA85',
+    '\uB9E4\uC785\uAC00(\uC6D0)',
+    '\uD604\uC7AC\uD3C9\uAC00\uC561(\uC6D0)',
+    '\uB2F4\uBCF4\uB300\uCD9C\uC561(\uC6D0)',
+    '\uB300\uCD9C\uAE08\uB9AC(%)',
+    '\uC804\uC138\uBCF4\uC99D\uAE08(\uC6D0)',
+    '\uC5F0\uAC04\uC720\uC9C0\uBE44/\uC774\uC790(\uC6D0)',
+    '\uC790\uC0B0\uC6A9\uB3C4',
+    '\uBA54\uBAA8',
+    '\uB4F1\uB85D\uC77C'
+  ]];
+
+  async function ensureRealEstateSheet(spreadsheetId) {
+    const metaRes = await gapi.client.sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties(title)'
+    });
+    const titles = (metaRes.result.sheets || []).map(s => s.properties.title);
+    if (titles.includes(REAL_ESTATE_SHEET)) return;
+
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [{ addSheet: { properties: { title: REAL_ESTATE_SHEET } } }]
+      }
+    });
+
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: REAL_ESTATE_HEADER_RANGE,
+      valueInputOption: 'RAW',
+      resource: { values: REAL_ESTATE_HEADERS }
+    });
+  }
 
   function ensureGapiWrapped() {
     if (!window.gapi || !gapi.client || !gapi.client.sheets) return;
@@ -224,6 +261,7 @@ const SheetsAPI = (() => {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     if (!id || id.startsWith('YOUR_')) return [];
     try {
+      await ensureRealEstateSheet(id);
       const res = await gapi.client.sheets.spreadsheets.values.get({
         spreadsheetId: id, range: '부동산!A2:J',
       });
@@ -436,6 +474,7 @@ const SheetsAPI = (() => {
   async function appendRealEstate(row) {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     const now = new Date().toLocaleDateString('ko-KR');
+    await ensureRealEstateSheet(id);
     const values = [[
       row.name,
       parseFloat(row.purchasePrice) || 0,
@@ -459,6 +498,7 @@ const SheetsAPI = (() => {
   async function updateRealEstate(rowIndex, row) {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     const now = new Date().toLocaleDateString('ko-KR');
+    await ensureRealEstateSheet(id);
     const values = [[
       row.name,
       parseFloat(row.purchasePrice) || 0,
@@ -481,6 +521,7 @@ const SheetsAPI = (() => {
 
   async function deleteRealEstate(rowIndex) {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    await ensureRealEstateSheet(id);
     const metaRes = await gapi.client.sheets.spreadsheets.get({
       spreadsheetId: id,
       fields: 'sheets.properties(title,sheetId)'
@@ -508,6 +549,7 @@ const SheetsAPI = (() => {
   async function updateRealEstateRows(updates) {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     const now = new Date().toLocaleDateString('ko-KR');
+    await ensureRealEstateSheet(id);
     const data = updates.map(({ rowIndex, row }) => {
       return {
         range: `부동산!A${rowIndex}:J${rowIndex}`,
@@ -536,6 +578,7 @@ const SheetsAPI = (() => {
 
   async function deleteRealEstateRows(rowIndices) {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    await ensureRealEstateSheet(id);
     const metaRes = await gapi.client.sheets.spreadsheets.get({
       spreadsheetId: id,
       fields: 'sheets.properties(title,sheetId)'
