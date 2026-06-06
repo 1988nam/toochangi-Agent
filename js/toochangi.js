@@ -443,8 +443,17 @@ ${youtubeFeedText}
     const metrics = calcPortfolioMetrics();
     const stockValue = metrics.totalValue || 0;
     const cashValue = (_savings || []).reduce((sum, s) => sum + (parseFloat(s.balance) || 0), 0);
-    const realEstateNet = (_realEstate || []).reduce(
-      (sum, r) => sum + ((parseFloat(r.currentValue) || 0) - (parseFloat(r.loanAmount) || 0)), 0);
+    const realEstateNet = (_realEstate || []).reduce((sum, r) => {
+      const value = parseFloat(r.currentValue) || 0;
+      const loanAmount = parseFloat(r.loanAmount) || 0;
+      // 부동산 메뉴/대시보드와 동일하게 '남은 대출잔액' 기준. 계산 불가 시 원래 대출액으로 폴백.
+      let loan = loanAmount;
+      if (loanAmount > 0 && typeof calculateLoanProgress === 'function') {
+        const progress = calculateLoanProgress(r);
+        if (progress && progress.remainingBalance != null) loan = progress.remainingBalance;
+      }
+      return sum + (value - loan);
+    }, 0);
 
     const entries = [
       { label: '주식 자산',   value: stockValue,    color: '#8b5cf6' },
