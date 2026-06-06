@@ -292,6 +292,66 @@ function renderRecentAnalysis() {
 // ══════════════════════════════════════════════════════════════
 // ── 포트폴리오 탭 렌더링 ──────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
+function computeMarketYield(items) {
+  const totals = items.reduce((acc, item) => {
+    const qty = parseFloat(item.qty) || 0;
+    const avgPrice = parseFloat(item.avgPrice) || 0;
+    const currentValue = parseFloat(item._value || item.value || (qty * (item.curPrice || item.avgPrice || 0))) || 0;
+    acc.cost += qty * avgPrice;
+    acc.value += currentValue;
+    return acc;
+  }, { cost: 0, value: 0 });
+
+  if (totals.cost <= 0) return null;
+  return ((totals.value - totals.cost) / totals.cost) * 100;
+}
+
+function renderPortfolioSummaryCards(portfolio, metrics) {
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+    return el;
+  };
+
+  setText('portfolio-total-asset', metrics.totalValue > 0 ? `${Math.floor(metrics.totalValue).toLocaleString()}원` : '—');
+  setText('portfolio-total-asset-sub', '평가금액 기준');
+
+  const totalYieldEl = setText(
+    'portfolio-total-yield',
+    metrics.totalValue > 0 || metrics.totalCost > 0
+      ? `${metrics.totalYield >= 0 ? '+' : ''}${metrics.totalYield.toFixed(2)}%`
+      : '—'
+  );
+  if (totalYieldEl) {
+    totalYieldEl.style.color = (metrics.totalValue > 0 || metrics.totalCost > 0)
+      ? (metrics.totalYield >= 0 ? 'var(--accent-green)' : 'var(--accent-red)')
+      : '';
+  }
+  setText('portfolio-total-yield-sub', '전체 보유 종목 기준');
+
+  const kospiItems = portfolio.filter((item) => (item.market || '').trim() === '코스피');
+  const kospiYield = computeMarketYield(kospiItems);
+  const kospiYieldEl = setText(
+    'portfolio-kospi-yield',
+    kospiYield === null ? '—' : `${kospiYield >= 0 ? '+' : ''}${kospiYield.toFixed(2)}%`
+  );
+  if (kospiYieldEl) {
+    kospiYieldEl.style.color = kospiYield === null ? '' : (kospiYield >= 0 ? 'var(--accent-green)' : 'var(--accent-red)');
+  }
+  setText('portfolio-kospi-yield-sub', kospiItems.length > 0 ? `코스피 ${kospiItems.length}종목 기준` : '코스피 보유 종목 없음');
+
+  const nasdaqItems = portfolio.filter((item) => (item.market || '').trim() === '나스닥');
+  const nasdaqYield = computeMarketYield(nasdaqItems);
+  const nasdaqYieldEl = setText(
+    'portfolio-nasdaq-yield',
+    nasdaqYield === null ? '—' : `${nasdaqYield >= 0 ? '+' : ''}${nasdaqYield.toFixed(2)}%`
+  );
+  if (nasdaqYieldEl) {
+    nasdaqYieldEl.style.color = nasdaqYield === null ? '' : (nasdaqYield >= 0 ? 'var(--accent-green)' : 'var(--accent-red)');
+  }
+  setText('portfolio-nasdaq-yield-sub', nasdaqItems.length > 0 ? `나스닥 ${nasdaqItems.length}종목 기준` : '나스닥 보유 종목 없음');
+}
+
 function renderPortfolioTab() {
   const sheetLink = document.getElementById('btn-open-sheet');
   if (sheetLink) {
@@ -300,10 +360,11 @@ function renderPortfolioTab() {
   }
 
   // 계산되지 않은 지표들을 위해 먼저 계산을 호출하여 p._yield, p._weight 등이 올바르게 설정되도록 보장
-  Toochangi.calcPortfolioMetrics();
+  const metrics = Toochangi.calcPortfolioMetrics();
 
   const tbody = document.getElementById('portfolio-tbody');
   const portfolio = Toochangi.getPortfolio();
+  renderPortfolioSummaryCards(portfolio, metrics);
   if (portfolio.length === 0) {
     tbody.innerHTML = '<tr><td colspan="12" class="empty-state">종목을 추가해주세요</td></tr>';
     const chkAll = document.getElementById('chk-portfolio-all');
