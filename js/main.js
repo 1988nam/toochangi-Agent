@@ -374,14 +374,14 @@ function renderPortfolioTab() {
   }
   tbody.innerHTML = portfolio.map(p => {
     const yieldStr = p._yield >= 0 ? `+${p._yield.toFixed(2)}%` : `${p._yield.toFixed(2)}%`;
-    const yieldClass = p._yield >= 0 ? 'pos' : 'neg';
+    const yieldClass = p._yield >= 0 ? 'yield-pos' : 'yield-neg';
     return `<tr data-rowindex="${p.rowIndex}">
       <td style="text-align: center;">
         <input type="checkbox" class="chk-portfolio-row" data-rowindex="${p.rowIndex}" style="cursor:pointer;" />
       </td>
       <td>${p.name}</td>
       <td style="color:var(--text-muted)">${p.ticker}</td>
-      <td style="color:var(--text-muted)">${p.market}</td>
+      <td><span class="market-pill" data-market="${p.market || '기타'}">${p.market}</span></td>
       <td>${p.memo || '-'}</td>
       <td>${p.qty.toLocaleString()}</td>
       <td>${Math.floor(p.avgPrice).toLocaleString()}원</td>
