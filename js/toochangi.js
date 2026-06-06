@@ -116,7 +116,7 @@ const Toochangi = (() => {
       : '- 보유 주식 없음';
 
     const savingsSummary = _savings.length > 0
-      ? _savings.map(s => `- ${s.name}(${s.bank}): 잔액 ${s.balance.toLocaleString()}원, 금리 ${s.rate}%, 만기일 ${s.maturity || '없음'}, 용도: ${s.purpose}`).join('\n')
+      ? _savings.map(s => `- ${s.name}(${s.bank}, 명의 ${s.owner || '미지정'}): 잔액 ${s.balance.toLocaleString()}원, 금리 ${s.rate}%, 만기일 ${s.maturity || '없음'}, 용도: ${s.purpose}`).join('\n')
       : '- 보유 예적금 없음';
 
     const realEstateSummary = _realEstate.length > 0
@@ -270,7 +270,7 @@ ${gachangiContext}
       : '- 보유 주식 없음';
 
     const savingsSummary = _savings.length > 0
-      ? _savings.map(s => `- ${s.name}(${s.bank}): 잔액 ${s.balance.toLocaleString()}원, 금리 ${s.rate}%, 만기일 ${s.maturity || '없음'}, 용도: ${s.purpose}`).join('\n')
+      ? _savings.map(s => `- ${s.name}(${s.bank}, 명의 ${s.owner || '미지정'}): 잔액 ${s.balance.toLocaleString()}원, 금리 ${s.rate}%, 만기일 ${s.maturity || '없음'}, 용도: ${s.purpose}`).join('\n')
       : '- 보유 예적금 없음';
 
     const realEstateSummary = _realEstate.length > 0

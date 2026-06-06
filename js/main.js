@@ -794,6 +794,7 @@ function bindModalEvents() {
     document.getElementById('input-savings-row-index').value = '';
     document.getElementById('input-savings-name').value = '';
     document.getElementById('input-savings-bank').value = '';
+    document.getElementById('input-savings-owner').value = '';
     document.getElementById('input-savings-type').value = '';
     document.getElementById('input-savings-rate').value = '';
     document.getElementById('input-savings-balance').value = '';
@@ -826,6 +827,7 @@ function bindModalEvents() {
   document.getElementById('save-savings-btn')?.addEventListener('click', async () => {
     const name = document.getElementById('input-savings-name').value.trim();
     const bank = document.getElementById('input-savings-bank').value.trim();
+    const owner = document.getElementById('input-savings-owner').value;
     const type = document.getElementById('input-savings-type').value.trim();
     const rate = parseFloat(document.getElementById('input-savings-rate').value);
     const balance = parseFloat(document.getElementById('input-savings-balance').value);
@@ -834,13 +836,13 @@ function bindModalEvents() {
     const memo = document.getElementById('input-savings-memo').value.trim();
     const rowIndex = document.getElementById('input-savings-row-index')?.value;
 
-    if (!name || !bank || !type || isNaN(rate) || isNaN(balance)) {
+    if (!name || !bank || !owner || !type || isNaN(rate) || isNaN(balance)) {
       toast('필수 항목을 모두 입력해주세요', 'error');
       return;
     }
 
     try {
-      const data = { name, bank, type, rate, balance, maturity, purpose, memo };
+      const data = { name, bank, owner, type, rate, balance, maturity, purpose, memo };
       if (rowIndex) {
         await Toochangi.updateSavings(parseInt(rowIndex, 10), data);
         toast(`✅ ${name} 수정 완료`, 'success');
@@ -2322,7 +2324,7 @@ function renderSavingsTab() {
   const savings = Toochangi.getSavings();
 
   if (savings.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="11" class="empty-state">자산을 추가해 주세요</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="empty-state">자산을 추가해 주세요</td></tr>';
     const chkAll = document.getElementById('chk-savings-all');
     if (chkAll) chkAll.checked = false;
     updateSavingsBulkActionsVisibility();
@@ -2336,6 +2338,7 @@ function renderSavingsTab() {
       </td>
       <td><strong>${s.name}</strong></td>
       <td>${s.bank}</td>
+      <td>${s.owner || '—'}</td>
       <td><span class="badge" style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${s.type}</span></td>
       <td>${s.rate}%</td>
       <td>${s.balance.toLocaleString()}원</td>
@@ -2361,6 +2364,7 @@ function renderSavingsTab() {
       document.getElementById('input-savings-row-index').value = rIdx;
       document.getElementById('input-savings-name').value = item.name;
       document.getElementById('input-savings-bank').value = item.bank;
+      document.getElementById('input-savings-owner').value = item.owner || '';
       document.getElementById('input-savings-type').value = item.type;
       document.getElementById('input-savings-rate').value = item.rate;
       document.getElementById('input-savings-balance').value = item.balance;
@@ -2493,6 +2497,7 @@ async function saveSavingsBulkEdit() {
         row: {
           name: item.name,
           bank: item.bank,
+          owner: item.owner,
           type: item.type,
           rate,
           balance,

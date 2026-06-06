@@ -223,6 +223,7 @@
                 <th style="width: 40px; text-align: center;"><input type="checkbox" id="chk-savings-all" style="cursor:pointer;" /></th>
                 <th>자산명</th>
                 <th>금융기관</th>
+                <th>명의</th>
                 <th>예적금종류</th>
                 <th>금리(%)</th>
                 <th>잔액(원)</th>
@@ -234,7 +235,7 @@
               </tr>
             </thead>
             <tbody id="savings-tbody">
-              <tr><td colspan="11" class="empty-state">자산을 추가해 주세요</td></tr>
+              <tr><td colspan="12" class="empty-state">자산을 추가해 주세요</td></tr>
             </tbody>
           </table>
         </div>
@@ -1261,6 +1262,17 @@
           <label>금융기관 *</label>
           <input type="text" id="input-savings-bank" placeholder="예: 신한은행" />
         </div>
+        <div class="form-group">
+          <label>명의 *</label>
+          <select id="input-savings-owner">
+            <option value="">선택</option>
+            <option value="정현">정현</option>
+            <option value="혜영">혜영</option>
+            <option value="아챙">아챙</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
         <div class="form-group">
           <label>예적금종류 *</label>
           <input type="text" id="input-savings-type" placeholder="예: 정기예금" />
