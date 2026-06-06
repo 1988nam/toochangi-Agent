@@ -390,7 +390,7 @@ ${youtubeFeedText}
 
   function renderCharts() {
     renderAllocationChart();
-    renderMonthlyChart();
+    renderAssetPortfolioChart();
   }
 
   function renderAllocationChart(canvasId = 'chart-allocation', isPortfolioTab = false) {
@@ -434,37 +434,51 @@ ${youtubeFeedText}
     }
   }
 
-  function renderMonthlyChart() {
+  function renderAssetPortfolioChart() {
     const ctx = document.getElementById('chart-monthly-yield');
     if (!ctx) return;
     if (_chartMonthly) _chartMonthly.destroy();
 
-    // 매매일지에서 월별 수익률 계산 (더미 데이터로 시작)
-    const months = ['1월','2월','3월','4월','5월','6월'];
-    const yields = months.map(() => (Math.random() * 6 - 2).toFixed(2));
+    // 자산 포트폴리오 비중: 주식 / 현금 / 부동산(순자산)
+    const metrics = calcPortfolioMetrics();
+    const stockValue = metrics.totalValue || 0;
+    const cashValue = (_savings || []).reduce((sum, s) => sum + (parseFloat(s.balance) || 0), 0);
+    const realEstateNet = (_realEstate || []).reduce(
+      (sum, r) => sum + ((parseFloat(r.currentValue) || 0) - (parseFloat(r.loanAmount) || 0)), 0);
+
+    const entries = [
+      { label: '주식 자산',   value: stockValue,    color: '#8b5cf6' },
+      { label: '현금 자산',   value: cashValue,     color: '#3b82f6' },
+      { label: '부동산 자산', value: realEstateNet, color: '#f59e0b' },
+    ].filter(e => e.value > 0);
+
+    const total = entries.reduce((s, e) => s + e.value, 0);
+
+    const labels = entries.length > 0 ? entries.map(e => e.label) : ['등록된 자산 없음'];
+    const data   = entries.length > 0 ? entries.map(e => e.value) : [1];
+    const colors = entries.length > 0 ? entries.map(e => e.color) : ['#374151'];
 
     _chartMonthly = new Chart(ctx, {
-      type: 'bar',
+      type: 'doughnut',
       data: {
-        labels: months,
-        datasets: [{
-          label: '월별 수익률(%)',
-          data: yields,
-          backgroundColor: yields.map(v => parseFloat(v) >= 0 ? 'rgba(16,185,129,0.6)' : 'rgba(239,68,68,0.6)'),
-          borderColor:     yields.map(v => parseFloat(v) >= 0 ? '#10b981' : '#ef4444'),
-          borderWidth: 1, borderRadius: 4,
-        }],
+        labels,
+        datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#111827' }],
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { color: '#94a3b8', font: { family: 'Outfit' } }, grid: { color: 'rgba(255,255,255,0.05)' } },
-          y: {
-            ticks: { color: '#94a3b8', font: { family: 'Outfit' }, callback: v => `${v}%` },
-            grid: { color: 'rgba(255,255,255,0.05)' },
+        plugins: {
+          legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Outfit', size: 12 }, boxWidth: 12 } },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                if (ctx.label === '등록된 자산 없음') return ctx.label;
+                const pct = total > 0 ? (ctx.raw / total * 100).toFixed(1) : '0.0';
+                return `${ctx.label}: ${Math.floor(ctx.raw).toLocaleString()}원 (${pct}%)`;
+              },
+            },
           },
         },
+        cutout: '65%',
       },
     });
   }
