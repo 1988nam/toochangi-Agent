@@ -170,6 +170,28 @@
 
     <!-- ── 포트폴리오 탭 ── -->
     <div id="tab-portfolio" class="tab-panel hidden">
+      <div class="metrics-grid" style="margin-bottom: 18px;">
+        <div class="metric-card accent-purple">
+          <div class="metric-label">주식 자산</div>
+          <div class="metric-value" id="portfolio-total-asset">—</div>
+          <div class="metric-sub" id="portfolio-total-asset-sub">평가금액 기준</div>
+        </div>
+        <div class="metric-card accent-green">
+          <div class="metric-label">총 수익률</div>
+          <div class="metric-value" id="portfolio-total-yield">—</div>
+          <div class="metric-sub" id="portfolio-total-yield-sub">전체 보유 종목 기준</div>
+        </div>
+        <div class="metric-card accent-blue">
+          <div class="metric-label">코스피 수익률</div>
+          <div class="metric-value" id="portfolio-kospi-yield">—</div>
+          <div class="metric-sub" id="portfolio-kospi-yield-sub">코스피 보유 종목 기준</div>
+        </div>
+        <div class="metric-card accent-orange">
+          <div class="metric-label">나스닥 수익률</div>
+          <div class="metric-value" id="portfolio-nasdaq-yield">—</div>
+          <div class="metric-sub" id="portfolio-nasdaq-yield-sub">나스닥 보유 종목 기준</div>
+        </div>
+      </div>
       <div class="card">
         <div class="card-header">
           <span class="card-title">💼 보유 종목 현황</span>
@@ -181,28 +203,6 @@
             <button id="apply-formulas-btn" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 실시간 주가 수식 반영</button>
             <button id="restore-portfolio-btn" class="btn-primary-sm" style="background:#4b5563; border-color:#6b7280;">↩️ 직전 작업 취소 (원복)</button>
             <button id="add-holding-btn" class="btn-primary-sm">+ 종목 추가</button>
-          </div>
-        </div>
-        <div class="metrics-grid" style="margin-bottom: 18px;">
-          <div class="metric-card accent-purple">
-            <div class="metric-label">주식 자산</div>
-            <div class="metric-value" id="portfolio-total-asset">—</div>
-            <div class="metric-sub" id="portfolio-total-asset-sub">평가금액 기준</div>
-          </div>
-          <div class="metric-card accent-green">
-            <div class="metric-label">총 수익률</div>
-            <div class="metric-value" id="portfolio-total-yield">—</div>
-            <div class="metric-sub" id="portfolio-total-yield-sub">전체 보유 종목 기준</div>
-          </div>
-          <div class="metric-card accent-blue">
-            <div class="metric-label">코스피 수익률</div>
-            <div class="metric-value" id="portfolio-kospi-yield">—</div>
-            <div class="metric-sub" id="portfolio-kospi-yield-sub">코스피 보유 종목 기준</div>
-          </div>
-          <div class="metric-card accent-orange">
-            <div class="metric-label">나스닥 수익률</div>
-            <div class="metric-value" id="portfolio-nasdaq-yield">—</div>
-            <div class="metric-sub" id="portfolio-nasdaq-yield-sub">나스닥 보유 종목 기준</div>
           </div>
         </div>
         <div class="table-wrap">
