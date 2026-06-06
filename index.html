@@ -201,12 +201,22 @@
       </div>
 
       <!-- 주식 투자 현황 도넛 그래프 -->
-      <div class="card chart-card">
-        <div class="card-header">
-          <span class="card-title">주식 투자 현황</span>
+      <div class="chart-row">
+        <div class="card chart-card">
+          <div class="card-header">
+            <span class="card-title">주식 투자 현황 (종목 기준)</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-portfolio-allocation"></canvas>
+          </div>
         </div>
-        <div class="chart-wrap">
-          <canvas id="chart-portfolio-allocation"></canvas>
+        <div class="card chart-card">
+          <div class="card-header">
+            <span class="card-title">주식 투자 현황 (시장 기준)</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-portfolio-market-allocation"></canvas>
+          </div>
         </div>
       </div>
 

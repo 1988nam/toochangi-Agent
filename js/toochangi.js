@@ -385,6 +385,7 @@ ${youtubeFeedText}
   // ── Chart.js 렌더링 ──────────────────────────────────────────────
   let _chartAllocation = null;
   let _chartPortfolioAllocation = null;
+  let _chartPortfolioMarketAllocation = null;
   let _chartMonthly    = null;
 
   function renderCharts() {
@@ -468,8 +469,58 @@ ${youtubeFeedText}
     });
   }
 
-  // ── 자산현황 계산 및 연동 ──────────────────────────────────────
-  function getAssetHistory() { return _assetHistory; }
+  function renderMarketAllocationChart() {
+    const ctx = document.getElementById('chart-portfolio-market-allocation');
+    if (!ctx) return;
+    if (_chartPortfolioMarketAllocation) _chartPortfolioMarketAllocation.destroy();
+
+    // 시장별 비중 계산
+    const marketTotals = {};
+    let grandTotal = 0;
+    
+    _portfolio.forEach(p => {
+      const market = p.market || '기타';
+      const value = p.qty * (p.curPrice || p.avgPrice);
+      marketTotals[market] = (marketTotals[market] || 0) + value;
+      grandTotal += value;
+    });
+
+    const labels = Object.keys(marketTotals);
+    const data = labels.map(market => 
+      grandTotal > 0 ? (marketTotals[market] / grandTotal) * 100 : 0
+    );
+
+    // 시장별 색상 맵
+    const marketColors = {
+      '코스피': '#8b5cf6',
+      '코스닥': '#3b82f6',
+      '나스닥': '#10b981',
+      'NYSE': '#f59e0b',
+      '기타': '#ef4444'
+    };
+    const colors = labels.map(market => marketColors[market] || '#84cc16');
+
+    if (labels.length === 0) {
+      labels.push('데이터 없음');
+      data.push(1);
+    }
+
+    _chartPortfolioMarketAllocation = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#111827' }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Outfit', size: 12 }, boxWidth: 12 } },
+          tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw.toFixed(1)}%` } },
+        },
+        cutout: '65%',
+      },
+    });
+  }
 
   function calcAssetMetrics(selectedMonthKey) {
     let totalAssets = 0;
@@ -848,6 +899,7 @@ ${youtubeFeedText}
     runAutoRecommendation,
     renderCharts,
     renderAllocationChart,
+    renderMarketAllocationChart,
     getPortfolio, getTradeLog, getAnalysis, getGachangiData, getGachangiAccounts, getSavings, getRealEstate,
     addPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, addTrade, saveAnalysis, saveFilter, applyFormulasToPortfolio, restorePortfolioFromBackup,
     addSavings, updateSavings, deleteSavings, updateSavingsRows, deleteSavingsRows, restoreSavingsFromBackup,
