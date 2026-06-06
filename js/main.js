@@ -56,6 +56,43 @@ async function onLoginSuccess(user) {
   }
 }
 
+function renderSavingsLinkedAccountOptions(selectedAccountNumber = '') {
+  const select = document.getElementById('input-savings-linked-account');
+  if (!select) return;
+
+  const accounts = Toochangi.getGachangiAccounts ? Toochangi.getGachangiAccounts() : [];
+  select.innerHTML = '<option value="">계좌를 선택하세요</option>';
+
+  accounts.forEach((acc) => {
+    const option = document.createElement('option');
+    option.value = `${acc.accountName || ''}|${acc.accountNumber || ''}|${acc.ownerName || ''}`;
+    option.textContent = `[${acc.ownerName || '미지정'}] ${acc.accountName || '계좌명 없음'} (${acc.accountNumber || '계좌번호 없음'})`;
+    if ((acc.accountNumber || '') === selectedAccountNumber) option.selected = true;
+    select.appendChild(option);
+  });
+}
+
+function renderSidebarAccounts() {
+  const section = document.getElementById('sidebar-accounts-section');
+  const list = document.getElementById('sidebar-accounts-list');
+  if (!section || !list) return;
+
+  const accounts = Toochangi.getGachangiAccounts ? Toochangi.getGachangiAccounts() : [];
+  if (!accounts.length) {
+    section.classList.add('hidden');
+    list.innerHTML = '';
+    return;
+  }
+
+  section.classList.remove('hidden');
+  list.innerHTML = accounts.map((acc) => `
+    <div class="sidebar-account-item">
+      <div class="sidebar-account-name">${acc.accountName || '계좌명 없음'}</div>
+      <div class="sidebar-account-meta">${acc.ownerName || '미지정'} · ${acc.accountNumber || '계좌번호 없음'}</div>
+    </div>
+  `).join('');
+}
+
 // ── 데이터 새로고침 ─────────────────────────────────────────────
 async function refreshAll() {
   toast('📊 데이터 로드 중...', 'info');
@@ -65,6 +102,8 @@ async function refreshAll() {
     renderPortfolioTab();
     renderSavingsTab();
     renderRealestateTab();
+    renderSidebarAccounts();
+    renderSavingsLinkedAccountOptions();
     renderTradelogTab();
     renderManualAnalysisTab();
     renderYouTubeFeed();
@@ -795,13 +834,31 @@ function bindModalEvents() {
     document.getElementById('input-savings-name').value = '';
     document.getElementById('input-savings-bank').value = '';
     document.getElementById('input-savings-owner').value = '';
+    document.getElementById('input-savings-linked-account').value = '';
+    document.getElementById('input-savings-accountNumber').value = '';
     document.getElementById('input-savings-type').value = '';
     document.getElementById('input-savings-rate').value = '';
     document.getElementById('input-savings-balance').value = '';
     document.getElementById('input-savings-maturity').value = '';
     document.getElementById('input-savings-purpose').value = '';
     document.getElementById('input-savings-memo').value = '';
+    renderSavingsLinkedAccountOptions();
     document.getElementById('modal-savings-add-edit').classList.remove('hidden');
+  });
+
+  document.getElementById('input-savings-linked-account')?.addEventListener('change', (e) => {
+    const [accountName, accountNumber, ownerName] = (e.target.value || '').split('|');
+    document.getElementById('input-savings-accountNumber').value = accountNumber || '';
+
+    const ownerSelect = document.getElementById('input-savings-owner');
+    if (ownerName && ownerSelect && ['정현', '혜영', '아챙'].includes(ownerName)) {
+      ownerSelect.value = ownerName;
+    }
+
+    const bankInput = document.getElementById('input-savings-bank');
+    if (bankInput && !bankInput.value.trim() && accountName) {
+      bankInput.value = accountName;
+    }
   });
 
   document.getElementById('btn-savings-bulk-edit')?.addEventListener('click', openSavingsBulkEditModal);
@@ -828,6 +885,7 @@ function bindModalEvents() {
     const name = document.getElementById('input-savings-name').value.trim();
     const bank = document.getElementById('input-savings-bank').value.trim();
     const owner = document.getElementById('input-savings-owner').value;
+    const accountNumber = document.getElementById('input-savings-accountNumber').value.trim();
     const type = document.getElementById('input-savings-type').value.trim();
     const rate = parseFloat(document.getElementById('input-savings-rate').value);
     const balance = parseFloat(document.getElementById('input-savings-balance').value);
@@ -836,13 +894,13 @@ function bindModalEvents() {
     const memo = document.getElementById('input-savings-memo').value.trim();
     const rowIndex = document.getElementById('input-savings-row-index')?.value;
 
-    if (!name || !bank || !owner || !type || isNaN(rate) || isNaN(balance)) {
+    if (!name || !bank || !owner || !accountNumber || !type || isNaN(rate) || isNaN(balance)) {
       toast('필수 항목을 모두 입력해주세요', 'error');
       return;
     }
 
     try {
-      const data = { name, bank, owner, type, rate, balance, maturity, purpose, memo };
+      const data = { name, bank, owner, accountNumber, type, rate, balance, maturity, purpose, memo };
       if (rowIndex) {
         await Toochangi.updateSavings(parseInt(rowIndex, 10), data);
         toast(`✅ ${name} 수정 완료`, 'success');
@@ -2324,7 +2382,7 @@ function renderSavingsTab() {
   const savings = Toochangi.getSavings();
 
   if (savings.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12" class="empty-state">자산을 추가해 주세요</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" class="empty-state">자산을 추가해 주세요</td></tr>';
     const chkAll = document.getElementById('chk-savings-all');
     if (chkAll) chkAll.checked = false;
     updateSavingsBulkActionsVisibility();
@@ -2339,6 +2397,7 @@ function renderSavingsTab() {
       <td><strong>${s.name}</strong></td>
       <td>${s.bank}</td>
       <td>${s.owner || '—'}</td>
+      <td>${s.accountNumber || '—'}</td>
       <td><span class="badge" style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${s.type}</span></td>
       <td>${s.rate}%</td>
       <td>${s.balance.toLocaleString()}원</td>
@@ -2365,6 +2424,7 @@ function renderSavingsTab() {
       document.getElementById('input-savings-name').value = item.name;
       document.getElementById('input-savings-bank').value = item.bank;
       document.getElementById('input-savings-owner').value = item.owner || '';
+      document.getElementById('input-savings-accountNumber').value = item.accountNumber || '';
       document.getElementById('input-savings-type').value = item.type;
       document.getElementById('input-savings-rate').value = item.rate;
       document.getElementById('input-savings-balance').value = item.balance;
@@ -2381,6 +2441,7 @@ function renderSavingsTab() {
       document.getElementById('input-savings-maturity').value = matDate;
       document.getElementById('input-savings-purpose').value = item.purpose;
       document.getElementById('input-savings-memo').value = item.memo || '';
+      renderSavingsLinkedAccountOptions(item.accountNumber || '');
 
       document.getElementById('savings-modal-title').textContent = '예적금 수정';
       document.getElementById('modal-savings-add-edit').classList.remove('hidden');
@@ -2498,6 +2559,7 @@ async function saveSavingsBulkEdit() {
           name: item.name,
           bank: item.bank,
           owner: item.owner,
+          accountNumber: item.accountNumber,
           type: item.type,
           rate,
           balance,

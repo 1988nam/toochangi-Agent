@@ -193,6 +193,9 @@ html, body {
 .app.collapsed .nav-item .badge-soon {
   display: none;
 }
+.app.collapsed .sidebar-accounts {
+  display: none;
+}
 
 .app.collapsed .sidebar-footer {
   flex-direction: column;
@@ -229,6 +232,41 @@ html, body {
 }
 
 .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 0 12px; }
+.sidebar-accounts {
+  margin: 10px 4px 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+}
+.sidebar-accounts-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sidebar-accounts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sidebar-account-item {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+}
+.sidebar-account-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.sidebar-account-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
 
 .nav-item {
   display: flex; align-items: center; gap: 10px;

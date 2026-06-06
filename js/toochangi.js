@@ -9,18 +9,20 @@ const Toochangi = (() => {
   let _analysisHistory = [];
   let _gachangiData = null;
   let _assetHistory = [];
+  let _gachangiAccounts = [];
   let _savings = [];
   let _realEstate = [];
 
   // ── 데이터 로드 ─────────────────────────────────────────────────
   async function loadAll() {
     try {
-      [_portfolio, _tradelog, _analysisHistory, _gachangiData, _assetHistory, _savings, _realEstate] = await Promise.all([
+      [_portfolio, _tradelog, _analysisHistory, _gachangiData, _assetHistory, _gachangiAccounts, _savings, _realEstate] = await Promise.all([
         SheetsAPI.getPortfolio(),
         SheetsAPI.getTradeLog(),
         SheetsAPI.getAnalysisHistory(),
         SheetsAPI.getGachangiMonthlySavings(),
         SheetsAPI.getAssetStatus(),
+        SheetsAPI.getGachangiAccounts ? SheetsAPI.getGachangiAccounts() : [],
         SheetsAPI.getSavings ? SheetsAPI.getSavings() : [],
         SheetsAPI.getRealEstate ? SheetsAPI.getRealEstate() : [],
       ]);
@@ -645,6 +647,7 @@ ${youtubeFeedText}
   function getTradeLog()  { return _tradelog; }
   function getAnalysis()  { return _analysisHistory; }
   function getGachangiData() { return _gachangiData; }
+  function getGachangiAccounts() { return _gachangiAccounts; }
   function getSavings()   { return _savings; }
   function getRealEstate() { return _realEstate; }
 
@@ -835,7 +838,7 @@ ${youtubeFeedText}
     runGeminiAnalysis,
     runAutoRecommendation,
     renderCharts,
-    getPortfolio, getTradeLog, getAnalysis, getGachangiData, getSavings, getRealEstate,
+    getPortfolio, getTradeLog, getAnalysis, getGachangiData, getGachangiAccounts, getSavings, getRealEstate,
     addPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, addTrade, saveAnalysis, saveFilter, applyFormulasToPortfolio, restorePortfolioFromBackup,
     addSavings, updateSavings, deleteSavings, updateSavingsRows, deleteSavingsRows, restoreSavingsFromBackup,
     addRealEstate, updateRealEstate, deleteRealEstate, updateRealEstateRows, deleteRealEstateRows,
