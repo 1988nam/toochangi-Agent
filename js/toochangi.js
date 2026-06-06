@@ -384,6 +384,7 @@ ${youtubeFeedText}
 
   // ── Chart.js 렌더링 ──────────────────────────────────────────────
   let _chartAllocation = null;
+  let _chartPortfolioAllocation = null;
   let _chartMonthly    = null;
 
   function renderCharts() {
@@ -391,10 +392,12 @@ ${youtubeFeedText}
     renderMonthlyChart();
   }
 
-  function renderAllocationChart() {
-    const ctx = document.getElementById('chart-allocation');
+  function renderAllocationChart(canvasId = 'chart-allocation', isPortfolioTab = false) {
+    const ctx = document.getElementById(canvasId);
     if (!ctx) return;
-    if (_chartAllocation) _chartAllocation.destroy();
+    
+    if (isPortfolioTab && _chartPortfolioAllocation) _chartPortfolioAllocation.destroy();
+    if (!isPortfolioTab && _chartAllocation) _chartAllocation.destroy();
 
     const labels = _portfolio.length > 0
       ? _portfolio.map(p => p.name)
@@ -407,7 +410,7 @@ ${youtubeFeedText}
       '#ef4444','#06b6d4','#ec4899','#84cc16',
     ];
 
-    _chartAllocation = new Chart(ctx, {
+    const chart = new Chart(ctx, {
       type: 'doughnut',
       data: {
         labels,
@@ -422,6 +425,12 @@ ${youtubeFeedText}
         cutout: '65%',
       },
     });
+
+    if (isPortfolioTab) {
+      _chartPortfolioAllocation = chart;
+    } else {
+      _chartAllocation = chart;
+    }
   }
 
   function renderMonthlyChart() {
@@ -838,6 +847,7 @@ ${youtubeFeedText}
     runGeminiAnalysis,
     runAutoRecommendation,
     renderCharts,
+    renderAllocationChart,
     getPortfolio, getTradeLog, getAnalysis, getGachangiData, getGachangiAccounts, getSavings, getRealEstate,
     addPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, addTrade, saveAnalysis, saveFilter, applyFormulasToPortfolio, restorePortfolioFromBackup,
     addSavings, updateSavings, deleteSavings, updateSavingsRows, deleteSavingsRows, restoreSavingsFromBackup,

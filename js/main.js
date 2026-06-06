@@ -207,6 +207,7 @@ function switchTab(tab) {
   document.getElementById('page-title').textContent = titles[tab] || tab;
 
   if (tab === 'dashboard') Toochangi.renderCharts();
+  if (tab === 'portfolio') Toochangi.renderAllocationChart('chart-portfolio-allocation', true);
   if (tab === 'savings') renderSavingsTab();
   if (tab === 'realestate') renderRealestateTab();
   if (tab === 'assets') {
@@ -387,6 +388,10 @@ function renderPortfolioTab() {
   const tbody = document.getElementById('portfolio-tbody');
   const portfolio = Toochangi.getPortfolio();
   renderPortfolioSummaryCards(portfolio, metrics);
+  
+  // 도넛 그래프 렌더링 (주식 투자 현황)
+  Toochangi.renderAllocationChart('chart-portfolio-allocation', true);
+  
   if (portfolio.length === 0) {
     tbody.innerHTML = '<tr><td colspan="12" class="empty-state">종목을 추가해주세요</td></tr>';
     const chkAll = document.getElementById('chk-portfolio-all');
