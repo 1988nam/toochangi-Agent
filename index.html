@@ -260,6 +260,11 @@
                 <th>현재평가액(원)</th>
                 <th>담보대출액(원)</th>
                 <th>대출금리(%)</th>
+                <th>대출실행일</th>
+                <th>상환년수</th>
+                <th>상환원금(원)</th>
+                <th>상환이자(원)</th>
+                <th>남은대출금(원)</th>
                 <th>전세보증금(원)</th>
                 <th>연간유지비/이자(원)</th>
                 <th>자산용도</th>
@@ -269,7 +274,7 @@
               </tr>
             </thead>
             <tbody id="realestate-tbody">
-              <tr><td colspan="11" class="empty-state">부동산을 추가해 주세요</td></tr>
+              <tr><td colspan="16" class="empty-state">부동산을 추가해 주세요</td></tr>
             </tbody>
           </table>
         </div>
@@ -1360,6 +1365,20 @@
         <div class="form-group">
           <label>대출금리 (%)</label>
           <input type="number" step="0.01" id="input-realestate-loanRate" placeholder="0" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>대출실행일</label>
+          <input type="date" id="input-realestate-loanStartDate" />
+        </div>
+        <div class="form-group">
+          <label>상환년수</label>
+          <select id="input-realestate-loanTermYears">
+            <option value="">선택</option>
+            <option value="30">30년</option>
+            <option value="40">40년</option>
+          </select>
         </div>
       </div>
       <div class="form-row">

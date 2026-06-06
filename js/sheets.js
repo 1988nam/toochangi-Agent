@@ -5,7 +5,7 @@
 const SheetsAPI = (() => {
   const cfg = () => window.TOOCHANGI_CONFIG || TOOCHANGI_CONFIG;
   const REAL_ESTATE_SHEET = '\uBD80\uB3D9\uC0B0';
-  const REAL_ESTATE_HEADER_RANGE = `${REAL_ESTATE_SHEET}!A1:J1`;
+  const REAL_ESTATE_HEADER_RANGE = `${REAL_ESTATE_SHEET}!A1:L1`;
   const REAL_ESTATE_HEADERS = [[
     '\uBD80\uB3D9\uC0B0\uBA85',
     '\uB9E4\uC785\uAC00(\uC6D0)',
@@ -16,6 +16,8 @@ const SheetsAPI = (() => {
     '\uC5F0\uAC04\uC720\uC9C0\uBE44/\uC774\uC790(\uC6D0)',
     '\uC790\uC0B0\uC6A9\uB3C4',
     '\uBA54\uBAA8',
+    '\uB300\uCD9C\uC2E4\uD589\uC77C',
+    '\uC0C1\uD658\uB144\uC218',
     '\uB4F1\uB85D\uC77C'
   ]];
 
@@ -25,14 +27,14 @@ const SheetsAPI = (() => {
       fields: 'sheets.properties(title)'
     });
     const titles = (metaRes.result.sheets || []).map(s => s.properties.title);
-    if (titles.includes(REAL_ESTATE_SHEET)) return;
-
-    await gapi.client.sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      resource: {
-        requests: [{ addSheet: { properties: { title: REAL_ESTATE_SHEET } } }]
-      }
-    });
+    if (!titles.includes(REAL_ESTATE_SHEET)) {
+      await gapi.client.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        resource: {
+          requests: [{ addSheet: { properties: { title: REAL_ESTATE_SHEET } } }]
+        }
+      });
+    }
 
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId,
@@ -161,7 +163,7 @@ const SheetsAPI = (() => {
         
         const headers = {
           '예적금': [['자산명','금융기관','예적금종류','금리(%)','잔액(원)','만기일','자산용도','메모','등록일']],
-          '부동산': [['부동산명','매입가(원)','현재평가액(원)','담보대출액(원)','대출금리(%)','전세보증금(원)','연간유지비/이자(원)','자산용도','메모','등록일']]
+          '부동산': [['부동산명','매입가(원)','현재평가액(원)','담보대출액(원)','대출금리(%)','전세보증금(원)','연간유지비/이자(원)','자산용도','메모','대출실행일','상환년수','등록일']]
         };
         
         const batchData = [];
@@ -192,7 +194,7 @@ const SheetsAPI = (() => {
     const analysisHeaders  = [['날짜','질문','AI분석결과','관련종목','투자의견','기간']];
     const filterHeaders    = [['날짜','시장신호','섹터신호','종목신호','최종판단','메모']];
     const savingsHeaders   = [['자산명','금융기관','예적금종류','금리(%)','잔액(원)','만기일','자산용도','메모','등록일']];
-    const realEstateHeaders = [['부동산명','매입가(원)','현재평가액(원)','담보대출액(원)','대출금리(%)','전세보증금(원)','연간유지비/이자(원)','자산용도','메모','등록일']];
+    const realEstateHeaders = [['부동산명','매입가(원)','현재평가액(원)','담보대출액(원)','대출금리(%)','전세보증금(원)','연간유지비/이자(원)','자산용도','메모','대출실행일','상환년수','등록일']];
 
     const batchData = [
       { range: '포트폴리오!A1', values: portfolioHeaders },
@@ -263,9 +265,11 @@ const SheetsAPI = (() => {
     try {
       await ensureRealEstateSheet(id);
       const res = await gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: id, range: '부동산!A2:J',
+        spreadsheetId: id, range: '부동산!A2:L',
       });
-      return (res.result.values || []).map((r, idx) => ({
+      return (res.result.values || []).map((r, idx) => {
+        const hasLoanMeta = r.length >= 12 || (r[10] && `${r[10]}`.trim() !== '');
+        return {
         rowIndex: idx + 2,
         name:     r[0] || '',
         purchasePrice: parseFloat(r[1]) || 0,
@@ -276,8 +280,11 @@ const SheetsAPI = (() => {
         maintenance:   parseFloat(r[6]) || 0,
         purpose:       r[7] || '',
         memo:          r[8] || '',
-        date:          r[9] || '',
-      }));
+        loanStartDate: hasLoanMeta ? (r[9] || '') : '',
+        loanTermYears: hasLoanMeta ? (parseInt(r[10], 10) || 0) : 0,
+        date:          hasLoanMeta ? (r[11] || '') : (r[9] || ''),
+        };
+      });
     } catch (e) {
       console.warn('[SheetsAPI] 부동산 로드 실패:', e);
       return [];
@@ -485,11 +492,13 @@ const SheetsAPI = (() => {
       parseFloat(row.maintenance) || 0,
       row.purpose || '',
       row.memo || '',
+      row.loanStartDate || '',
+      parseInt(row.loanTermYears, 10) || '',
       now
     ]];
     await gapi.client.sheets.spreadsheets.values.append({
       spreadsheetId: id,
-      range: '부동산!A:J',
+      range: '부동산!A:L',
       valueInputOption: 'USER_ENTERED',
       resource: { values },
     });
@@ -509,11 +518,13 @@ const SheetsAPI = (() => {
       parseFloat(row.maintenance) || 0,
       row.purpose || '',
       row.memo || '',
+      row.loanStartDate || '',
+      parseInt(row.loanTermYears, 10) || '',
       now
     ]];
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: id,
-      range: `부동산!A${rowIndex}:J${rowIndex}`,
+      range: `부동산!A${rowIndex}:L${rowIndex}`,
       valueInputOption: 'USER_ENTERED',
       resource: { values },
     });
@@ -552,7 +563,7 @@ const SheetsAPI = (() => {
     await ensureRealEstateSheet(id);
     const data = updates.map(({ rowIndex, row }) => {
       return {
-        range: `부동산!A${rowIndex}:J${rowIndex}`,
+        range: `부동산!A${rowIndex}:L${rowIndex}`,
         values: [[
           row.name,
           parseFloat(row.purchasePrice) || 0,
@@ -563,6 +574,8 @@ const SheetsAPI = (() => {
           parseFloat(row.maintenance) || 0,
           row.purpose || '',
           row.memo || '',
+          row.loanStartDate || '',
+          parseInt(row.loanTermYears, 10) || '',
           now
         ]]
       };

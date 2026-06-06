@@ -866,6 +866,8 @@ function bindModalEvents() {
     document.getElementById('input-realestate-currentValue').value = '';
     document.getElementById('input-realestate-loanAmount').value = '';
     document.getElementById('input-realestate-loanRate').value = '';
+    document.getElementById('input-realestate-loanStartDate').value = '';
+    document.getElementById('input-realestate-loanTermYears').value = '';
     document.getElementById('input-realestate-deposit').value = '';
     document.getElementById('input-realestate-maintenance').value = '';
     document.getElementById('input-realestate-purpose').value = '';
@@ -879,11 +881,18 @@ function bindModalEvents() {
     const currentValue = parseFloat(document.getElementById('input-realestate-currentValue').value);
     const loanAmount = parseFloat(document.getElementById('input-realestate-loanAmount').value) || 0;
     const loanRate = parseFloat(document.getElementById('input-realestate-loanRate').value) || 0;
+    const loanStartDate = document.getElementById('input-realestate-loanStartDate').value;
+    const loanTermYears = parseInt(document.getElementById('input-realestate-loanTermYears').value, 10) || 0;
     const deposit = parseFloat(document.getElementById('input-realestate-deposit').value) || 0;
     const maintenance = parseFloat(document.getElementById('input-realestate-maintenance').value) || 0;
     const purpose = document.getElementById('input-realestate-purpose').value.trim();
     const memo = document.getElementById('input-realestate-memo').value.trim();
     const rowIndex = document.getElementById('input-realestate-row-index')?.value;
+
+    if (loanAmount > 0 && (!loanStartDate || !loanTermYears)) {
+      toast('대출이 있으면 대출실행일과 상환년수를 입력해 주세요', 'error');
+      return;
+    }
 
     if (!name || isNaN(purchasePrice) || isNaN(currentValue)) {
       toast('필수 항목을 모두 입력해주세요', 'error');
@@ -891,7 +900,19 @@ function bindModalEvents() {
     }
 
     try {
-      const data = { name, purchasePrice, currentValue, loanAmount, loanRate, deposit, maintenance, purpose, memo };
+      const data = {
+        name,
+        purchasePrice,
+        currentValue,
+        loanAmount,
+        loanRate,
+        loanStartDate: loanAmount > 0 ? loanStartDate : '',
+        loanTermYears: loanAmount > 0 ? loanTermYears : '',
+        deposit,
+        maintenance,
+        purpose,
+        memo
+      };
       if (rowIndex) {
         await Toochangi.updateRealEstate(parseInt(rowIndex, 10), data);
         toast(`✅ ${name} 수정 완료`, 'success');
@@ -2516,6 +2537,83 @@ async function deleteSavingsBulk() {
   }
 }
 
+function formatRealEstateCurrency(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '—';
+  return `${Math.round(Number(value)).toLocaleString()}원`;
+}
+
+function getElapsedLoanMonths(loanStartDate, termMonths) {
+  if (!loanStartDate || !termMonths) return 0;
+
+  const start = new Date(`${loanStartDate}T00:00:00`);
+  if (Number.isNaN(start.getTime())) return 0;
+
+  const today = new Date();
+  let months = (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth());
+  if (today.getDate() < start.getDate()) months -= 1;
+
+  return Math.max(0, Math.min(termMonths, months));
+}
+
+function calculateLoanProgress(realEstateItem) {
+  const principal = parseFloat(realEstateItem.loanAmount) || 0;
+  const annualRate = parseFloat(realEstateItem.loanRate) || 0;
+  const termYears = parseInt(realEstateItem.loanTermYears, 10) || 0;
+  const loanStartDate = realEstateItem.loanStartDate || '';
+
+  if (principal <= 0) return null;
+  if (!loanStartDate || !termYears) {
+    return {
+      paidPrincipal: null,
+      paidInterest: null,
+      remainingBalance: null
+    };
+  }
+
+  const termMonths = termYears * 12;
+  const elapsedMonths = getElapsedLoanMonths(loanStartDate, termMonths);
+  if (termMonths <= 0) {
+    return {
+      paidPrincipal: null,
+      paidInterest: null,
+      remainingBalance: null
+    };
+  }
+
+  if (annualRate <= 0) {
+    const monthlyPrincipal = principal / termMonths;
+    const paidPrincipal = Math.min(principal, monthlyPrincipal * elapsedMonths);
+    return {
+      paidPrincipal,
+      paidInterest: 0,
+      remainingBalance: Math.max(0, principal - paidPrincipal)
+    };
+  }
+
+  const monthlyRate = annualRate / 100 / 12;
+  const monthlyFactor = Math.pow(1 + monthlyRate, termMonths);
+  const monthlyPayment = principal * monthlyRate * monthlyFactor / (monthlyFactor - 1);
+
+  let remainingBalance = principal;
+  let paidPrincipal = 0;
+  let paidInterest = 0;
+
+  for (let i = 0; i < elapsedMonths; i += 1) {
+    const interestPayment = remainingBalance * monthlyRate;
+    const principalPayment = Math.min(remainingBalance, monthlyPayment - interestPayment);
+    paidInterest += interestPayment;
+    paidPrincipal += principalPayment;
+    remainingBalance = Math.max(0, remainingBalance - principalPayment);
+    if (remainingBalance <= 0) break;
+  }
+
+  return {
+    paidPrincipal,
+    paidInterest,
+    remainingBalance
+  };
+}
+
 function renderRealestateTab() {
   const sheetLink = document.getElementById('btn-realestate-open-sheet');
   if (sheetLink) {
@@ -2527,19 +2625,25 @@ function renderRealestateTab() {
   const realEstate = Toochangi.getRealEstate();
 
   if (realEstate.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="11" class="empty-state">부동산을 추가해 주세요</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="16" class="empty-state">부동산을 추가해 주세요</td></tr>';
     return;
   }
 
   tbody.innerHTML = realEstate.map(r => {
+    const loanProgress = calculateLoanProgress(r);
     return `<tr data-rowindex="${r.rowIndex}">
       <td><strong>${r.name}</strong></td>
       <td>${r.purchasePrice.toLocaleString()}원</td>
       <td>${r.currentValue.toLocaleString()}원</td>
-      <td style="color: var(--accent-red);">${r.loanAmount > 0 ? r.loanAmount.toLocaleString() + '원' : '—'}</td>
+      <td style="color: var(--accent-red);">${r.loanAmount > 0 ? formatRealEstateCurrency(r.loanAmount) : '—'}</td>
       <td>${r.loanRate > 0 ? r.loanRate + '%' : '—'}</td>
-      <td>${r.deposit > 0 ? r.deposit.toLocaleString() + '원' : '—'}</td>
-      <td style="color: var(--text-muted);">${r.maintenance > 0 ? r.maintenance.toLocaleString() + '원' : '—'}</td>
+      <td>${r.loanStartDate || '—'}</td>
+      <td>${r.loanTermYears ? `${r.loanTermYears}년` : '—'}</td>
+      <td>${loanProgress ? formatRealEstateCurrency(loanProgress.paidPrincipal) : '—'}</td>
+      <td>${loanProgress ? formatRealEstateCurrency(loanProgress.paidInterest) : '—'}</td>
+      <td style="color: var(--accent-yellow);">${loanProgress ? formatRealEstateCurrency(loanProgress.remainingBalance) : '—'}</td>
+      <td>${r.deposit > 0 ? formatRealEstateCurrency(r.deposit) : '—'}</td>
+      <td style="color: var(--text-muted);">${r.maintenance > 0 ? formatRealEstateCurrency(r.maintenance) : '—'}</td>
       <td><span style="color: var(--accent-orange); font-weight: 500;">${r.purpose || '—'}</span></td>
       <td style="color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${r.memo}">${r.memo || '—'}</td>
       <td>${r.date || '—'}</td>
@@ -2564,6 +2668,8 @@ function renderRealestateTab() {
       document.getElementById('input-realestate-currentValue').value = item.currentValue;
       document.getElementById('input-realestate-loanAmount').value = item.loanAmount;
       document.getElementById('input-realestate-loanRate').value = item.loanRate;
+      document.getElementById('input-realestate-loanStartDate').value = item.loanStartDate || '';
+      document.getElementById('input-realestate-loanTermYears').value = item.loanTermYears || '';
       document.getElementById('input-realestate-deposit').value = item.deposit;
       document.getElementById('input-realestate-maintenance').value = item.maintenance;
       document.getElementById('input-realestate-purpose').value = item.purpose;
