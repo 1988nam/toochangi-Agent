@@ -236,10 +236,16 @@ function renderDashboard() {
   const totalRealEstateValue = realEstate.reduce((sum, item) => sum + (parseFloat(item.currentValue) || 0), 0);
   const totalRealEstateLoan = realEstate.reduce((sum, item) => sum + (parseFloat(item.loanAmount) || 0), 0);
   const totalRealEstateNet = totalRealEstateValue - totalRealEstateLoan;
+  const totalDashboardAssets = (metrics.totalValue || 0) + totalCashAssets + totalRealEstateNet;
   const formatToEok = (amount) => {
     const eok = amount / 100000000;
     return `${parseFloat(eok.toFixed(2)).toLocaleString('ko-KR')}억원`;
   };
+
+  const grandTotalEl = document.getElementById('m-grand-total-asset');
+  if (grandTotalEl) {
+    grandTotalEl.textContent = totalDashboardAssets > 0 ? `${Math.floor(totalDashboardAssets).toLocaleString()}원` : '—';
+  }
 
   // 총 투자 자산
   document.getElementById('m-total-asset').textContent =

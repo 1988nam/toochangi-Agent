@@ -112,6 +112,13 @@
 
     <!-- ── 대시보드 탭 ── -->
     <div id="tab-dashboard" class="tab-panel active">
+      <div class="metrics-grid" style="margin-bottom: 18px;">
+        <div class="metric-card accent-red">
+          <div class="metric-label">총 자산</div>
+          <div class="metric-value" id="m-grand-total-asset">—</div>
+          <div class="metric-sub" id="m-grand-total-asset-sub">주식 + 현금 + 부동산 자산 합계</div>
+        </div>
+      </div>
       <!-- 핵심 지표 카드 -->
       <div class="metrics-grid">
         <div class="metric-card accent-purple">
@@ -125,7 +132,7 @@
           <div class="metric-sub" id="m-total-yield-sub">평가손익 기준</div>
         </div>
         <div class="metric-card accent-blue">
-          <div class="metric-label">총 현금 자산</div>
+          <div class="metric-label">현금 자산</div>
           <div class="metric-value" id="m-available">—</div>
           <div class="metric-sub">예적금 보유 현황 합계</div>
         </div>
