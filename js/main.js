@@ -238,7 +238,17 @@ function renderDashboard() {
   const realEstate = Toochangi.getRealEstate ? Toochangi.getRealEstate() : [];
   const totalCashAssets = savings.reduce((sum, item) => sum + (parseFloat(item.balance) || 0), 0);
   const totalRealEstateValue = realEstate.reduce((sum, item) => sum + (parseFloat(item.currentValue) || 0), 0);
-  const totalRealEstateLoan = realEstate.reduce((sum, item) => sum + (parseFloat(item.loanAmount) || 0), 0);
+  // 부동산 메뉴와 동일하게 '남은 대출잔액'(상환 진행 반영) 기준으로 집계.
+  // 대출 시작일/상환년수가 없어 잔액을 계산할 수 없으면 원래 대출액으로 폴백.
+  const totalRealEstateLoan = realEstate.reduce((sum, item) => {
+    const loanAmount = parseFloat(item.loanAmount) || 0;
+    if (loanAmount <= 0) return sum;
+    const progress = calculateLoanProgress(item);
+    const remaining = (progress && progress.remainingBalance != null)
+      ? progress.remainingBalance
+      : loanAmount;
+    return sum + remaining;
+  }, 0);
   const totalRealEstateNet = totalRealEstateValue - totalRealEstateLoan;
   const totalDashboardAssets = (metrics.totalValue || 0) + totalCashAssets + totalRealEstateNet;
   const formatToEok = (amount) => {
@@ -285,7 +295,7 @@ function renderDashboard() {
   const signalSubEl = document.getElementById('m-signal-sub');
   if (signalSubEl) {
     signalSubEl.textContent = totalRealEstateValue > 0 || totalRealEstateLoan > 0
-      ? `시세 ${formatToEok(totalRealEstateValue)} / 대출 ${formatToEok(totalRealEstateLoan)}`
+      ? `시세 ${formatToEok(totalRealEstateValue)} / 잔여대출 ${formatToEok(totalRealEstateLoan)}`
       : '부동산 자산 없음';
   }
 
