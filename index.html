@@ -72,10 +72,6 @@
       <button class="nav-item" data-tab="assets" id="nav-assets">
         <span class="nav-icon">💰</span><span>자산현황</span>
       </button>
-      <div id="sidebar-accounts-section" class="sidebar-accounts hidden">
-        <div class="sidebar-accounts-title">가챙이 보유 계좌</div>
-        <div id="sidebar-accounts-list" class="sidebar-accounts-list"></div>
-      </div>
       <button class="nav-item" data-tab="auto-analysis" id="nav-auto-analysis">
         <span class="nav-icon">🤖</span><span>자동 투자 추천</span>
       </button>
@@ -241,6 +237,27 @@
             </thead>
             <tbody id="savings-tbody">
               <tr><td colspan="13" class="empty-state">자산을 추가해 주세요</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-header">
+          <span class="card-title">🏦 보유 계좌</span>
+          <span class="card-desc" style="color: var(--text-muted); font-size: 13px;">가챙이 카드 계좌 리스트의 보유 계좌를 연동합니다.</span>
+        </div>
+        <div class="table-wrap" style="max-height: 420px; overflow-y: auto;">
+          <table class="data-table" id="gachangi-accounts-table">
+            <thead>
+              <tr>
+                <th>구분</th>
+                <th>계좌명</th>
+                <th>계좌번호</th>
+                <th>명의자</th>
+              </tr>
+            </thead>
+            <tbody id="gachangi-accounts-tbody">
+              <tr><td colspan="4" class="empty-state">연동된 보유 계좌가 없습니다</td></tr>
             </tbody>
           </table>
         </div>

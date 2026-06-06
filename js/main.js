@@ -72,24 +72,25 @@ function renderSavingsLinkedAccountOptions(selectedAccountNumber = '') {
   });
 }
 
-function renderSidebarAccounts() {
-  const section = document.getElementById('sidebar-accounts-section');
-  const list = document.getElementById('sidebar-accounts-list');
-  if (!section || !list) return;
-
+function renderGachangiAccountsTable() {
+  const tbody = document.getElementById('gachangi-accounts-tbody');
+  if (!tbody) return;
   const accounts = Toochangi.getGachangiAccounts ? Toochangi.getGachangiAccounts() : [];
   if (!accounts.length) {
-    section.classList.add('hidden');
-    list.innerHTML = '';
+    tbody.innerHTML = '<tr><td colspan="4" class="empty-state">연동된 보유 계좌가 없습니다</td></tr>';
     return;
   }
 
-  section.classList.remove('hidden');
-  list.innerHTML = accounts.map((acc) => `
-    <div class="sidebar-account-item">
-      <div class="sidebar-account-name">${acc.accountName || '계좌명 없음'}</div>
-      <div class="sidebar-account-meta">${acc.ownerName || '미지정'} · ${acc.accountNumber || '계좌번호 없음'}</div>
-    </div>
+  tbody.innerHTML = accounts.map((acc) => `
+    <tr>
+      <td>${acc.type || '—'}</td>
+      <td>
+        <strong>${acc.accountName || '계좌명 없음'}</strong>
+        <div style="font-size:12px; color: var(--text-muted); margin-top: 2px;">${acc.purpose || ''}</div>
+      </td>
+      <td>${acc.accountNumber || '계좌번호 없음'}</td>
+      <td>${acc.ownerName || '미지정'}</td>
+    </tr>
   `).join('');
 }
 
@@ -101,8 +102,8 @@ async function refreshAll() {
     renderDashboard();
     renderPortfolioTab();
     renderSavingsTab();
+    renderGachangiAccountsTable();
     renderRealestateTab();
-    renderSidebarAccounts();
     renderSavingsLinkedAccountOptions();
     renderTradelogTab();
     renderManualAnalysisTab();
