@@ -522,6 +522,9 @@ ${youtubeFeedText}
     });
   }
 
+  // ── 자산현황 계산 및 연동 ──────────────────────────────────────
+  function getAssetHistory() { return _assetHistory; }
+
   function calcAssetMetrics(selectedMonthKey) {
     let totalAssets = 0;
     let totalDebt = 0;
