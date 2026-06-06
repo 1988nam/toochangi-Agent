@@ -685,12 +685,16 @@ html, body {
 
 .form-group { display: flex; flex-direction: column; gap: 6px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-row > .form-group { min-width: 0; }
 .form-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
 .form-group input, .form-group select, .form-group textarea {
   background: var(--bg-elevated); border: 1px solid var(--border);
   border-radius: 8px; padding: 10px 12px;
   color: var(--text-primary); font-size: 14px; font-family: 'Outfit', sans-serif;
   transition: border-color 0.2s;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .form-group input:focus, .form-group select:focus {
   outline: none; border-color: var(--accent-purple);
