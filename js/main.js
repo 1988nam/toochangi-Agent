@@ -231,7 +231,15 @@ function renderDashboard() {
   const metrics = Toochangi.calcPortfolioMetrics();
   const gaData  = Toochangi.getGachangiData();
   const savings = Toochangi.getSavings ? Toochangi.getSavings() : [];
+  const realEstate = Toochangi.getRealEstate ? Toochangi.getRealEstate() : [];
   const totalCashAssets = savings.reduce((sum, item) => sum + (parseFloat(item.balance) || 0), 0);
+  const totalRealEstateValue = realEstate.reduce((sum, item) => sum + (parseFloat(item.currentValue) || 0), 0);
+  const totalRealEstateLoan = realEstate.reduce((sum, item) => sum + (parseFloat(item.loanAmount) || 0), 0);
+  const totalRealEstateNet = totalRealEstateValue - totalRealEstateLoan;
+  const formatToEok = (amount) => {
+    const eok = amount / 100000000;
+    return `${parseFloat(eok.toFixed(2)).toLocaleString('ko-KR')}억원`;
+  };
 
   // 총 투자 자산
   document.getElementById('m-total-asset').textContent =
@@ -258,10 +266,18 @@ function renderDashboard() {
 
   availEl.textContent = totalCashAssets > 0 ? `${Math.floor(totalCashAssets).toLocaleString()}원` : '—';
 
-  // 3단계 신호 요약
+  // 부동산 자산 요약
   const signalEl = document.getElementById('m-signal');
-  signalEl.textContent = '체크 필요';
-  signalEl.style.color = 'var(--accent-orange)';
+  signalEl.textContent = totalRealEstateValue > 0 || totalRealEstateLoan > 0
+    ? `${Math.floor(totalRealEstateNet).toLocaleString()}원`
+    : '—';
+  signalEl.style.color = 'var(--text-primary)';
+  const signalSubEl = document.getElementById('m-signal-sub');
+  if (signalSubEl) {
+    signalSubEl.textContent = totalRealEstateValue > 0 || totalRealEstateLoan > 0
+      ? `시세 ${formatToEok(totalRealEstateValue)} / 대출 ${formatToEok(totalRealEstateLoan)}`
+      : '부동산 자산 없음';
+  }
 
   // 차트 렌더링
   Toochangi.renderCharts();
