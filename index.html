@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260606_6" />
+  <link rel="stylesheet" href="style.css?v=20260607_1" />
 </head>
 <body>
 
@@ -278,6 +278,7 @@
                 <th>예적금종류</th>
                 <th>금리(%)</th>
                 <th>잔액(원)</th>
+                <th>월 납입액</th>
                 <th>만기일</th>
                 <th>자산용도</th>
                 <th>메모</th>
@@ -286,7 +287,7 @@
               </tr>
             </thead>
             <tbody id="savings-tbody">
-              <tr><td colspan="13" class="empty-state">자산을 추가해 주세요</td></tr>
+              <tr><td colspan="14" class="empty-state">자산을 추가해 주세요</td></tr>
             </tbody>
           </table>
         </div>
@@ -1380,6 +1381,23 @@
           <input type="text" id="input-savings-purpose" placeholder="예: 주택교체자금" />
         </div>
       </div>
+      <div class="form-group" style="border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px;">
+        <label style="color: var(--accent-green);">💰 자동 납입(누적) 설정 <span style="color: var(--text-muted); font-weight: 400; font-size: 12px;">— 매월 기준일마다 잔액이 자동으로 늘어납니다 (만기일까지)</span></label>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>월 납입액 (원)</label>
+          <input type="number" id="input-savings-monthly-deposit" placeholder="예: 500000 (없으면 비워두세요)" />
+        </div>
+        <div class="form-group">
+          <label>납입 기준일 (매월 며칠)</label>
+          <input type="number" min="1" max="31" id="input-savings-deposit-day" placeholder="비우면 5일" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>납입 시작일 <span style="color: var(--text-muted); font-weight: 400; font-size: 12px;">— 비우면 오늘부터 누적</span></label>
+        <input type="date" id="input-savings-deposit-start" />
+      </div>
       <div class="form-group">
         <label>메모</label>
         <input type="text" id="input-savings-memo" placeholder="추가 메모 입력" />
@@ -1646,11 +1664,11 @@
     console.error('설정 오버라이드 병합 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260606_6"></script>
-<script src="js/sheets.js?v=20260606_6"></script>
-<script src="js/toochangi.js?v=20260606_6"></script>
-<script src="js/broker.js?v=20260606_6"></script>
-<script src="js/main.js?v=20260606_6"></script>
+<script src="js/auth.js?v=20260607_1"></script>
+<script src="js/sheets.js?v=20260607_1"></script>
+<script src="js/toochangi.js?v=20260607_1"></script>
+<script src="js/broker.js?v=20260607_1"></script>
+<script src="js/main.js?v=20260607_1"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 

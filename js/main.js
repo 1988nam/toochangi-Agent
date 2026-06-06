@@ -236,7 +236,7 @@ function renderDashboard() {
   const gaData  = Toochangi.getGachangiData();
   const savings = Toochangi.getSavings ? Toochangi.getSavings() : [];
   const realEstate = Toochangi.getRealEstate ? Toochangi.getRealEstate() : [];
-  const totalCashAssets = savings.reduce((sum, item) => sum + (parseFloat(item.balance) || 0), 0);
+  const totalCashAssets = savings.reduce((sum, item) => sum + Toochangi.calcSavingsBalance(item), 0);
   const totalRealEstateValue = realEstate.reduce((sum, item) => sum + (parseFloat(item.currentValue) || 0), 0);
   // 부동산 메뉴와 동일하게 '남은 대출잔액'(상환 진행 반영) 기준으로 집계.
   // 대출 시작일/상환년수가 없어 잔액을 계산할 수 없으면 원래 대출액으로 폴백.
@@ -956,6 +956,9 @@ function bindModalEvents() {
     document.getElementById('input-savings-maturity').value = '';
     document.getElementById('input-savings-purpose').value = '';
     document.getElementById('input-savings-memo').value = '';
+    document.getElementById('input-savings-monthly-deposit').value = '';
+    document.getElementById('input-savings-deposit-day').value = '';
+    document.getElementById('input-savings-deposit-start').value = '';
     renderSavingsLinkedAccountOptions();
     document.getElementById('modal-savings-add-edit').classList.remove('hidden');
   });
@@ -1008,13 +1011,26 @@ function bindModalEvents() {
     const memo = document.getElementById('input-savings-memo').value.trim();
     const rowIndex = document.getElementById('input-savings-row-index')?.value;
 
+    // 자동 납입(누적) 설정
+    const monthlyDeposit = parseFloat(document.getElementById('input-savings-monthly-deposit').value) || 0;
+    let depositDay = parseInt(document.getElementById('input-savings-deposit-day').value, 10) || 0;
+    let depositStartDate = document.getElementById('input-savings-deposit-start').value;
+    if (monthlyDeposit > 0) {
+      // 월 납입액이 있으면 기준일은 5일, 시작일은 오늘을 기본값으로 채워 '오늘부터' 누적되게 함
+      if (!depositDay) depositDay = 5;
+      if (!depositStartDate) {
+        const t = new Date();
+        depositStartDate = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+      }
+    }
+
     if (!name || !bank || !owner || !accountNumber || !type || isNaN(rate) || isNaN(balance)) {
       toast('필수 항목을 모두 입력해주세요', 'error');
       return;
     }
 
     try {
-      const data = { name, bank, owner, accountNumber, type, rate, balance, maturity, purpose, memo };
+      const data = { name, bank, owner, accountNumber, type, rate, balance, maturity, purpose, memo, monthlyDeposit, depositDay, depositStartDate };
       if (rowIndex) {
         await Toochangi.updateSavings(parseInt(rowIndex, 10), data);
         toast(`✅ ${name} 수정 완료`, 'success');
@@ -2497,7 +2513,7 @@ function renderSavingsTab() {
   const savings = Toochangi.getSavings();
 
   if (savings.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="13" class="empty-state">자산을 추가해 주세요</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="14" class="empty-state">자산을 추가해 주세요</td></tr>';
     const chkAll = document.getElementById('chk-savings-all');
     if (chkAll) chkAll.checked = false;
     updateSavingsBulkActionsVisibility();
@@ -2515,7 +2531,10 @@ function renderSavingsTab() {
       <td>${s.accountNumber || '—'}</td>
       <td><span class="badge" style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${s.type}</span></td>
       <td>${s.rate}%</td>
-      <td>${s.balance.toLocaleString()}원</td>
+      <td>${Toochangi.calcSavingsBalance(s).toLocaleString()}원</td>
+      <td>${(parseFloat(s.monthlyDeposit) || 0) > 0
+        ? `<span style="color: var(--accent-green); font-weight: 500;">+${(parseFloat(s.monthlyDeposit) || 0).toLocaleString()}원</span><br><span style="color: var(--text-muted); font-size: 11px;">매월 ${s.depositDay || 5}일</span>`
+        : '—'}</td>
       <td>${s.maturity || '—'}</td>
       <td><span style="color: var(--accent-orange); font-weight: 500;">${s.purpose || '—'}</span></td>
       <td style="color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${s.memo}">${s.memo || '—'}</td>
@@ -2556,6 +2575,9 @@ function renderSavingsTab() {
       document.getElementById('input-savings-maturity').value = matDate;
       document.getElementById('input-savings-purpose').value = item.purpose;
       document.getElementById('input-savings-memo').value = item.memo || '';
+      document.getElementById('input-savings-monthly-deposit').value = item.monthlyDeposit || '';
+      document.getElementById('input-savings-deposit-day').value = item.depositDay || '';
+      document.getElementById('input-savings-deposit-start').value = item.depositStartDate || '';
       renderSavingsLinkedAccountOptions(item.accountNumber || '');
 
       document.getElementById('savings-modal-title').textContent = '예적금 수정';
@@ -2680,7 +2702,10 @@ async function saveSavingsBulkEdit() {
           balance,
           maturity: item.maturity,
           purpose,
-          memo
+          memo,
+          monthlyDeposit: item.monthlyDeposit,
+          depositDay: item.depositDay,
+          depositStartDate: item.depositStartDate
         }
       });
     }

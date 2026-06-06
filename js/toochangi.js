@@ -118,7 +118,7 @@ const Toochangi = (() => {
       : '- 보유 주식 없음';
 
     const savingsSummary = _savings.length > 0
-      ? _savings.map(s => `- ${s.name}(${s.bank}, 명의 ${s.owner || '미지정'}): 잔액 ${s.balance.toLocaleString()}원, 금리 ${s.rate}%, 만기일 ${s.maturity || '없음'}, 용도: ${s.purpose}`).join('\n')
+      ? _savings.map(s => `- ${s.name}(${s.bank}, 명의 ${s.owner || '미지정'}): 잔액 ${calcSavingsBalance(s).toLocaleString()}원${(parseFloat(s.monthlyDeposit) || 0) > 0 ? `(매월 ${(parseFloat(s.monthlyDeposit) || 0).toLocaleString()}원 자동납입)` : ''}, 금리 ${s.rate}%, 만기일 ${s.maturity || '없음'}, 용도: ${s.purpose}`).join('\n')
       : '- 보유 예적금 없음';
 
     const realEstateSummary = _realEstate.length > 0
@@ -272,7 +272,7 @@ ${gachangiContext}
       : '- 보유 주식 없음';
 
     const savingsSummary = _savings.length > 0
-      ? _savings.map(s => `- ${s.name}(${s.bank}, 명의 ${s.owner || '미지정'}): 잔액 ${s.balance.toLocaleString()}원, 금리 ${s.rate}%, 만기일 ${s.maturity || '없음'}, 용도: ${s.purpose}`).join('\n')
+      ? _savings.map(s => `- ${s.name}(${s.bank}, 명의 ${s.owner || '미지정'}): 잔액 ${calcSavingsBalance(s).toLocaleString()}원${(parseFloat(s.monthlyDeposit) || 0) > 0 ? `(매월 ${(parseFloat(s.monthlyDeposit) || 0).toLocaleString()}원 자동납입)` : ''}, 금리 ${s.rate}%, 만기일 ${s.maturity || '없음'}, 용도: ${s.purpose}`).join('\n')
       : '- 보유 예적금 없음';
 
     const realEstateSummary = _realEstate.length > 0
@@ -442,7 +442,7 @@ ${youtubeFeedText}
     // 자산 포트폴리오 비중: 주식 / 현금 / 부동산(순자산)
     const metrics = calcPortfolioMetrics();
     const stockValue = metrics.totalValue || 0;
-    const cashValue = (_savings || []).reduce((sum, s) => sum + (parseFloat(s.balance) || 0), 0);
+    const cashValue = (_savings || []).reduce((sum, s) => sum + calcSavingsBalance(s), 0);
     const realEstateNet = (_realEstate || []).reduce((sum, r) => {
       const value = parseFloat(r.currentValue) || 0;
       const loanAmount = parseFloat(r.loanAmount) || 0;
@@ -737,6 +737,45 @@ ${youtubeFeedText}
   function getSavings()   { return _savings; }
   function getRealEstate() { return _realEstate; }
 
+  // ── 예적금 자동 납입(누적) 계산 ──────────────────────────────
+  // 'YYYY-MM-DD' 또는 'YYYY.MM.DD' 형식의 문자열을 Date로 파싱 (실패 시 null)
+  function _parseSavingsDate(str) {
+    if (!str) return null;
+    const m = String(str).match(/(\d{4})[.\-/]\s*(\d{1,2})[.\-/]\s*(\d{1,2})/);
+    if (!m) return null;
+    const d = new Date(`${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}T00:00:00`);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // (start, end] 구간에서 매월 depositDay 일이 도래한 횟수
+  function _countMonthlyDeposits(start, end, depositDay) {
+    if (!(end > start)) return 0;
+    let count = 0;
+    const baseYear = start.getFullYear();
+    const baseMonth = start.getMonth();
+    for (let k = 0; k < 1200; k += 1) { // 최대 100년치 안전 상한
+      const d = new Date(baseYear, baseMonth + k, depositDay);
+      if (d > end) break;
+      if (d > start) count += 1;
+    }
+    return count;
+  }
+
+  // 저장된 기준잔액 + (납입 시작일부터 만기일/오늘까지 누적된 자동 납입액)
+  function calcSavingsBalance(s) {
+    const base = parseFloat(s.balance) || 0;
+    const monthly = parseFloat(s.monthlyDeposit) || 0;
+    if (monthly <= 0) return base;
+    const day = parseInt(s.depositDay, 10) || 0;
+    if (!day) return base;
+    const start = _parseSavingsDate(s.depositStartDate);
+    if (!start) return base;
+    let end = new Date();
+    const maturity = _parseSavingsDate(s.maturity);
+    if (maturity && maturity < end) end = maturity; // 만기일 이후로는 누적 중단
+    return base + monthly * _countMonthlyDeposits(start, end, day);
+  }
+
   async function addPortfolio(row) {
     await SheetsAPI.appendPortfolio(row);
     await loadAll();
@@ -926,7 +965,7 @@ ${youtubeFeedText}
     renderCharts,
     renderAllocationChart,
     renderMarketAllocationChart,
-    getPortfolio, getTradeLog, getAnalysis, getGachangiData, getGachangiAccounts, getSavings, getRealEstate,
+    getPortfolio, getTradeLog, getAnalysis, getGachangiData, getGachangiAccounts, getSavings, getRealEstate, calcSavingsBalance,
     addPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, addTrade, saveAnalysis, saveFilter, applyFormulasToPortfolio, restorePortfolioFromBackup,
     addSavings, updateSavings, deleteSavings, updateSavingsRows, deleteSavingsRows, restoreSavingsFromBackup,
     addRealEstate, updateRealEstate, deleteRealEstate, updateRealEstateRows, deleteRealEstateRows,

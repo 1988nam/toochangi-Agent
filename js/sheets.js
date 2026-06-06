@@ -245,7 +245,7 @@ const SheetsAPI = (() => {
         console.log('✅ 누락된 시트 탭 추가 완료:', requests.map(r => r.addSheet.properties.title).join(', '));
         
         const headers = {
-          '예적금': [['자산명','금융기관','명의','계좌번호','예적금종류','금리(%)','잔액(원)','만기일','자산용도','메모','등록일']],
+          '예적금': [['자산명','금융기관','명의','계좌번호','예적금종류','금리(%)','잔액(원)','만기일','자산용도','메모','등록일','월납입액(원)','납입기준일','납입시작일']],
           '부동산': [['부동산명','매입가(원)','현재평가액(원)','담보대출액(원)','대출금리(%)','전세보증금(원)','연간유지비/이자(원)','자산용도','메모','대출실행일','상환년수','등록일']]
         };
         
@@ -276,7 +276,7 @@ const SheetsAPI = (() => {
     const tradeHeaders     = [['날짜','종목명','구분','수량','단가(원)','금액(원)','3단계필터','메모']];
     const analysisHeaders  = [['날짜','질문','AI분석결과','관련종목','투자의견','기간']];
     const filterHeaders    = [['날짜','시장신호','섹터신호','종목신호','최종판단','메모']];
-    const savingsHeaders   = [['자산명','금융기관','명의','계좌번호','예적금종류','금리(%)','잔액(원)','만기일','자산용도','메모','등록일']];
+    const savingsHeaders   = [['자산명','금융기관','명의','계좌번호','예적금종류','금리(%)','잔액(원)','만기일','자산용도','메모','등록일','월납입액(원)','납입기준일','납입시작일']];
     const realEstateHeaders = [['부동산명','매입가(원)','현재평가액(원)','담보대출액(원)','대출금리(%)','전세보증금(원)','연간유지비/이자(원)','자산용도','메모','대출실행일','상환년수','등록일']];
 
     const batchData = [
@@ -328,7 +328,7 @@ const SheetsAPI = (() => {
     try {
       await ensureSavingsSheet(id);
       const res = await gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: id, range: '예적금!A2:K',
+        spreadsheetId: id, range: '예적금!A2:N',
       });
       return (res.result.values || []).map((r, idx) => {
         const schema = r.length >= 11 ? 'owner_account' : (r.length >= 10 ? 'owner_only' : 'legacy');
@@ -345,6 +345,10 @@ const SheetsAPI = (() => {
           purpose:  schema === 'owner_account' ? (r[8] || '') : (schema === 'owner_only' ? (r[7] || '') : (r[6] || '')),
           memo:     schema === 'owner_account' ? (r[9] || '') : (schema === 'owner_only' ? (r[8] || '') : (r[7] || '')),
           date:     schema === 'owner_account' ? (r[10] || '') : (schema === 'owner_only' ? (r[9] || '') : (r[8] || '')),
+          // 자동 납입(누적) 메타 — owner_account 스키마(L·M·N열)에서만 존재
+          monthlyDeposit:   schema === 'owner_account' ? (parseFloat(r[11]) || 0) : 0,
+          depositDay:       schema === 'owner_account' ? (parseInt(r[12], 10) || 0) : 0,
+          depositStartDate: schema === 'owner_account' ? (r[13] || '') : '',
         };
       });
     } catch (e) {
@@ -393,7 +397,7 @@ const SheetsAPI = (() => {
       await ensureSavingsSheet(id);
       const res = await gapi.client.sheets.spreadsheets.values.get({
         spreadsheetId: id,
-        range: '예적금!A1:K',
+        range: '예적금!A1:N',
         valueRenderOption: 'FORMULA'
       });
       const values = res.result.values;
@@ -421,7 +425,7 @@ const SheetsAPI = (() => {
 
       await gapi.client.sheets.spreadsheets.values.clear({
         spreadsheetId: id,
-        range: '예적금_백업!A1:K'
+        range: '예적금_백업!A1:N'
       });
 
       await gapi.client.sheets.spreadsheets.values.update({
@@ -442,7 +446,7 @@ const SheetsAPI = (() => {
     await ensureSavingsSheet(id);
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: id,
-      range: '예적금_백업!A1:K',
+      range: '예적금_백업!A1:N',
       valueRenderOption: 'FORMULA'
     });
     const values = res.result.values;
@@ -451,7 +455,7 @@ const SheetsAPI = (() => {
     }
     await gapi.client.sheets.spreadsheets.values.clear({
       spreadsheetId: id,
-      range: '예적금!A1:K'
+      range: '예적금!A1:N'
     });
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: id,
@@ -470,11 +474,12 @@ const SheetsAPI = (() => {
     const values = [[
       row.name, row.bank, row.owner || '', row.accountNumber || '', row.type,
       parseFloat(row.rate) || 0, parseFloat(row.balance) || 0, row.maturity || '',
-      row.purpose || '', row.memo || '', now
+      row.purpose || '', row.memo || '', now,
+      parseFloat(row.monthlyDeposit) || 0, parseInt(row.depositDay, 10) || 0, row.depositStartDate || ''
     ]];
     await gapi.client.sheets.spreadsheets.values.append({
       spreadsheetId: id,
-      range: '예적금!A:K',
+      range: '예적금!A:N',
       valueInputOption: 'USER_ENTERED',
       resource: { values },
     });
@@ -488,11 +493,12 @@ const SheetsAPI = (() => {
     const values = [[
       row.name, row.bank, row.owner || '', row.accountNumber || '', row.type,
       parseFloat(row.rate) || 0, parseFloat(row.balance) || 0, row.maturity || '',
-      row.purpose || '', row.memo || '', now
+      row.purpose || '', row.memo || '', now,
+      parseFloat(row.monthlyDeposit) || 0, parseInt(row.depositDay, 10) || 0, row.depositStartDate || ''
     ]];
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: id,
-      range: `예적금!A${rowIndex}:K${rowIndex}`,
+      range: `예적금!A${rowIndex}:N${rowIndex}`,
       valueInputOption: 'USER_ENTERED',
       resource: { values },
     });
@@ -533,11 +539,12 @@ const SheetsAPI = (() => {
     await backupSavings();
     const data = updates.map(({ rowIndex, row }) => {
       return {
-        range: `예적금!A${rowIndex}:K${rowIndex}`,
+        range: `예적금!A${rowIndex}:N${rowIndex}`,
         values: [[
           row.name, row.bank, row.owner || '', row.accountNumber || '', row.type,
           parseFloat(row.rate) || 0, parseFloat(row.balance) || 0, row.maturity || '',
-          row.purpose || '', row.memo || '', now
+          row.purpose || '', row.memo || '', now,
+          parseFloat(row.monthlyDeposit) || 0, parseInt(row.depositDay, 10) || 0, row.depositStartDate || ''
         ]]
       };
     });
