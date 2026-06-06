@@ -4,6 +4,7 @@
  */
 const SheetsAPI = (() => {
   const cfg = () => window.TOOCHANGI_CONFIG || TOOCHANGI_CONFIG;
+  const DEFAULT_GACHANGI_SHEET_ID = '1RahTa8uculzZR_nv9lmKnSOYJiqBQ6eco2NYaUh18qo';
   const SAVINGS_SHEET = '\uC608\uC801\uAE08';
   const SAVINGS_HEADER_RANGE = `${SAVINGS_SHEET}!A1:K1`;
   const SAVINGS_HEADERS = [[
@@ -60,7 +61,7 @@ const SheetsAPI = (() => {
   }
 
   async function getGachangiAccounts() {
-    const id = TOOCHANGI_CONFIG.GACHANGI_SHEET_ID;
+    const id = getGachangiSheetId();
     if (!id || id.startsWith('YOUR_')) return [];
 
     try {
@@ -71,13 +72,14 @@ const SheetsAPI = (() => {
       const rows = response.result.values || [];
       const accounts = [];
       rows.forEach((row, i) => {
-        if (i === 0) return;
         const type = row[1] || '';
         const owner = row[2] || '';
         const purpose = row[3] || '';
         const accountName = row[4] || '';
         const accountNumber = row[5] || '';
         const ownerName = row[6] || '';
+        const looksLikeHeader = [type, accountName, accountNumber, ownerName].join(' ').includes('계좌명') || [type, accountName, accountNumber, ownerName].join(' ').includes('계좌번호');
+        if (i === 0 && looksLikeHeader) return;
         if (!type && !owner && !accountName) return;
         accounts.push({
           rowIndex: 2 + i,
@@ -94,6 +96,12 @@ const SheetsAPI = (() => {
       console.warn('[Sheets] 가챙이 보유 계좌 로드 실패:', e);
       return [];
     }
+  }
+
+  function getGachangiSheetId() {
+    const id = (TOOCHANGI_CONFIG.GACHANGI_SHEET_ID || '').trim();
+    if (!id || id.startsWith('YOUR_')) return DEFAULT_GACHANGI_SHEET_ID;
+    return id;
   }
 
   async function ensureSavingsSheet(spreadsheetId) {
@@ -966,7 +974,7 @@ const SheetsAPI = (() => {
 
   // ── 가챙이 시트 읽기 (월 저축액 가져오기) ────────────────────────
   async function getGachangiMonthlySavings() {
-    const id = TOOCHANGI_CONFIG.GACHANGI_SHEET_ID;
+    const id = getGachangiSheetId();
     if (!id || id.startsWith('YOUR_')) return null;
     try {
       // 가챙이 현재 월 시트에서 수입/지출 합계 읽기
@@ -995,7 +1003,7 @@ const SheetsAPI = (() => {
   // ── 가챙이 시트 내 자산현황 관리 ──────────────────────────────
   /** 가챙이 시트에 '자산현황' 탭이 없으면 자동 생성 */
   async function setupGachangiAssetSheet() {
-    const id = TOOCHANGI_CONFIG.GACHANGI_SHEET_ID;
+    const id = getGachangiSheetId();
     if (!id || id.startsWith('YOUR_')) return;
 
     try {
@@ -1034,7 +1042,7 @@ const SheetsAPI = (() => {
 
   /** 자산현황 목록 불러오기 */
   async function getAssetStatus() {
-    const id = TOOCHANGI_CONFIG.GACHANGI_SHEET_ID;
+    const id = getGachangiSheetId();
     if (!id || id.startsWith('YOUR_')) return [];
     
     await setupGachangiAssetSheet();
@@ -1061,7 +1069,7 @@ const SheetsAPI = (() => {
 
   /** 신규 자산 추가 */
   async function appendAsset(row) {
-    const id = TOOCHANGI_CONFIG.GACHANGI_SHEET_ID;
+    const id = getGachangiSheetId();
     const now = new Date().toLocaleDateString('ko-KR');
     const values = [[
       row.date || new Date().toISOString().split('T')[0],
@@ -1081,7 +1089,7 @@ const SheetsAPI = (() => {
 
   /** 기존 자산 수정 */
   async function updateAsset(rowIndex, row) {
-    const id = TOOCHANGI_CONFIG.GACHANGI_SHEET_ID;
+    const id = getGachangiSheetId();
     const now = new Date().toLocaleDateString('ko-KR');
     const values = [[
       row.date,
@@ -1101,7 +1109,7 @@ const SheetsAPI = (() => {
 
   /** 자산 삭제 */
   async function deleteAsset(rowIndex) {
-    const id = TOOCHANGI_CONFIG.GACHANGI_SHEET_ID;
+    const id = getGachangiSheetId();
     
     const metaRes = await gapi.client.sheets.spreadsheets.get({
       spreadsheetId: id,
