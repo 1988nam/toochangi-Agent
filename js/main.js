@@ -283,6 +283,12 @@ function renderDashboard() {
   // 현금 자산
   setVal('m-available', s.cash > 0 ? `${Math.floor(s.cash).toLocaleString()}원` : '—');
 
+  // 전월 대비 (자산현황 월별 스냅샷 기준)
+  const prev = previousAssetSnapshot();
+  setAssetDelta('m-grand-total-delta', s.totalAssets, prev && prev.total ? prev.total : null);
+  setAssetDelta('m-net-worth-delta',   s.netWorth,    prev && prev.net   ? prev.net   : null);
+  setAssetDelta('m-available-delta',   s.cash,        prev && prev.cash  ? prev.cash  : null);
+
   // 최근 분석 미리보기
   renderRecentAnalysis();
 }
@@ -384,6 +390,10 @@ function renderPortfolioSummaryCards(portfolio, metrics) {
   };
   renderOwnerYield('정현', 'portfolio-jeonghyeon-yield', 'portfolio-jeonghyeon-yield-sub');
   renderOwnerYield('혜영', 'portfolio-hyeyoung-yield', 'portfolio-hyeyoung-yield-sub');
+
+  // 주식 자산 전월 대비 (자산현황 월별 스냅샷 기준)
+  const prevSnap = previousAssetSnapshot();
+  setAssetDelta('portfolio-total-asset-delta', metrics.totalValue, prevSnap && prevSnap.stock ? prevSnap.stock : null);
 }
 
 // KRX 숫자 티커(예: 5930)는 6자리로 앞자리 0을 채워 표기 (예: 005930). 미국 등 문자 티커는 그대로.
@@ -2845,6 +2855,10 @@ function renderSavingsSummaryCards(savings) {
   }
   const subEl = document.getElementById('savings-total-yield-sub');
   if (subEl) subEl.textContent = totalCash > 0 ? `연 예상 이자 · 평균 금리 ${avgRate.toFixed(2)}%` : '예적금 이자 수익';
+
+  // 현금 자산 전월 대비 (자산현황 월별 스냅샷 기준)
+  const prevSnap = previousAssetSnapshot();
+  setAssetDelta('savings-total-cash-delta', totalCash, prevSnap && prevSnap.cash ? prevSnap.cash : null);
 }
 
 function renderSavingsTab() {
@@ -3214,6 +3228,13 @@ function renderRealestateSummaryCards(realEstate) {
     gainEl.style.color = gain > 0 ? 'var(--accent-green)' : (gain < 0 ? 'var(--accent-red)' : 'var(--text-primary)');
   }
   setV('re-gain-sub', totalPurchase > 0 ? `매입가 대비 ${gainPct >= 0 ? '+' : ''}${gainPct.toFixed(1)}%` : '시세 − 매입가');
+
+  // 전월 대비 (자산현황 월별 스냅샷 기준)
+  const prevSnap = previousAssetSnapshot();
+  setAssetDelta('re-total-value-delta', totalValue, prevSnap && prevSnap.realEstate ? prevSnap.realEstate : null);
+  const prevReNet = (prevSnap && prevSnap.realEstate) ? (prevSnap.realEstate - prevSnap.debt) : null;
+  setAssetDelta('re-net-delta', net, prevReNet);
+  setAssetDelta('re-debt-delta', totalDebt, prevSnap && prevSnap.debt ? prevSnap.debt : null, true);
 }
 
 function renderRealestateTab() {
