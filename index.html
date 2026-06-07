@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260607_8" />
+  <link rel="stylesheet" href="style.css?v=20260607_9" />
 </head>
 <body>
 
@@ -165,17 +165,22 @@
 
     <!-- ── 포트폴리오 탭 ── -->
     <div id="tab-portfolio" class="tab-panel hidden">
+      <!-- 상단: 주식 자산 / 총 수익률 (각 2칸 span → 하단 4카드와 전체 너비 동일) -->
       <div class="metrics-grid" style="margin-bottom: 18px;">
-        <div class="metric-card accent-purple">
+        <div class="metric-card accent-purple" style="grid-column: span 2;">
           <div class="metric-label">주식 자산</div>
           <div class="metric-value" id="portfolio-total-asset">—</div>
           <div class="metric-sub" id="portfolio-total-asset-sub">평가금액 기준</div>
         </div>
-        <div class="metric-card accent-green">
+        <div class="metric-card accent-green" style="grid-column: span 2;">
           <div class="metric-label">총 수익률</div>
           <div class="metric-value" id="portfolio-total-yield">—</div>
           <div class="metric-sub" id="portfolio-total-yield-sub">전체 보유 종목 기준</div>
         </div>
+      </div>
+
+      <!-- 하단: 코스피 / 나스닥 / 정현 / 혜영 수익률 -->
+      <div class="metrics-grid">
         <div class="metric-card accent-blue">
           <div class="metric-label">코스피 수익률</div>
           <div class="metric-value" id="portfolio-kospi-yield">—</div>
@@ -186,16 +191,12 @@
           <div class="metric-value" id="portfolio-nasdaq-yield">—</div>
           <div class="metric-sub" id="portfolio-nasdaq-yield-sub">나스닥 보유 종목 기준</div>
         </div>
-      </div>
-
-      <!-- 명의별 수익률 -->
-      <div class="metrics-grid" style="margin-top: 14px;">
         <div class="metric-card accent-purple">
           <div class="metric-label">정현 수익률</div>
           <div class="metric-value" id="portfolio-jeonghyeon-yield">—</div>
           <div class="metric-sub" id="portfolio-jeonghyeon-yield-sub">정현 명의 종목 기준</div>
         </div>
-        <div class="metric-card accent-blue">
+        <div class="metric-card accent-green">
           <div class="metric-label">혜영 수익률</div>
           <div class="metric-value" id="portfolio-hyeyoung-yield">—</div>
           <div class="metric-sub" id="portfolio-hyeyoung-yield-sub">혜영 명의 종목 기준</div>
@@ -1688,11 +1689,11 @@
     console.error('설정 오버라이드 병합 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260607_8"></script>
-<script src="js/sheets.js?v=20260607_8"></script>
-<script src="js/toochangi.js?v=20260607_8"></script>
-<script src="js/broker.js?v=20260607_8"></script>
-<script src="js/main.js?v=20260607_8"></script>
+<script src="js/auth.js?v=20260607_9"></script>
+<script src="js/sheets.js?v=20260607_9"></script>
+<script src="js/toochangi.js?v=20260607_9"></script>
+<script src="js/broker.js?v=20260607_9"></script>
+<script src="js/main.js?v=20260607_9"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 
