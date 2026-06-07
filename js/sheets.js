@@ -1048,7 +1048,7 @@ const SheetsAPI = (() => {
       spreadsheetId: id, range: `${VIDEO_SHEET}!A:C`, valueInputOption: 'RAW',
       resource: { values: [[generatedAt || '', (text || '').slice(0, 45000), JSON.stringify(sources || [])]] },
     });
-    await _trimSheetByTitle(id, VIDEO_SHEET, 20); // 최근 20건만 유지
+    await _trimSheetByTitle(id, VIDEO_SHEET, 30); // 최근 30건만 유지
   }
   async function getLatestVideoSummary() {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
@@ -1063,6 +1063,21 @@ const SheetsAPI = (() => {
       try { sources = JSON.parse(last[2] || '[]'); } catch (_) {}
       return { generatedAt: last[0] || '', text: last[1] || '', sources: Array.isArray(sources) ? sources : [] };
     } catch (e) { console.warn('[Sheets] 영상요약기록 로드 실패:', e); return null; }
+  }
+  // 영상요약기록 전체 이력(최신순) 조회 → [{ generatedAt, text, sources }]
+  async function getVideoSummaryHistory() {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (!id || id.startsWith('YOUR_')) return [];
+    try {
+      await ensureVideoSummarySheet(id);
+      const res = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: id, range: `${VIDEO_SHEET}!A2:C` });
+      const rows = res.result.values || [];
+      return rows.map(r => {
+        let sources = [];
+        try { sources = JSON.parse(r[2] || '[]'); } catch (_) {}
+        return { generatedAt: r[0] || '', text: r[1] || '', sources: Array.isArray(sources) ? sources : [] };
+      }).reverse();
+    } catch (e) { console.warn('[Sheets] 영상요약기록 이력 로드 실패:', e); return []; }
   }
 
   // ── 분석기록 ──────────────────────────────────────────────────
@@ -1420,6 +1435,7 @@ const SheetsAPI = (() => {
     getRecommendationHistory,
     appendVideoSummary,
     getLatestVideoSummary,
+    getVideoSummaryHistory,
   };
 
   // 모든 API 호출 전에 ensureGapiWrapped()가 먼저 실행되도록 랩핑

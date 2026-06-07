@@ -111,6 +111,7 @@ async function refreshAll() {
     renderTradelogTab();
     renderManualAnalysisTab();
     renderYouTubeFeed();
+    renderNewsHistory();
 
     const assetsPanel = document.getElementById('tab-assets');
     if (assetsPanel && !assetsPanel.classList.contains('hidden')) {
@@ -205,6 +206,7 @@ function switchTab(tab) {
     filter: '3단계 필터', tradelog: '주식 매매일지',
     assets: '자산현황',
     'auto-analysis': '자동 투자 추천',
+    'ai-news': 'AI 뉴스',
     'manual-analysis': '수동 AI 분석',
     mocktrade: '모의투자',
     broker: '증권사 연동',
@@ -230,8 +232,11 @@ function switchTab(tab) {
     initSettingsFields();
   }
   if (tab === 'auto-analysis') {
-    renderYouTubeFeed();
     renderAutoRecHistory();
+  }
+  if (tab === 'ai-news') {
+    renderYouTubeFeed();
+    renderNewsHistory();
   }
 }
 
@@ -1125,6 +1130,7 @@ async function renderYouTubeFeed(force = false) {
     const vres = await Toochangi.runEconomyVideoSummary();
     _youtubeFeedCache = _videoFeedHtml(vres.text, vres.sources, aiModelLabel(vres));
     listEl.innerHTML = _youtubeFeedCache;
+    renderNewsHistory(); // 새 요약이 시트에 쌓였으니 히스토리 갱신
   } catch (err) {
     console.error('[EconomyVideo] 요약 실패:', err);
     listEl.innerHTML = `<div class="empty-state" style="color:var(--accent-red)">⚠️ ${err.message}</div>`;
@@ -1242,9 +1248,10 @@ function bindAutoAnalysisEvents() {
   });
 
   document.getElementById('btn-refresh-rec-history')?.addEventListener('click', () => renderAutoRecHistory());
+  document.getElementById('btn-refresh-news-history')?.addEventListener('click', () => renderNewsHistory());
 
-  // 추천 히스토리 항목 클릭 → 펼치기/접기(아코디언). 이벤트 위임(재렌더돼도 유지)
-  document.getElementById('rec-history-list')?.addEventListener('click', (e) => {
+  // 히스토리 항목 클릭 → 펼치기/접기(아코디언). 이벤트 위임(재렌더돼도 유지). 추천·뉴스 공용.
+  const _histToggle = (e) => {
     const item = e.target.closest('.rec-hist-item');
     if (!item) return;
     const expanded = item.getAttribute('data-expanded') === '1';
@@ -1255,7 +1262,9 @@ function bindAutoAnalysisEvents() {
     if (prev) prev.style.display = expanded ? '' : 'none';
     if (full) full.style.display = expanded ? 'none' : '';
     if (arrow) arrow.textContent = expanded ? '▼' : '▲';
-  });
+  };
+  document.getElementById('rec-history-list')?.addEventListener('click', _histToggle);
+  document.getElementById('news-history-list')?.addEventListener('click', _histToggle);
 }
 
 // 자동 추천 히스토리 렌더 (구글 시트 'AI추천기록' 전체 이력, 최신순)
@@ -1301,6 +1310,51 @@ async function renderAutoRecHistory() {
         <div style="display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;">${chips}</div>
         ${preview ? `<div class="rec-hist-preview analysis-item-preview">${preview}${truncated ? '…' : ''}</div>` : ''}
         <div class="rec-hist-full" style="display:none; white-space:pre-wrap; line-height:1.6; font-size:13px; color:var(--text-secondary); margin-top:4px;">${fullHtml || '(내용 없음)'}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// 경제 영상 AI 요약 히스토리 렌더 (구글 시트 '영상요약기록' 전체 이력, 최신순, 최대 30건)
+async function renderNewsHistory() {
+  const listEl = document.getElementById('news-history-list');
+  if (!listEl) return;
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  listEl.innerHTML = '<div class="empty-state">⏳ 요약 기록을 불러오는 중...</div>';
+
+  let history = [];
+  try {
+    history = (typeof Toochangi !== 'undefined' && Toochangi.getVideoSummaryHistory)
+      ? await Toochangi.getVideoSummaryHistory() : [];
+  } catch (e) {
+    listEl.innerHTML = `<div class="empty-state" style="color:var(--accent-red)">⚠️ 요약 기록 로드 실패: ${esc(e.message)}</div>`;
+    return;
+  }
+  if (!history.length) {
+    listEl.innerHTML = `<div class="empty-state">저장된 요약 기록이 없습니다. ("요약 받기"를 실행하면 구글 시트 '영상요약기록'에 쌓입니다)</div>`;
+    return;
+  }
+
+  listEl.innerHTML = history.map(rec => {
+    const sources = Array.isArray(rec.sources) ? rec.sources : [];
+    const srcHtml = sources.length
+      ? `<div style="display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;">${sources.slice(0, 8).map(s => `<a href="${s.url}" target="_blank" class="source-link" title="${esc(s.title)}" onclick="event.stopPropagation()">🔗 <span>${esc(s.title)}</span></a>`).join('')}</div>`
+      : '';
+    const txt = esc(rec.text || '');
+    const preview = txt.slice(0, 280);
+    const truncated = (rec.text || '').length > 280;
+    const fullHtml = txt.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+    return `
+      <div class="analysis-item rec-hist-item" data-expanded="0" style="cursor:pointer;" title="클릭하면 전체 내용을 펼치거나 접습니다">
+        <div class="analysis-item-header">
+          <span class="analysis-item-date">📅 ${esc(rec.generatedAt)}</span>
+          <span style="display:flex; align-items:center; gap:8px; font-size:11px; color:var(--text-muted);">출처 ${sources.length}개 <span class="rec-hist-arrow">▼</span></span>
+        </div>
+        ${preview ? `<div class="rec-hist-preview analysis-item-preview">${preview}${truncated ? '…' : ''}</div>` : ''}
+        <div class="rec-hist-full" style="display:none;">
+          <div style="white-space:pre-wrap; line-height:1.6; font-size:13px; color:var(--text-secondary); margin-top:4px;">${fullHtml || '(내용 없음)'}</div>
+          ${srcHtml}
+        </div>
       </div>
     `;
   }).join('');

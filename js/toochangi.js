@@ -403,6 +403,10 @@ const Toochangi = (() => {
   async function getLatestVideoSummary() {
     return SheetsAPI.getLatestVideoSummary ? await SheetsAPI.getLatestVideoSummary() : null;
   }
+  // 영상요약기록 전체 이력(최신순)
+  async function getVideoSummaryHistory() {
+    return SheetsAPI.getVideoSummaryHistory ? await SheetsAPI.getVideoSummaryHistory() : [];
+  }
 
   // ── Gemini AI 분석 ──────────────────────────────────────────────
   async function runGeminiAnalysis(query) {
@@ -1270,7 +1274,7 @@ ${searchInstructions}
     evaluateFilter, updateFilterSignal, evaluateFinalVerdict,
     runGeminiAnalysis,
     runAutoRecommendation,
-    runEconomyVideoSummary, getLatestVideoSummary,
+    runEconomyVideoSummary, getLatestVideoSummary, getVideoSummaryHistory,
     getGeminiAuthStatus, listAvailableModels,
     getLatestRecommendation, getRecommendationHistory, saveRecommendation,
     renderAllocationChart,

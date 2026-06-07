@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260607_59" />
+  <link rel="stylesheet" href="style.css?v=20260607_60" />
 </head>
 <body>
 
@@ -86,6 +86,9 @@
       <div class="nav-section">AI 분석</div>
       <button class="nav-item" data-tab="auto-analysis" id="nav-auto-analysis">
         <span class="nav-icon">🤖</span><span>자동 투자 추천</span>
+      </button>
+      <button class="nav-item" data-tab="ai-news" id="nav-ai-news">
+        <span class="nav-icon">📺</span><span>AI 뉴스</span>
       </button>
       <button class="nav-item" data-tab="manual-analysis" id="nav-manual-analysis">
         <span class="nav-icon">🔮</span><span>수동 AI 분석</span>
@@ -585,7 +588,23 @@
           </div>
         </div>
 
-        <!-- 📺 실시간 유튜브 피드 카드 -->
+        <!-- 추천 히스토리 (구글 시트 'AI추천기록') -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📚 자동 추천 히스토리</span>
+            <button id="btn-refresh-rec-history" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 새로고침</button>
+          </div>
+          <div id="rec-history-list" class="analysis-list">
+            <div class="empty-state">저장된 자동 추천 기록이 없습니다. (자동 추천을 실행하면 구글 시트 'AI추천기록'에 쌓입니다)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── AI 뉴스 탭 (경제 영상 AI 요약 + 요약 히스토리) ── -->
+    <div id="tab-ai-news" class="tab-panel hidden">
+      <div class="analysis-layout">
+        <!-- 📺 경제 영상 AI 요약 카드 -->
         <div class="card youtube-feed-card">
           <div class="card-header">
             <span class="card-title">📺 경제 영상 AI 요약</span>
@@ -602,14 +621,14 @@
           </div>
         </div>
 
-        <!-- 추천 히스토리 (구글 시트 'AI추천기록') -->
+        <!-- 요약 히스토리 (구글 시트 '영상요약기록') -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">📚 자동 추천 히스토리</span>
-            <button id="btn-refresh-rec-history" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 새로고침</button>
+            <span class="card-title">📚 요약 히스토리</span>
+            <button id="btn-refresh-news-history" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 새로고침</button>
           </div>
-          <div id="rec-history-list" class="analysis-list">
-            <div class="empty-state">저장된 자동 추천 기록이 없습니다. (자동 추천을 실행하면 구글 시트 'AI추천기록'에 쌓입니다)</div>
+          <div id="news-history-list" class="analysis-list">
+            <div class="empty-state">저장된 요약 기록이 없습니다. ("요약 받기"를 실행하면 구글 시트 '영상요약기록'에 쌓입니다)</div>
           </div>
         </div>
       </div>
@@ -1906,11 +1925,11 @@
     console.error('Gemini OAuth 스코프 적용 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260607_59"></script>
-<script src="js/sheets.js?v=20260607_59"></script>
-<script src="js/toochangi.js?v=20260607_59"></script>
-<script src="js/broker.js?v=20260607_59"></script>
-<script src="js/main.js?v=20260607_59"></script>
+<script src="js/auth.js?v=20260607_60"></script>
+<script src="js/sheets.js?v=20260607_60"></script>
+<script src="js/toochangi.js?v=20260607_60"></script>
+<script src="js/broker.js?v=20260607_60"></script>
+<script src="js/main.js?v=20260607_60"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 
