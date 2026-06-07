@@ -2296,6 +2296,7 @@ function bindBrokerEvents() {
     const secret = document.getElementById('input-kis-secret').value.trim();
     const account = document.getElementById('input-kis-account').value.trim();
     const isMock = document.getElementById('input-kis-mock').value === 'true';
+    const proxyUrl = document.getElementById('input-kis-proxy')?.value.trim() || '';
     const autoTrade = document.getElementById('input-kis-autotrade').checked;
     const autoTradeAmount = parseInt(document.getElementById('input-kis-autotrade-amount').value, 10) || 500000;
 
@@ -2303,9 +2304,13 @@ function bindBrokerEvents() {
       toast('⚠️ 필수 설정 항목(AppKey, Secret, 계좌번호)을 입력해주세요.', 'error');
       return;
     }
+    if (!proxyUrl) {
+      toast('⚠️ KIS 프록시 URL이 필요합니다. cloudflare-worker 폴더 안내대로 배포 후 주소를 입력하세요.', 'error');
+      return;
+    }
 
     try {
-      Broker.saveSettings({ appkey, secret, account, isMock, autoTrade, autoTradeAmount });
+      Broker.saveSettings({ appkey, secret, account, isMock, proxyUrl, autoTrade, autoTradeAmount });
       toast('💾 KIS 연동 설정이 브라우저에 저장되었습니다.', 'success');
       
       await renderBrokerTab();
@@ -2361,6 +2366,7 @@ async function renderBrokerTab() {
   const secretEl = document.getElementById('input-kis-secret');
   const accountEl = document.getElementById('input-kis-account');
   const mockEl = document.getElementById('input-kis-mock');
+  const proxyEl = document.getElementById('input-kis-proxy');
   const autoEl = document.getElementById('input-kis-autotrade');
   const autoAmtEl = document.getElementById('input-kis-autotrade-amount');
 
@@ -2368,6 +2374,7 @@ async function renderBrokerTab() {
   if (secretEl && !secretEl.value) secretEl.value = settings.secret;
   if (accountEl && !accountEl.value) accountEl.value = settings.account;
   if (mockEl) mockEl.value = settings.isMock ? 'true' : 'false';
+  if (proxyEl && !proxyEl.value) proxyEl.value = settings.proxyUrl || '';
   if (autoEl) autoEl.checked = settings.autoTrade;
   if (autoAmtEl && !autoAmtEl.value) autoAmtEl.value = settings.autoTradeAmount;
 

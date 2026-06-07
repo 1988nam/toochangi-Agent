@@ -14,7 +14,26 @@ const Broker = (() => {
       isMock: localStorage.getItem('toochangi_kis_mock') === 'true',
       autoTrade: localStorage.getItem('toochangi_kis_autotrade') === 'true',
       autoTradeAmount: parseInt(localStorage.getItem('toochangi_kis_autotrade_amount') || '500000', 10),
+      proxyUrl: getProxyBase(),
     };
+  }
+
+  // KIS 중계 프록시(Cloudflare Worker 등) 베이스 URL. 미설정 시 빈 문자열.
+  // 우선순위: localStorage → config(KIS_PROXY_URL). 끝의 슬래시 제거.
+  function getProxyBase() {
+    const raw = (localStorage.getItem('toochangi_kis_proxy')
+      || (window.TOOCHANGI_CONFIG && window.TOOCHANGI_CONFIG.KIS_PROXY_URL)
+      || '').trim();
+    return raw.replace(/\/+$/, '');
+  }
+
+  // 프록시 엔드포인트 URL 구성. 미설정이면 명확한 오류로 안내.
+  function _proxyUrl(path) {
+    const base = getProxyBase();
+    if (!base) {
+      throw new Error('KIS 프록시 URL이 설정되지 않았습니다. 환경설정(KIS 연동)에서 Cloudflare Worker 주소를 입력하세요.');
+    }
+    return `${base}/${path}`;
   }
 
   function saveSettings(settings) {
@@ -24,7 +43,10 @@ const Broker = (() => {
     localStorage.setItem('toochangi_kis_mock', settings.isMock ? 'true' : 'false');
     localStorage.setItem('toochangi_kis_autotrade', settings.autoTrade ? 'true' : 'false');
     localStorage.setItem('toochangi_kis_autotrade_amount', settings.autoTradeAmount.toString());
-    
+    if (settings.proxyUrl !== undefined) {
+      localStorage.setItem('toochangi_kis_proxy', (settings.proxyUrl || '').trim().replace(/\/+$/, ''));
+    }
+
     // 설정이 변경되면 기존에 발급받은 캐시 토큰 정리
     localStorage.removeItem('toochangi_kis_token');
     localStorage.removeItem('toochangi_kis_token_expiry');
@@ -40,7 +62,7 @@ const Broker = (() => {
       return cachedToken;
     }
 
-    const res = await fetch('/api/broker/token', {
+    const res = await fetch(_proxyUrl('token'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -84,7 +106,7 @@ const Broker = (() => {
     const cano = cleanAccount.substring(0, 8);
     const acntPrdtCd = cleanAccount.substring(8, 10);
 
-    const res = await fetch('/api/broker/balance', {
+    const res = await fetch(_proxyUrl('balance'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -145,7 +167,7 @@ const Broker = (() => {
     const cano = cleanAccount.substring(0, 8);
     const acntPrdtCd = cleanAccount.substring(8, 10);
 
-    const res = await fetch('/api/broker/order', {
+    const res = await fetch(_proxyUrl('order'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -270,12 +292,12 @@ const Broker = (() => {
 
     try {
       const [rankRes, indexRes] = await Promise.all([
-        fetch('/api/broker/market-rank', {
+        fetch(_proxyUrl('market-rank'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(basePayload)
         }),
-        fetch('/api/broker/market-index', {
+        fetch(_proxyUrl('market-index'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(basePayload)
@@ -312,6 +334,7 @@ const Broker = (() => {
   return {
     getSettings,
     saveSettings,
+    getProxyBase,
     loadBalanceAndHoldings,
     placeOrder,
     checkAndTriggerAutoTrade,
