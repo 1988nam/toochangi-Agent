@@ -1257,10 +1257,7 @@ async function renderYouTubeFeed(force = false) {
   try {
     const fetchPromises = youtubeChannels.map(async (ch) => {
       try {
-        const res = await fetch(`/api/youtube-rss?channelId=${ch.id}`);
-        if (!res.ok) throw new Error(`Status ${res.status}`);
-        const data = await res.json();
-        return data.entries || [];
+        return await Toochangi.fetchYoutubeFeed(ch.id, ch.name) || [];
       } catch (err) {
         console.warn(`[YouTubeFeed] Fetch failed for ${ch.name}:`, err.message);
         return [];
@@ -1283,7 +1280,7 @@ async function renderYouTubeFeed(force = false) {
     displayYouTubeFeed(_youtubeFeedCache);
   } catch (err) {
     console.error('[YouTubeFeed] 피드 동기화 실패:', err);
-    listEl.innerHTML = '<div class="empty-state" style="color:var(--accent-red)">⚠️ 유튜브 피드를 가져오지 못했습니다. KIS 프록시 서버 상태를 확인하세요.</div>';
+    listEl.innerHTML = '<div class="empty-state" style="color:var(--accent-red)">⚠️ 유튜브 피드를 가져오지 못했습니다. 네트워크 또는 외부 프록시(allorigins) 상태를 확인하세요.</div>';
   } finally {
     _youtubeFeedLoading = false;
     spinnerEl?.classList.add('hidden');

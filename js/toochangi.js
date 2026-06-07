@@ -154,6 +154,38 @@ const Toochangi = (() => {
     return loan;
   }
 
+  // 유튜브 채널 최신 영상 조회: 백엔드 프록시(/api) 우선, 없으면 공개 CORS 프록시로 RSS 직접 파싱
+  async function fetchYoutubeFeed(channelId, channelName) {
+    // 1) 백엔드 프록시가 있으면 그대로 사용
+    try {
+      const r = await fetch(`/api/youtube-rss?channelId=${channelId}`);
+      if (r.ok) {
+        const d = await r.json();
+        if (d && Array.isArray(d.entries)) return d.entries;
+      }
+    } catch (_) { /* 백엔드 없음 → CORS 프록시로 폴백 */ }
+
+    // 2) 정적 호스팅용: 공개 CORS 프록시로 유튜브 RSS를 직접 읽어 파싱
+    const rss = `https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`;
+    const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rss)}`);
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    const data = await res.json();
+    const xml = (data && data.contents) ? data.contents : '';
+    if (!xml || xml.indexOf('<entry') === -1) throw new Error('빈 피드');
+    const doc = new DOMParser().parseFromString(xml, 'text/xml');
+    const feedTitle = (doc.getElementsByTagName('title')[0] || {}).textContent || channelName || '';
+    return Array.from(doc.getElementsByTagName('entry')).slice(0, 8).map(e => {
+      const vid = (e.getElementsByTagName('yt:videoId')[0] || {}).textContent || '';
+      return {
+        title:       (e.getElementsByTagName('title')[0] || {}).textContent || '',
+        published:   (e.getElementsByTagName('published')[0] || {}).textContent || '',
+        videoId:     vid,
+        videoUrl:    vid ? `https://www.youtube.com/watch?v=${vid}` : '',
+        channelName: channelName || feedTitle,
+      };
+    });
+  }
+
   // ── Gemini AI 분석 ──────────────────────────────────────────────
   async function runGeminiAnalysis(query) {
     const provider = _aiProvider();
@@ -292,10 +324,8 @@ ${gachangiContext}
     if (youtubeChannels.length > 0) {
       const fetchPromises = youtubeChannels.map(async (ch) => {
         try {
-          const res = await fetch(`/api/youtube-rss?channelId=${ch.id}`);
-          if (!res.ok) throw new Error(`Status ${res.status}`);
-          const data = await res.json();
-          return { name: ch.name, entries: data.entries || [] };
+          const entries = await fetchYoutubeFeed(ch.id, ch.name);
+          return { name: ch.name, entries: entries || [] };
         } catch (err) {
           console.warn(`[AutoRec] YouTube feed fetch failed for ${ch.name} (${ch.id}):`, err.message);
           return { name: ch.name, entries: [], error: err.message };
@@ -1060,6 +1090,7 @@ ${youtubeFeedText}
     evaluateFilter, updateFilterSignal, evaluateFinalVerdict,
     runGeminiAnalysis,
     runAutoRecommendation,
+    fetchYoutubeFeed,
     renderAllocationChart,
     renderMarketAllocationChart,
     getPortfolio, getTradeLog, getAnalysis, getGachangiData, getGachangiAccounts, getSavings, getRealEstate, calcSavingsBalance,
