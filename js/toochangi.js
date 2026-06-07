@@ -682,7 +682,7 @@ ${youtubeFeedText}
     });
   }
 
-  function renderNetWorthTrendChart() {
+  function renderNetWorthTrendChart(viewMode) {
     const ctx = document.getElementById('chart-networth-trend');
     if (!ctx) return;
     if (_chartNetWorthTrend) _chartNetWorthTrend.destroy();
@@ -701,14 +701,28 @@ ${youtubeFeedText}
       }
     });
 
-    const sortedMonths = Object.keys(monthsMap).sort().slice(-6);
-    const netWorthData = sortedMonths.map(m => monthsMap[m].assets - monthsMap[m].debt);
-    const assetData = sortedMonths.map(m => monthsMap[m].assets);
+    const allMonths = Object.keys(monthsMap).sort();
+    let labels, netWorthData, assetData;
 
-    const labels = sortedMonths.map(m => {
-      const parts = m.split('-');
-      return `${parts[0].substring(2)}-${parts[1]}`;
-    });
+    if (viewMode === 'all') {
+      // 전체 보기: 연·분기 단위 집계 (각 분기의 마지막 월 스냅샷 사용)
+      const qMap = {};
+      allMonths.forEach(m => {
+        const parts = m.split('-').map(Number);
+        const q = Math.ceil(parts[1] / 3);
+        qMap[`${parts[0]}-Q${q}`] = monthsMap[m]; // 오름차순이라 마지막 대입 = 분기 내 최신 월
+      });
+      const qKeys = Object.keys(qMap).sort();
+      labels = qKeys.map(k => { const seg = k.split('-Q'); return `${seg[0].substring(2)} ${seg[1]}Q`; });
+      netWorthData = qKeys.map(k => qMap[k].assets - qMap[k].debt);
+      assetData = qKeys.map(k => qMap[k].assets);
+    } else {
+      // 기본: 최근 6개월 (월별)
+      const months = allMonths.slice(-6);
+      labels = months.map(m => { const p = m.split('-'); return `${p[0].substring(2)}-${p[1]}`; });
+      netWorthData = months.map(m => monthsMap[m].assets - monthsMap[m].debt);
+      assetData = months.map(m => monthsMap[m].assets);
+    }
 
     _chartNetWorthTrend = new Chart(ctx, {
       type: 'line',

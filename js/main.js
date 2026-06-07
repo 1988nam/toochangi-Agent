@@ -1516,6 +1516,15 @@ function bindAssetEvents() {
   document.getElementById('save-asset-backfill-btn')?.addEventListener('click', saveAssetBackfill);
   document.getElementById('asset-backfill-paste-btn')?.addEventListener('click', fillBackfillFromPaste);
 
+  document.getElementById('trend-view-toggle')?.addEventListener('click', () => {
+    netWorthTrendView = (netWorthTrendView === 'all') ? 'recent' : 'all';
+    const btn = document.getElementById('trend-view-toggle');
+    const label = document.getElementById('trend-view-label');
+    if (btn) btn.textContent = (netWorthTrendView === 'all') ? '최근 6개월 →' : '전체 보기 (분기) →';
+    if (label) label.textContent = (netWorthTrendView === 'all') ? '(전체 · 분기)' : '(최근 6개월)';
+    Toochangi.renderNetWorthTrendChart(netWorthTrendView);
+  });
+
   document.getElementById('input-asset-category')?.addEventListener('change', () => {
     toggleAssetCategoryFields();
   });
@@ -1717,6 +1726,9 @@ async function saveAssetBackfill() {
   }
 }
 
+// 추이 차트 보기 모드: 'recent'(최근 6개월) | 'all'(전체·분기)
+let netWorthTrendView = 'recent';
+
 // 특정 월의 스냅샷 집계 (총자산/부채/순자산/주식/현금)
 function assetSnapshotForMonth(monthKey) {
   const history = Toochangi.getAssetHistory() || [];
@@ -1795,8 +1807,8 @@ async function renderAssetsTab() {
   setAssetDelta('asset-realestate-delta', summary.realEstateValue, prevSnap ? prevSnap.realEstate : null);
   setAssetDelta('asset-debt-delta',  summary.totalDebt,   prevSnap ? prevSnap.debt  : null, true);
 
-  // 순자산 변화 추이(스냅샷 기록 기반)
-  Toochangi.renderNetWorthTrendChart();
+  // 총자산·순자산 추이(스냅샷 기록 기반, 현재 보기 모드 적용)
+  Toochangi.renderNetWorthTrendChart(netWorthTrendView);
 
   // ── 월별 자산 세부 기록 (스냅샷) ──
   const select = document.getElementById('asset-month-select');
