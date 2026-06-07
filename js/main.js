@@ -215,6 +215,7 @@ function switchTab(tab) {
   }
   if (tab === 'savings') renderSavingsTab();
   if (tab === 'realestate') renderRealestateTab();
+  if (tab === 'filter') renderFilterPassedRecommendations();
   if (tab === 'assets') {
     initAssetMonthSelector();
     renderAssetsTab();
@@ -291,8 +292,9 @@ function renderDashboard() {
   setAssetDelta('m-net-worth-delta',   s.netWorth,    prev && prev.net   ? prev.net   : null);
   setAssetDelta('m-available-delta',   s.cash,        prev && prev.cash  ? prev.cash  : null);
 
-  // 최근 분석 미리보기
+  // 최근 분석 미리보기 + AI 추천 종목 카드
   renderRecentAnalysis();
+  renderDashboardRecommendations();
 }
 
 function renderRecentAnalysis() {
@@ -312,6 +314,68 @@ function renderRecentAnalysis() {
       <div class="analysis-item-preview">${a.result}</div>
     </div>
   `).join('');
+}
+
+// ── AI 추천 종목 카드 (자동 투자 추천 결과를 구조화해 카드로) ──
+function saveLastRecommendations(items, generatedAt) {
+  try {
+    localStorage.setItem('toochangi_last_recommendations', JSON.stringify({
+      items: Array.isArray(items) ? items : [],
+      generatedAt: generatedAt || new Date().toLocaleString('ko-KR'),
+    }));
+  } catch (_) {}
+}
+function getLastRecommendations() {
+  try {
+    const s = localStorage.getItem('toochangi_last_recommendations');
+    if (s) { const o = JSON.parse(s); if (o && Array.isArray(o.items)) return o; }
+  } catch (_) {}
+  return { items: [], generatedAt: '' };
+}
+function _filterDot(state) {
+  const green = String(state).toUpperCase() === 'GREEN';
+  return `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${green ? 'var(--accent-green)' : 'var(--accent-red)'}; margin-right:4px;"></span>`;
+}
+function recommendationCardHtml(item) {
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const verdict = item.verdict || '—';
+  const buy = verdict === '매수';
+  const vColor = buy ? 'var(--accent-green)' : 'var(--accent-orange)';
+  const ticker = item.ticker ? `<span style="color:var(--text-muted); font-size:12px; margin-left:4px;">${esc(item.ticker)}</span>` : '';
+  return `
+    <div style="background:var(--bg-surface); border:1px solid var(--border); border-radius:10px; padding:14px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
+        <div><strong>${esc(item.name) || '종목'}</strong>${ticker}</div>
+        <span style="font-size:11px; font-weight:700; color:${vColor}; border:1px solid ${vColor}; border-radius:6px; padding:2px 8px; white-space:nowrap;">${esc(verdict)}</span>
+      </div>
+      <div style="font-size:13px; color:var(--text-secondary); line-height:1.5; margin-bottom:10px;">${esc(item.issue)}</div>
+      <div style="display:flex; gap:14px; font-size:11px; color:var(--text-muted);">
+        <span>${_filterDot(item.market)}시장</span>
+        <span>${_filterDot(item.sector)}섹터</span>
+        <span>${_filterDot(item.stock)}종목</span>
+      </div>
+    </div>`;
+}
+function renderRecommendationCards(containerId, items, emptyMsg) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (!items || items.length === 0) {
+    el.innerHTML = `<div class="empty-state">${emptyMsg || '아직 추천 데이터가 없습니다.'}</div>`;
+    return;
+  }
+  el.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px;">${items.map(recommendationCardHtml).join('')}</div>`;
+}
+function renderDashboardRecommendations() {
+  const { items, generatedAt } = getLastRecommendations();
+  renderRecommendationCards('dash-rec-cards', items, '🤖 "자동 투자 추천 → 지금 시장 분석하기"를 실행하면 추천 종목·이슈·3단계 필터가 여기 카드로 표시됩니다.');
+  const ts = document.getElementById('dash-rec-time');
+  if (ts) ts.textContent = generatedAt ? `📅 ${generatedAt}` : '';
+}
+function renderFilterPassedRecommendations() {
+  const { items } = getLastRecommendations();
+  const isGreen = (s) => String(s).toUpperCase() === 'GREEN';
+  const passed = (items || []).filter(it => isGreen(it.market) && isGreen(it.sector) && isGreen(it.stock));
+  renderRecommendationCards('filter-passed-cards', passed, 'AI 추천 종목 중 3단계(시장·섹터·종목)를 모두 통과(GREEN)한 종목이 아직 없습니다.');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1348,6 +1412,11 @@ function bindAutoAnalysisEvents() {
         ).join('');
         autoRecSourcesWrap?.classList.remove('hidden');
       }
+
+      // 구조화된 추천 종목 저장 → 대시보드/3단계 필터 카드 갱신
+      saveLastRecommendations(result.recommendations || [], result.generatedAt);
+      renderDashboardRecommendations();
+      renderFilterPassedRecommendations();
 
     } catch (e) {
       if (autoRecResult) {

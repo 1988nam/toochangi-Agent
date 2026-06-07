@@ -143,6 +143,22 @@ const Toochangi = (() => {
 
   function _aiProvider() { return (window.TOOCHANGI_CONFIG.AI_PROVIDER || 'gemini'); }
 
+  // 추천 응답에서 기계 판독용 JSON 블록을 추출하고, 표시용 텍스트에서는 제거
+  function _extractRecommendations(rawText) {
+    let text = rawText || '';
+    let recommendations = [];
+    const m = text.match(/===REC_JSON_START===([\s\S]*?)===REC_JSON_END===/);
+    if (m) {
+      text = text.replace(m[0], '').trim();
+      try {
+        const json = m[1].trim().replace(/^```json/i, '').replace(/```$/, '').trim();
+        const parsed = JSON.parse(json);
+        if (Array.isArray(parsed)) recommendations = parsed;
+      } catch (_) { /* 파싱 실패 시 카드 없이 텍스트만 */ }
+    }
+    return { text, recommendations };
+  }
+
   // 부동산 담보대출의 '남은 잔액'(상환 진행 반영). 화면/집계와 동일 기준. (calculateLoanProgress는 main.js 전역)
   function _remainingLoan(r) {
     const loan = parseFloat(r.loanAmount) || 0;
@@ -398,14 +414,22 @@ ${youtubeFeedText}
 - ⏰ 진입 고려 시점: 단기/중기/장기, 분할매수 vs 일시매수 의견
 - ⚠️ 리스크 요인: (주의할 점)
 
-마지막에 **[오늘의 시장 총평]** 섹션도 100자 내외로 추가해주세요.`;
+마지막에 **[오늘의 시장 총평]** 섹션도 100자 내외로 추가해주세요.
+
+[기계 판독용 JSON — 위 분석을 마친 뒤 응답 맨 끝에 아래 블록을 정확히 한 번만 출력]
+추천한 각 종목을 '3단계 필터(① 시장 흐름 ② 섹터 흐름 ③ 개별 종목)' 관점에서 GREEN/RED로 판정하고, 세 단계 모두 GREEN이면 verdict는 "매수", 아니면 "대기"로 표기하세요.
+===REC_JSON_START===
+[{"name":"종목명","ticker":"티커(없으면 빈칸)","issue":"핵심 이슈/추천 이유 한 줄","market":"GREEN","sector":"GREEN","stock":"RED","verdict":"대기"}]
+===REC_JSON_END===`;
 
     // ── Gemini API 호출 ────────────────────────────────────────────
     // GPT 선택 시 OpenAI로 추천 (실시간 검색 없음 → 출처 비움)
     if (provider === 'gpt') {
-      const text = await _callOpenAI(systemPrompt, userPrompt);
+      const raw = await _callOpenAI(systemPrompt, userPrompt);
+      const { text, recommendations } = _extractRecommendations(raw);
       return {
         text,
+        recommendations,
         sources: [],
         hadKisData: !!(marketData && marketData.volumeRank?.length > 0),
         generatedAt: new Date().toLocaleString('ko-KR'),
@@ -431,13 +455,15 @@ ${youtubeFeedText}
     const data = await res.json();
     const candidate = data.candidates?.[0];
     // 응답 파트 전체를 합쳐 텍스트 추출 (thinking/멀티파트 대비)
-    const text = (candidate?.content?.parts || []).filter(p => p && p.text).map(p => p.text).join('').trim()
+    const rawText = (candidate?.content?.parts || []).filter(p => p && p.text).map(p => p.text).join('').trim()
       || '추천 결과를 받지 못했습니다.';
+    const { text, recommendations } = _extractRecommendations(rawText);
     const chunks = candidate?.groundingMetadata?.groundingChunks || [];
     const sources = chunks.map(c => c.web ? { title: c.web.title, url: c.web.uri } : null).filter(Boolean);
 
     return {
       text,
+      recommendations,
       sources,
       hadKisData: !!(marketData && marketData.volumeRank?.length > 0),
       generatedAt: new Date().toLocaleString('ko-KR')
