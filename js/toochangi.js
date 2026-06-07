@@ -262,6 +262,59 @@ const Toochangi = (() => {
     return m ? m[1] : '';
   }
 
+  // 현재 인증(OAuth 우선 → 키 폴백)으로 호출 가능한 모델 목록 조회 (ListModels).
+  // generateContent를 지원하는 모델만 반환: [{ id, displayName }]
+  async function listAvailableModels() {
+    const base = 'https://generativelanguage.googleapis.com/v1beta/models';
+    const apiKey = window.TOOCHANGI_CONFIG.GEMINI_API_KEY;
+    const hasKey = apiKey && !apiKey.startsWith('YOUR_');
+    const token = (typeof Auth !== 'undefined' && Auth.getToken) ? Auth.getToken() : null;
+    const proj = _gcpProject();
+
+    async function fetchPage(pageToken) {
+      const params = new URLSearchParams({ pageSize: '200' });
+      if (pageToken) params.set('pageToken', pageToken);
+      // 1) OAuth 우선
+      if (token) {
+        const headers = { Authorization: `Bearer ${token}` };
+        if (proj) headers['x-goog-user-project'] = proj;
+        const res = await fetch(`${base}?${params.toString()}`, { headers });
+        if (res.ok) { _lastGeminiAuthMode = 'oauth'; return res.json(); }
+        if (!(hasKey && (res.status === 401 || res.status === 403))) {
+          const t = await res.text().catch(() => '');
+          throw new Error(`모델 목록 조회 실패(${res.status}) ${t.replace(/\s+/g, ' ').slice(0, 200)}`);
+        }
+      }
+      // 2) API 키 폴백
+      if (!hasKey) throw new Error('Gemini 인증이 없습니다(OAuth 토큰·API 키 모두 없음).');
+      const res2 = await fetch(`${base}?${params.toString()}&key=${apiKey}`);
+      if (!res2.ok) {
+        const t = await res2.text().catch(() => '');
+        throw new Error(`모델 목록 조회 실패(${res2.status}) ${t.replace(/\s+/g, ' ').slice(0, 200)}`);
+      }
+      _lastGeminiAuthMode = 'key';
+      return res2.json();
+    }
+
+    const out = [];
+    let pageToken = '';
+    for (let i = 0; i < 10; i++) {
+      const data = await fetchPage(pageToken);
+      (data.models || []).forEach(m => {
+        const methods = m.supportedGenerationMethods || m.supported_generation_methods || [];
+        if (methods.indexOf('generateContent') !== -1) {
+          out.push({ id: String(m.name || '').replace(/^models\//, ''), displayName: m.displayName || m.display_name || '' });
+        }
+      });
+      pageToken = data.nextPageToken || data.next_page_token || '';
+      if (!pageToken) break;
+    }
+    const seen = new Set();
+    const uniq = out.filter(m => m.id && !seen.has(m.id) && seen.add(m.id));
+    uniq.sort((a, b) => a.id.localeCompare(b.id));
+    return uniq;
+  }
+
   // Gemini generateContent 호출.
   //  1) 구글 OAuth 액세스 토큰이 있으면 Authorization: Bearer 로 먼저 시도(키를 브라우저에 안 둬도 됨)
   //  2) 토큰이 없거나 401/403(스코프 미설정·API 비활성화)·네트워크 예외면 ?key= API 키 방식으로 폴백
@@ -1184,7 +1237,7 @@ ${youtubeFeedText}
     runGeminiAnalysis,
     runAutoRecommendation,
     runEconomyVideoSummary,
-    getGeminiAuthStatus,
+    getGeminiAuthStatus, listAvailableModels,
     getLatestRecommendation, saveRecommendation,
     renderAllocationChart,
     renderMarketAllocationChart,

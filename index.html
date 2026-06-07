@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260607_54" />
+  <link rel="stylesheet" href="style.css?v=20260607_55" />
 </head>
 <body>
 
@@ -1015,6 +1015,13 @@
                 </span>
               </label>
             </div>
+            <div class="form-group">
+              <button type="button" id="btn-load-gemini-models" class="btn-cancel" style="background:#374151; color:#f3f4f6; padding:8px 14px;">🔄 사용 가능한 모델 불러오기</button>
+              <span id="gemini-models-status" style="margin-left:10px; font-size:12px; color:#94a3b8;"></span>
+              <div style="margin-top:6px; font-size:12px; color:#64748b; line-height:1.5;">
+                현재 인증(OAuth 또는 키)으로 <b>실제 호출 가능한 모델</b>을 가져와 아래 드롭다운 맨 위 '내 계정 사용 가능 모델' 그룹에 채웁니다. 거기서 골라 저장하세요.
+              </div>
+            </div>
             <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;">
               <div class="form-group">
                 <label>수동 투자 분석 모델</label>
@@ -1937,11 +1944,11 @@
     console.error('Gemini OAuth 스코프 적용 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260607_54"></script>
-<script src="js/sheets.js?v=20260607_54"></script>
-<script src="js/toochangi.js?v=20260607_54"></script>
-<script src="js/broker.js?v=20260607_54"></script>
-<script src="js/main.js?v=20260607_54"></script>
+<script src="js/auth.js?v=20260607_55"></script>
+<script src="js/sheets.js?v=20260607_55"></script>
+<script src="js/toochangi.js?v=20260607_55"></script>
+<script src="js/broker.js?v=20260607_55"></script>
+<script src="js/main.js?v=20260607_55"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 

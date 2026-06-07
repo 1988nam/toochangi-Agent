@@ -2634,6 +2634,9 @@ function bindSettingsEvents() {
     renderGeminiAuthBadge();
   });
 
+  // 사용 가능한 모델 목록 불러오기
+  document.getElementById('btn-load-gemini-models')?.addEventListener('click', loadAvailableGeminiModels);
+
   addChannelBtn?.addEventListener('click', async () => {
     const resolveInput = document.getElementById('youtube-channel-resolve-input');
     const urlOrHandle = resolveInput ? resolveInput.value.trim() : '';
@@ -2849,6 +2852,52 @@ function updateGeminiModelOptions() {
       if (o.dataset && o.dataset.oauthOnly === '1') o.disabled = !oauthOn;
     });
   });
+}
+
+// 받아온 모델 목록을 3개 드롭다운 맨 위 '내 계정 사용 가능 모델' 그룹에 채움(선택값 유지)
+function populateModelDropdowns(models) {
+  const ids = ['setting-gemini-model-analysis', 'setting-gemini-model-recommend', 'setting-gemini-model-vision'];
+  ids.forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    const cur = sel.value;
+    const old = sel.querySelector('optgroup[data-fetched="1"]');
+    if (old) old.remove();
+    const og = document.createElement('optgroup');
+    og.label = '내 계정 사용 가능 모델';
+    og.setAttribute('data-fetched', '1');
+    models.forEach(m => {
+      const o = document.createElement('option');
+      o.value = m.id;
+      o.textContent = m.displayName ? `${m.id} — ${m.displayName}` : m.id;
+      og.appendChild(o);
+    });
+    sel.insertBefore(og, sel.firstChild);
+    // 기존 선택값이 목록에 있으면 유지
+    if (cur) sel.value = cur;
+  });
+}
+
+// '사용 가능한 모델 불러오기' 버튼 핸들러
+async function loadAvailableGeminiModels() {
+  const btn = document.getElementById('btn-load-gemini-models');
+  const status = document.getElementById('gemini-models-status');
+  if (typeof Toochangi === 'undefined' || !Toochangi.listAvailableModels) return;
+  if (btn) btn.disabled = true;
+  if (status) { status.style.color = '#94a3b8'; status.textContent = '⏳ 불러오는 중...'; }
+  try {
+    const models = await Toochangi.listAvailableModels();
+    if (!models.length) {
+      if (status) { status.style.color = '#f59e0b'; status.textContent = '⚠️ generateContent 지원 모델이 없습니다.'; }
+      return;
+    }
+    populateModelDropdowns(models);
+    if (status) { status.style.color = '#10b981'; status.textContent = `✅ ${models.length}개 모델 로드됨 — 드롭다운 상단에서 선택 후 저장`; }
+  } catch (e) {
+    if (status) { status.style.color = 'var(--accent-red)'; status.textContent = `❌ ${e.message}`; }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 function initSettingsFields() {
