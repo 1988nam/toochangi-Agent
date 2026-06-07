@@ -2784,9 +2784,9 @@ function renderGeminiAuthBadge() {
   // 상황별 안내
   let hint = '';
   if (s.needsRelogin) {
-    hint = `<div style="margin-top:6px;color:#f59e0b;">➡️ <b>로그아웃 후 다시 로그인</b>하세요. 그때 동의화면에서 <code>cloud-platform</code> 권한을 새로 허용해야 토큰에 반영됩니다. (재로그인해도 403이면 GCP에서 <b>Generative Language API 활성화</b> 또는 동의화면 <b>scope 등록</b>이 안 된 것)</div>`;
+    hint = `<div style="margin-top:6px;color:#f59e0b;">➡️ <b>로그아웃 후 다시 로그인</b>하세요. 동의화면에서 <code>generative-language.retriever</code> 권한을 새로 허용해야 토큰에 반영됩니다. (재로그인해도 403이면 GCP에서 <b>Generative Language API 활성화</b> 또는 동의화면 <b>scope 등록</b> 확인)</div>`;
   } else if (s.hasToken && !s.scopeConfigured) {
-    hint = `<div style="margin-top:6px;color:#64748b;">키 없이 OAuth로 쓰려면: GCP에서 Generative Language API 활성화 + 동의화면에 <code>cloud-platform</code> scope 등록 → 아래 <b>‘Gemini를 OAuth로 호출’ 체크 후 저장</b> → 로그아웃·재로그인</div>`;
+    hint = `<div style="margin-top:6px;color:#64748b;">키 없이 OAuth로 쓰려면: GCP에서 Generative Language API 활성화 + 동의화면에 <code>generative-language.retriever</code> scope 등록 → 아래 <b>‘Gemini를 OAuth로 호출’ 체크 후 저장</b> → 로그아웃·재로그인</div>`;
   }
 
   el.innerHTML = line1 + line2 + hint;

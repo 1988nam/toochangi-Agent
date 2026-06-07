@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260607_47" />
+  <link rel="stylesheet" href="style.css?v=20260607_48" />
 </head>
 <body>
 
@@ -1879,25 +1879,29 @@
     console.error('설정 오버라이드 병합 실패:', e);
   }
 
-  // Gemini OAuth 옵션: 환경설정에서 켜져 있으면(localStorage 오버라이드) 로그인 SCOPES에 cloud-platform 추가.
-  // → 토큰이 generative-language 호출 권한을 갖게 됨. config.js 없이도 기기 간 동일 적용.
+  // Gemini OAuth 옵션: 환경설정에서 켜져 있으면(localStorage 오버라이드) 로그인 SCOPES에 필요한 권한 추가.
+  // ※ generativelanguage GenerateContent는 cloud-platform만으론 막힘(ACCESS_TOKEN_SCOPE_INSUFFICIENT).
+  //   → generative-language.retriever 스코프가 실제 호출 권한. cloud-platform은 쿼터 프로젝트 지정용으로 함께 유지.
+  // config.js 없이도 기기 간 동일 적용.
   try {
     if (window.TOOCHANGI_CONFIG && window.TOOCHANGI_CONFIG.GEMINI_USE_OAUTH) {
-      const CP = 'https://www.googleapis.com/auth/cloud-platform';
-      const cur = window.TOOCHANGI_CONFIG.SCOPES || '';
-      if (cur.indexOf(CP) === -1) {
-        window.TOOCHANGI_CONFIG.SCOPES = (cur + ' ' + CP).trim();
-      }
+      const NEED = [
+        'https://www.googleapis.com/auth/generative-language.retriever',
+        'https://www.googleapis.com/auth/cloud-platform',
+      ];
+      let cur = window.TOOCHANGI_CONFIG.SCOPES || '';
+      NEED.forEach(s => { if (cur.indexOf(s) === -1) cur = (cur + ' ' + s).trim(); });
+      window.TOOCHANGI_CONFIG.SCOPES = cur;
     }
   } catch (e) {
     console.error('Gemini OAuth 스코프 적용 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260607_47"></script>
-<script src="js/sheets.js?v=20260607_47"></script>
-<script src="js/toochangi.js?v=20260607_47"></script>
-<script src="js/broker.js?v=20260607_47"></script>
-<script src="js/main.js?v=20260607_47"></script>
+<script src="js/auth.js?v=20260607_48"></script>
+<script src="js/sheets.js?v=20260607_48"></script>
+<script src="js/toochangi.js?v=20260607_48"></script>
+<script src="js/broker.js?v=20260607_48"></script>
+<script src="js/main.js?v=20260607_48"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 

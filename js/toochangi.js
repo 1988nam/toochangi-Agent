@@ -201,12 +201,13 @@ const Toochangi = (() => {
   function getGeminiAuthStatus() {
     const cfg = window.TOOCHANGI_CONFIG || {};
     const apiKey = cfg.GEMINI_API_KEY;
-    const CP = 'cloud-platform';
+    // generativelanguage GenerateContent가 실제로 요구하는 scope (cloud-platform 아님)
+    const GL = 'generative-language';
     const hasKey = !!(apiKey && !apiKey.startsWith('YOUR_'));
     const hasToken = !!(typeof Auth !== 'undefined' && Auth.getToken && Auth.getToken());
-    const scopeConfigured = !!(cfg.SCOPES && cfg.SCOPES.indexOf(CP) !== -1); // config(SCOPES)에 cloud-platform 포함
-    // 실제 토큰이 cloud-platform 권한을 부여받았는지(= OAuth 호출이 통할 핵심 조건)
-    const tokenHasScope = !!(typeof Auth !== 'undefined' && Auth.hasScope && Auth.hasScope(CP));
+    const scopeConfigured = !!(cfg.SCOPES && cfg.SCOPES.indexOf(GL) !== -1); // config(SCOPES)에 generative-language 포함
+    // 실제 토큰이 generative-language 권한을 부여받았는지(= OAuth 호출이 통할 핵심 조건)
+    const tokenHasScope = !!(typeof Auth !== 'undefined' && Auth.hasScope && Auth.hasScope(GL));
     // config엔 scope가 있는데 토큰엔 없음 → '재로그인 필요' 상태
     const needsRelogin = hasToken && scopeConfigured && !tokenHasScope;
 
