@@ -277,7 +277,7 @@ function renderDashboard() {
   const yieldEl = document.getElementById('m-total-yield');
   if (yieldEl) {
     yieldEl.textContent = s.stockYield !== 0 ? `${s.stockYield >= 0 ? '+' : ''}${s.stockYield.toFixed(2)}%` : '—';
-    yieldEl.style.color = s.stockYield >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+    yieldEl.style.color = s.stockYield > 0 ? '#ef4444' : (s.stockYield < 0 ? '#3b82f6' : 'var(--text-muted)');
   }
 
   // 현금 자산
@@ -341,7 +341,7 @@ function renderPortfolioSummaryCards(portfolio, metrics) {
   );
   if (totalYieldEl) {
     totalYieldEl.style.color = (metrics.totalValue > 0 || metrics.totalCost > 0)
-      ? (metrics.totalYield >= 0 ? 'var(--accent-green)' : 'var(--accent-red)')
+      ? (metrics.totalYield > 0 ? '#ef4444' : (metrics.totalYield < 0 ? '#3b82f6' : 'var(--text-muted)'))
       : '';
   }
   setText('portfolio-total-yield-sub', '전체 보유 종목 기준');
@@ -353,7 +353,7 @@ function renderPortfolioSummaryCards(portfolio, metrics) {
     kospiYield === null ? '—' : `${kospiYield >= 0 ? '+' : ''}${kospiYield.toFixed(2)}%`
   );
   if (kospiYieldEl) {
-    kospiYieldEl.style.color = kospiYield === null ? '' : (kospiYield >= 0 ? 'var(--accent-green)' : 'var(--accent-red)');
+    kospiYieldEl.style.color = kospiYield === null ? '' : (kospiYield > 0 ? '#ef4444' : (kospiYield < 0 ? '#3b82f6' : 'var(--text-muted)'));
   }
   setText('portfolio-kospi-yield-sub', kospiItems.length > 0 ? `코스피 ${kospiItems.length}종목 기준` : '코스피 보유 종목 없음');
 
@@ -364,7 +364,7 @@ function renderPortfolioSummaryCards(portfolio, metrics) {
     nasdaqYield === null ? '—' : `${nasdaqYield >= 0 ? '+' : ''}${nasdaqYield.toFixed(2)}%`
   );
   if (nasdaqYieldEl) {
-    nasdaqYieldEl.style.color = nasdaqYield === null ? '' : (nasdaqYield >= 0 ? 'var(--accent-green)' : 'var(--accent-red)');
+    nasdaqYieldEl.style.color = nasdaqYield === null ? '' : (nasdaqYield > 0 ? '#ef4444' : (nasdaqYield < 0 ? '#3b82f6' : 'var(--text-muted)'));
   }
   setText('portfolio-nasdaq-yield-sub', nasdaqItems.length > 0 ? `나스닥 ${nasdaqItems.length}종목 기준` : '나스닥 보유 종목 없음');
 }
