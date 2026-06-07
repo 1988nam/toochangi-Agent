@@ -235,6 +235,8 @@ const Toochangi = (() => {
 
   // OAuth(cloud-platform 토큰)에서만 호출 가능한 모델 → OAuth 미준비 시 대체할 안전 모델
   const _OAUTH_ONLY_MODELS = {
+    'gemini-3.5-flash': 'gemini-2.5-flash',
+    'gemini-3.5-pro': 'gemini-2.5-pro',
     'gemini-3-pro-preview': 'gemini-2.5-pro',
     'gemini-3-flash-preview': 'gemini-2.5-flash',
   };
