@@ -1071,7 +1071,8 @@ function bindModalEvents() {
     const loanStartDate = document.getElementById('input-realestate-loanStartDate').value;
     const loanTermYears = parseInt(document.getElementById('input-realestate-loanTermYears').value, 10) || 0;
     const deposit = parseFloat(document.getElementById('input-realestate-deposit').value) || 0;
-    const maintenance = parseFloat(document.getElementById('input-realestate-maintenance').value) || 0;
+    // 연간유지비/이자 컬럼은 원리금균등 기준 '연간 상환금액'으로 자동 계산해 저장(시트도 동일 값 반영)
+    const maintenance = calcAnnualLoanRepayment({ loanAmount, loanRate, loanTermYears }) || 0;
     const purpose = document.getElementById('input-realestate-purpose').value.trim();
     const memo = document.getElementById('input-realestate-memo').value.trim();
     const rowIndex = document.getElementById('input-realestate-row-index')?.value;
@@ -2753,6 +2754,25 @@ function formatRealEstateCurrency(value) {
   return `${Math.round(Number(value)).toLocaleString()}원`;
 }
 
+// 원리금균등 상환 기준 '연간 상환금액'(원금+이자) 계산. 대출 정보가 없으면 null.
+function calcAnnualLoanRepayment(item) {
+  const principal = parseFloat(item.loanAmount) || 0;
+  const annualRate = parseFloat(item.loanRate) || 0;
+  const termYears = parseInt(item.loanTermYears, 10) || 0;
+  if (principal <= 0 || termYears <= 0) return null;
+
+  const termMonths = termYears * 12;
+  let monthlyPayment;
+  if (annualRate <= 0) {
+    monthlyPayment = principal / termMonths; // 무이자: 원금 균등
+  } else {
+    const r = annualRate / 100 / 12;
+    const f = Math.pow(1 + r, termMonths);
+    monthlyPayment = principal * r * f / (f - 1);
+  }
+  return Math.round(monthlyPayment * 12);
+}
+
 function getElapsedLoanMonths(loanStartDate, termMonths) {
   if (!loanStartDate || !termMonths) return 0;
 
@@ -2853,8 +2873,7 @@ function renderRealestateTab() {
       <td>${loanProgress ? formatRealEstateCurrency(loanProgress.paidPrincipal) : '—'}</td>
       <td>${loanProgress ? formatRealEstateCurrency(loanProgress.paidInterest) : '—'}</td>
       <td style="color: var(--accent-yellow);">${loanProgress ? formatRealEstateCurrency(loanProgress.remainingBalance) : '—'}</td>
-      <td>${r.deposit > 0 ? formatRealEstateCurrency(r.deposit) : '—'}</td>
-      <td style="color: var(--text-muted);">${r.maintenance > 0 ? formatRealEstateCurrency(r.maintenance) : '—'}</td>
+      <td style="color: var(--accent-green); font-weight: 500;">${calcAnnualLoanRepayment(r) != null ? formatRealEstateCurrency(calcAnnualLoanRepayment(r)) : '—'}</td>
       <td><span style="color: var(--accent-orange); font-weight: 500;">${r.purpose || '—'}</span></td>
       <td style="color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${r.memo}">${r.memo || '—'}</td>
       <td>${r.date || '—'}</td>

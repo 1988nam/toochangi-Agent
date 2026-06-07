@@ -122,7 +122,7 @@ const Toochangi = (() => {
       : '- 보유 예적금 없음';
 
     const realEstateSummary = _realEstate.length > 0
-      ? _realEstate.map(r => `- ${r.name}: 매입가 ${r.purchasePrice.toLocaleString()}원, 현재가 ${r.currentValue.toLocaleString()}원, 담보대출 ${r.loanAmount.toLocaleString()}원(금리 ${r.loanRate}%), 전세보증금 ${r.deposit.toLocaleString()}원, 연간유지비/이자 ${r.maintenance.toLocaleString()}원, 용도: ${r.purpose}`).join('\n')
+      ? _realEstate.map(r => `- ${r.name}: 매입가 ${r.purchasePrice.toLocaleString()}원, 현재가 ${r.currentValue.toLocaleString()}원, 담보대출 ${r.loanAmount.toLocaleString()}원(금리 ${r.loanRate}%), 전세보증금 ${r.deposit.toLocaleString()}원, 연간 상환액 ${r.maintenance.toLocaleString()}원, 용도: ${r.purpose}`).join('\n')
       : '- 보유 부동산 없음';
 
     const assetSummary = `[보유 주식/ETF]\n${stocksSummary}\n\n[보유 예적금]\n${savingsSummary}\n\n[보유 부동산]\n${realEstateSummary}`;
@@ -276,7 +276,7 @@ ${gachangiContext}
       : '- 보유 예적금 없음';
 
     const realEstateSummary = _realEstate.length > 0
-      ? _realEstate.map(r => `- ${r.name}: 매입가 ${r.purchasePrice.toLocaleString()}원, 현재가 ${r.currentValue.toLocaleString()}원, 담보대출 ${r.loanAmount.toLocaleString()}원(금리 ${r.loanRate}%), 전세보증금 ${r.deposit.toLocaleString()}원, 연간유지비/이자 ${r.maintenance.toLocaleString()}원, 용도: ${r.purpose}`).join('\n')
+      ? _realEstate.map(r => `- ${r.name}: 매입가 ${r.purchasePrice.toLocaleString()}원, 현재가 ${r.currentValue.toLocaleString()}원, 담보대출 ${r.loanAmount.toLocaleString()}원(금리 ${r.loanRate}%), 전세보증금 ${r.deposit.toLocaleString()}원, 연간 상환액 ${r.maintenance.toLocaleString()}원, 용도: ${r.purpose}`).join('\n')
       : '- 보유 부동산 없음';
 
     const assetSummary = `[보유 주식/ETF]\n${stocksSummary}\n\n[보유 예적금]\n${savingsSummary}\n\n[보유 부동산]\n${realEstateSummary}`;
