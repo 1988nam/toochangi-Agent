@@ -390,6 +390,9 @@ html, body {
   text-transform: uppercase; letter-spacing: 0.05em;
   border-bottom: 1px solid var(--border);
 }
+.data-table th.sortable { cursor: pointer; user-select: none; white-space: nowrap; transition: color 0.15s; }
+.data-table th.sortable:hover { color: var(--text-primary); }
+.sort-ind { color: var(--accent-purple); font-size: 10px; }
 .data-table td {
   padding: 12px 12px;
   border-bottom: 1px solid rgba(255,255,255,0.04);

@@ -386,6 +386,59 @@ function formatStockTicker(ticker) {
   return /^\d+$/.test(t) ? t.padStart(6, '0') : t;
 }
 
+// ── 주식 리스트 정렬 상태/로직 ──
+let portfolioSortKey = null;     // 정렬 기준 컬럼 (null이면 시트 순서)
+let portfolioSortDir = 'asc';    // 'asc' | 'desc'
+const PORTFOLIO_NUMERIC_KEYS = ['qty', 'avgPrice', 'curPrice', 'value', 'yield', 'weight'];
+
+function portfolioSortValue(p, key) {
+  switch (key) {
+    case 'name':     return p.name || '';
+    case 'ticker':   return formatStockTicker(p.ticker);
+    case 'market':   return p.market || '';
+    case 'owner':    return p.owner || '';
+    case 'memo':     return p.memo || '';
+    case 'qty':      return p.qty || 0;
+    case 'avgPrice': return p.avgPrice || 0;
+    case 'curPrice': return p.curPrice || p.avgPrice || 0;
+    case 'value':    return p._value || 0;
+    case 'yield':    return p._yield || 0;
+    case 'weight':   return p._weight || 0;
+    default:         return '';
+  }
+}
+
+function applyPortfolioSort(list) {
+  if (!portfolioSortKey) return list;
+  const dir = portfolioSortDir === 'asc' ? 1 : -1;
+  const isNum = PORTFOLIO_NUMERIC_KEYS.includes(portfolioSortKey);
+  return [...list].sort((a, b) => {
+    const va = portfolioSortValue(a, portfolioSortKey);
+    const vb = portfolioSortValue(b, portfolioSortKey);
+    if (isNum) return (va - vb) * dir;
+    return String(va).localeCompare(String(vb), 'ko') * dir;
+  });
+}
+
+function updatePortfolioSortIndicators() {
+  document.querySelectorAll('#portfolio-table th .sort-ind').forEach(span => {
+    span.textContent = (span.dataset.col === portfolioSortKey)
+      ? (portfolioSortDir === 'asc' ? ' ▲' : ' ▼')
+      : '';
+  });
+}
+
+// 헤더 클릭 핸들러 (전역): 같은 컬럼이면 방향 토글, 다른 컬럼이면 오름차순으로 시작
+function sortPortfolio(key) {
+  if (portfolioSortKey === key) {
+    portfolioSortDir = portfolioSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    portfolioSortKey = key;
+    portfolioSortDir = 'asc';
+  }
+  renderPortfolioTab();
+}
+
 function renderPortfolioTab() {
   const sheetLink = document.getElementById('btn-open-sheet');
   if (sheetLink) {
@@ -411,9 +464,10 @@ function renderPortfolioTab() {
     updateBulkActionsVisibility();
     return;
   }
-  tbody.innerHTML = portfolio.map(p => {
+  updatePortfolioSortIndicators();
+  tbody.innerHTML = applyPortfolioSort(portfolio).map(p => {
     const yieldStr = p._yield >= 0 ? `+${p._yield.toFixed(2)}%` : `${p._yield.toFixed(2)}%`;
-    // 한국식: 상승(+) 빨강, 하락(−) 파랑, 0% 중립
+    // 서구식: 상승(+) 초록, 하락(−) 빨강, 0% 중립
     const yieldColor = p._yield > 0 ? 'var(--accent-green)' : (p._yield < 0 ? 'var(--accent-red)' : 'var(--text-muted)');
     return `<tr data-rowindex="${p.rowIndex}">
       <td style="text-align: center;">
