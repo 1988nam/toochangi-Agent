@@ -367,6 +367,17 @@ function renderPortfolioSummaryCards(portfolio, metrics) {
     nasdaqYieldEl.style.color = nasdaqYield === null ? '' : (nasdaqYield > 0 ? '#ef4444' : (nasdaqYield < 0 ? '#3b82f6' : 'var(--text-muted)'));
   }
   setText('portfolio-nasdaq-yield-sub', nasdaqItems.length > 0 ? `나스닥 ${nasdaqItems.length}종목 기준` : '나스닥 보유 종목 없음');
+
+  // 명의별 수익률 (정현 / 혜영)
+  const renderOwnerYield = (owner, valId, subId) => {
+    const items = portfolio.filter(item => (item.owner || '').trim() === owner);
+    const oYield = computeMarketYield(items);
+    const el = setText(valId, oYield === null ? '—' : `${oYield >= 0 ? '+' : ''}${oYield.toFixed(2)}%`);
+    if (el) el.style.color = oYield === null ? '' : (oYield > 0 ? '#ef4444' : (oYield < 0 ? '#3b82f6' : 'var(--text-muted)'));
+    setText(subId, items.length > 0 ? `${owner} 명의 ${items.length}종목 기준` : `${owner} 명의 종목 없음`);
+  };
+  renderOwnerYield('정현', 'portfolio-jeonghyeon-yield', 'portfolio-jeonghyeon-yield-sub');
+  renderOwnerYield('혜영', 'portfolio-hyeyoung-yield', 'portfolio-hyeyoung-yield-sub');
 }
 
 // KRX 숫자 티커(예: 5930)는 6자리로 앞자리 0을 채워 표기 (예: 005930). 미국 등 문자 티커는 그대로.
