@@ -974,26 +974,7 @@ const SheetsAPI = (() => {
       spreadsheetId: id, range: `${REC_SHEET}!A:C`, valueInputOption: 'RAW',
       resource: { values: [[generatedAt || '', JSON.stringify(items || []), (text || '').slice(0, 45000)]] },
     });
-    await _trimRecommendationSheet(id, 30); // 최근 30건만 유지
-  }
-  // 추천기록을 최근 `keep`건만 남기고 가장 오래된 행부터 삭제
-  async function _trimRecommendationSheet(id, keep) {
-    try {
-      const res = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: id, range: `${REC_SHEET}!A2:A` });
-      const count = (res.result.values || []).length;
-      if (count <= keep) return;
-      const meta = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: id, fields: 'sheets.properties(title,sheetId)' });
-      const sheet = (meta.result.sheets || []).find(s => s.properties.title === REC_SHEET);
-      if (!sheet) return;
-      const removeCount = count - keep;
-      // 데이터는 2행(0-based index 1)부터 → 가장 오래된 removeCount행 삭제
-      await gapi.client.sheets.spreadsheets.batchUpdate({
-        spreadsheetId: id,
-        resource: { requests: [{ deleteDimension: { range: { sheetId: sheet.properties.sheetId, dimension: 'ROWS', startIndex: 1, endIndex: 1 + removeCount } } }] },
-      });
-    } catch (e) {
-      console.warn('[Sheets] AI추천기록 정리 실패:', e);
-    }
+    await _trimSheetByTitle(id, REC_SHEET, 30); // 최근 30건만 유지(공용 트림 사용)
   }
   async function getLatestRecommendation() {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;

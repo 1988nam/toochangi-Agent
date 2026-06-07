@@ -656,7 +656,7 @@ function renderPortfolioTab() {
 // ══════════════════════════════════════════════════════════════
 function renderTradelogTab() {
   const tbody = document.getElementById('trade-tbody');
-  const tradelog = Toochangi.getTradeLog().reverse();
+  const tradelog = Toochangi.getTradeLog().slice().reverse();
   if (tradelog.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" class="empty-state">매매 기록이 없습니다</td></tr>';
     return;
@@ -790,211 +790,6 @@ function bindModalEvents() {
       renderDashboard();
     } catch (e) {
       toast('⚠️ 복원 실패: ' + e.message, 'error');
-    }
-  });
-
-  // 구글 드라이브 스크린샷 이미지 스캔 및 판독
-  document.getElementById('scan-drive-screenshots-btn')?.addEventListener('click', async () => {
-    if (!Auth.isLoggedIn()) { toast('먼저 로그인해주세요', 'error'); return; }
-    
-    const settings = window.TOOCHANGI_CONFIG || {};
-    const folderId = settings.SOURCE_FOLDER_ID;
-    if (!folderId || folderId.startsWith('YOUR_')) {
-      alert('⚠️ 구글 드라이브 스캔 폴더 ID가 설정되지 않았습니다.\n\njs/config.js의 SOURCE_FOLDER_ID에 보유 잔고 스크린샷이 업로드되는 폴더 ID를 기입해주세요.');
-      return;
-    }
-
-    const spinner = document.getElementById('modal-scanning-spinner');
-    const spinnerText = document.getElementById('scanning-spinner-text');
-    
-    try {
-      if (spinner) {
-        spinnerText.textContent = '구글 드라이브 스캔 중...';
-        spinner.classList.remove('hidden');
-      }
-
-      // ── 아카이브 폴더 결정 ─────────────────────────────────────────
-      // 소스 폴더와 동일하다면 하위 '완료' 폴더를 자동 탐색/생성
-      let targetArchiveId = settings.ARCHIVE_FOLDER_ID;
-      if (targetArchiveId && !targetArchiveId.startsWith('YOUR_') && targetArchiveId === folderId) {
-        try {
-          const folderQ = `'${folderId}' in parents and name = '완료' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-          const folderRes = await gapi.client.drive.files.list({ q: folderQ, fields: 'files(id, name)' });
-          const folders = folderRes.result.files || [];
-          if (folders.length > 0) {
-            targetArchiveId = folders[0].id;
-          } else {
-            const createRes = await gapi.client.drive.files.create({
-              resource: { name: '완료', mimeType: 'application/vnd.google-apps.folder', parents: [folderId] },
-              fields: 'id'
-            });
-            targetArchiveId = createRes.result.id;
-          }
-        } catch (folderErr) {
-          console.error('[Drive Sync] 아카이브 폴더 생성 실패:', folderErr);
-          targetArchiveId = folderId; // fallback: 이동 안 함
-        }
-      }
-
-      // ── 1. 이미지 파일 목록 조회 ───────────────────────────────────
-      const q = `'${folderId}' in parents and (mimeType = 'image/png' or mimeType = 'image/jpeg') and trashed = false`;
-      const driveRes = await gapi.client.drive.files.list({ q, fields: 'files(id, name, mimeType)' });
-      const files = driveRes.result.files || [];
-
-      if (files.length === 0) {
-        if (spinner) spinner.classList.add('hidden');
-        alert('ℹ️ 드라이브 스캔 폴더에 스크린샷 파일이 존재하지 않습니다.\n\n모바일 기기 등에서 스크린샷을 찍어 해당 구글 드라이브 폴더에 업로드한 후 다시 실행해주세요.');
-        return;
-      }
-
-      let parsedHoldings = [];
-      const failedFiles = [];    // 판독 실패 파일 목록
-      const succeededFiles = []; // 판독 성공 파일 목록
-
-      // ── 2. 파일별 독립 처리 ─────────────────────────────────────────
-      // 한 파일 실패해도 나머지는 계속 진행, 실패 파일은 원본 위치 유지
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-
-        // 여러 파일 순차 판독 시 분당 API 호출 제한(Rate Limit)을 우회하기 위해 3초 대기
-        if (i > 0) {
-          if (spinner) {
-            spinnerText.textContent = `API 요청 제한 방지 대기 중... (${i + 1} / ${files.length})`;
-          }
-          await new Promise(resolve => setTimeout(resolve, 3000));
-        }
-
-        if (spinner) {
-          spinnerText.textContent = `이미지 판독 중... (${i + 1} / ${files.length}) — ${file.name}`;
-        }
-
-        let fileSucceeded = false;
-
-        try {
-          // 2-a. 미디어 다운로드
-          const token = Auth.getToken();
-          const fetchRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (!fetchRes.ok) throw new Error(`다운로드 실패 (HTTP ${fetchRes.status})`);
-
-          const blob = await fetchRes.blob();
-          const base64Data = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result.split(',')[1]);
-            reader.readAsDataURL(blob);
-          });
-
-          // 2-b. Gemini AI 판독
-          const parsed = await Toochangi.parseHoldingScreenshot(base64Data, file.mimeType);
-          if (parsed && Array.isArray(parsed) && parsed.length > 0) {
-            parsedHoldings = parsedHoldings.concat(parsed);
-            fileSucceeded = true;
-          } else {
-            throw new Error('유효한 종목 정보를 추출하지 못했습니다');
-          }
-        } catch (fileErr) {
-          // 개별 파일 실패 → 실패 목록에 기록 후 다음 파일로 계속
-          // 실패한 파일은 아카이브하지 않고 원본 폴더에 유지
-          console.error(`[Drive Sync] 판독 실패 (${file.name}):`, fileErr);
-          failedFiles.push({ name: file.name, reason: fileErr.message });
-          continue;
-        }
-
-        // 2-c. 성공한 파일만 완료 폴더로 이동
-        if (fileSucceeded) {
-          succeededFiles.push(file.name);
-          try {
-            if (targetArchiveId && !targetArchiveId.startsWith('YOUR_') && targetArchiveId !== folderId) {
-              await gapi.client.drive.files.update({
-                fileId: file.id,
-                addParents: targetArchiveId,
-                removeParents: folderId,
-                fields: 'id, parents'
-              });
-            } else if (!targetArchiveId || targetArchiveId.startsWith('YOUR_')) {
-              // 아카이브 폴더 미설정 → 휴지통으로
-              await gapi.client.drive.files.update({ fileId: file.id, trashed: true });
-            }
-            // targetArchiveId === folderId (폴더 생성 실패 fallback) → 이동 안 함
-          } catch (archiveErr) {
-            console.error(`[Drive Sync] 아카이브 이동 실패 (${file.name}):`, archiveErr);
-            // 이동 실패해도 데이터(parsedHoldings)는 살림
-            failedFiles.push({ name: file.name + ' [아카이브 이동 실패]', reason: archiveErr.message });
-          }
-        }
-      }
-
-      if (spinner) spinner.classList.add('hidden');
-
-      // ── 3. 처리 결과 요약 ─────────────────────────────────────────
-      if (failedFiles.length > 0) {
-        const failList = failedFiles.map(f => `• ${f.name}: ${f.reason}`).join('\n');
-        const successMsg = succeededFiles.length > 0
-          ? `\n\n✅ 성공 (${succeededFiles.length}개): ${succeededFiles.join(', ')}`
-          : '';
-        alert(`⚠️ 일부 이미지 판독에 실패했습니다.\n\n❌ 실패 (${failedFiles.length}개):\n${failList}${successMsg}\n\n실패한 파일은 드라이브 원본 폴더에 그대로 남아 있습니다.`);
-      }
-
-      if (parsedHoldings.length === 0) {
-        if (failedFiles.length === 0) {
-          alert('⚠️ 이미지 판독은 완료되었으나, 유효한 주식 종목 정보를 추출하지 못했습니다.');
-        }
-        return;
-      }
-
-      // ── 4. 성공한 데이터만 확인 모달에 표시 ──────────────────────
-      renderScreenshotImportModal(parsedHoldings);
-
-    } catch (e) {
-      if (spinner) spinner.classList.add('hidden');
-      console.error(e);
-      alert('⚠️ 드라이브 스크린샷 스캔 중 오류가 발생했습니다: ' + e.message);
-    }
-  });
-
-  // 스크린샷 가져오기 최종 승인
-  document.getElementById('btn-confirm-screenshot-import')?.addEventListener('click', async () => {
-    const tbody = document.getElementById('screenshot-import-tbody');
-    if (!tbody) return;
-
-    const rows = tbody.querySelectorAll('tr');
-    if (rows.length === 0) {
-      toast('가져올 종목이 없습니다.', 'error');
-      return;
-    }
-
-    toast('💾 포트폴리오 가져오기 진행 중...', 'info');
-    document.getElementById('modal-screenshot-import').classList.add('hidden');
-
-    try {
-      for (const row of rows) {
-        const name = row.querySelector('.import-name').value.trim();
-        const ticker = row.querySelector('.import-ticker').value.trim();
-        const market = row.querySelector('.import-market').value;
-        const qty = parseFloat(row.querySelector('.import-qty').value) || 0;
-        const avgPrice = parseFloat(row.querySelector('.import-avg').value) || 0;
-        const curPrice = parseFloat(row.dataset.curprice) || avgPrice;
-        const memo = row.querySelector('.import-memo').value.trim();
-
-        if (!name || qty <= 0 || avgPrice <= 0) continue;
-
-        await Toochangi.addPortfolio({
-          name,
-          ticker,
-          market,
-          qty,
-          avgPrice,
-          curPrice: curPrice,
-          memo
-        });
-      }
-
-      toast('✅ 스크린샷 데이터 가져오기 완료!', 'success');
-      renderPortfolioTab();
-      renderDashboard();
-    } catch (e) {
-      toast('⚠️ 가져오기 저장 중 오류: ' + e.message, 'error');
     }
   });
 
@@ -1340,36 +1135,6 @@ async function renderYouTubeFeed(force = false) {
   }
 }
 
-function _unusedDisplayYouTubeFeed(entries) {
-  const listEl = document.getElementById('youtube-feed-list');
-  if (!listEl) return;
-
-  if (!entries || entries.length === 0) {
-    listEl.innerHTML = '<div class="empty-state">조회된 최신 비디오 피드가 없습니다.</div>';
-    return;
-  }
-
-  listEl.innerHTML = entries.map(video => {
-    const pubDate = video.published ? new Date(video.published).toLocaleDateString('ko-KR', {
-      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-    }) : '—';
-    const thumbUrl = `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`;
-
-    return `
-      <a href="${video.videoUrl}" target="_blank" class="youtube-video-card" title="${video.title}">
-        <div class="youtube-video-thumbnail-wrap">
-          <img src="${thumbUrl}" class="youtube-video-thumbnail" alt="${video.title}" loading="lazy" />
-        </div>
-        <div class="youtube-video-info">
-          <span class="youtube-video-channel">${video.channelName}</span>
-          <div class="youtube-video-title">${video.title}</div>
-          <span class="youtube-video-date">${pubDate}</span>
-        </div>
-      </a>
-    `;
-  }).join('');
-}
-
 function bindAutoAnalysisEvents() {
   const autoRecBtn       = document.getElementById('btn-auto-recommend');
   const autoRecEmpty     = document.getElementById('auto-rec-empty');
@@ -1414,8 +1179,9 @@ function bindAutoAnalysisEvents() {
     try {
       const result = await Toochangi.runAutoRecommendation(mode);
 
-      // 결과 렌더링 (볼드 마크다운 **text** 처리)
-      const formatted = result.text
+      // 결과 렌더링: 먼저 HTML 이스케이프(주입/깨짐 방지) → 볼드/줄바꿈만 마크업 허용
+      const formatted = String(result.text == null ? '' : result.text)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/\n/g, '<br>');
 
@@ -2640,44 +2406,6 @@ window.showKisOrderConfirmModal = (params) => {
 };
 
 // 스크린샷 판독 모달 생성 및 데이터 주입 헬퍼
-function renderScreenshotImportModal(holdings) {
-  const tbody = document.getElementById('screenshot-import-tbody');
-  if (!tbody) return;
-
-  tbody.innerHTML = holdings.map((item, idx) => {
-    return `<tr data-index="${idx}" data-curprice="${item.curPrice || item.avgPrice || 0}">
-      <td><input type="text" class="import-name" value="${item.name || ''}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px;" /></td>
-      <td><input type="text" class="import-ticker" value="${item.ticker || ''}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px;" /></td>
-      <td>
-        <select class="import-market" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px;">
-          <option value="코스피" ${item.market === '코스피' ? 'selected' : ''}>코스피</option>
-          <option value="코스닥" ${item.market === '코스닥' ? 'selected' : ''}>코스닥</option>
-          <option value="나스닥" ${item.market === '나스닥' ? 'selected' : ''}>나스닥</option>
-          <option value="NYSE" ${item.market === 'NYSE' ? 'selected' : ''}>NYSE</option>
-          <option value="기타" ${item.market === '기타' ? 'selected' : ''}>기타</option>
-        </select>
-      </td>
-      <td><input type="number" step="any" class="import-qty" value="${item.qty || 0}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px; text-align: right;" /></td>
-      <td><input type="number" step="any" class="import-avg" value="${item.avgPrice || 0}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px; text-align: right;" /></td>
-      <td><input type="text" class="import-memo" value="${item.memo || ''}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px;" /></td>
-      <td style="text-align: center;">
-        <button class="btn-delete-import-row" style="background: var(--accent-red); border: none; color: white; padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: opacity 0.2s;">삭제</button>
-      </td>
-    </tr>`;
-  }).join('');
-
-  // 삭제 버튼 이벤트 바인딩
-  tbody.querySelectorAll('.btn-delete-import-row').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const tr = e.target.closest('tr');
-      if (tr) tr.remove();
-    });
-  });
-
-  // 모달 열기
-  document.getElementById('modal-screenshot-import')?.classList.remove('hidden');
-}
-
 // ── 환경 설정 이벤트 ───────────────────────────────────────────
 let _tempYouTubeChannels = [];
 

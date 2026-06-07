@@ -36,6 +36,20 @@ const Broker = (() => {
     return `${base}/${path}`;
   }
 
+  // 오류 응답 메시지를 안전하게 추출. 응답이 JSON이 아닌 HTML(프록시/게이트웨이 오류 등)이어도
+  // 'Unexpected token <' 로 깨지지 않고 상태코드+원문 일부를 돌려준다.
+  async function _errMsg(res, fallback) {
+    let body = '';
+    try { body = await res.text(); } catch (_) {}
+    try {
+      const j = JSON.parse(body);
+      return j.error_description || j.error || j.msg1 || j.msg || `${fallback} (HTTP ${res.status})`;
+    } catch (_) {
+      const snippet = (body || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+      return `${fallback} (HTTP ${res.status})${snippet ? ': ' + snippet : ''}`;
+    }
+  }
+
   function saveSettings(settings) {
     localStorage.setItem('toochangi_kis_appkey', settings.appkey);
     localStorage.setItem('toochangi_kis_secret', settings.secret);
@@ -72,10 +86,7 @@ const Broker = (() => {
       })
     });
 
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error_description || err.error || '토큰 발급 실패');
-    }
+    if (!res.ok) throw new Error(await _errMsg(res, '토큰 발급 실패'));
 
     const data = await res.json();
     const token = data.access_token;
@@ -119,10 +130,7 @@ const Broker = (() => {
       })
     });
 
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.msg1 || '잔고 조회 실패');
-    }
+    if (!res.ok) throw new Error(await _errMsg(res, '잔고 조회 실패'));
 
     const data = await res.json();
     
@@ -185,10 +193,9 @@ const Broker = (() => {
       })
     });
 
+    if (!res.ok) throw new Error(await _errMsg(res, '주문 요청 실패'));
     const data = await res.json();
-    if (!res.ok || data.rt_cd !== '0') {
-      throw new Error(data.msg1 || '주문 요청 실패');
-    }
+    if (data.rt_cd !== '0') throw new Error(data.msg1 || '주문 요청 실패');
 
     return {
       orderNo: data.output?.ODNO,

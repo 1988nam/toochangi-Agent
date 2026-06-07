@@ -114,6 +114,8 @@ const Auth = (() => {
 
   function getToken() { return accessToken; }
   function getTokenScopes() { return grantedScopes; }      // 현재 토큰이 부여받은 scope 문자열
+  // 부분 식별자 매칭(의도적): 호출부가 'generative-language'·'cloud-platform' 같은 축약 키로 조회함
+  // (전체 scope URL 'https://.../auth/generative-language.retriever' 안에 포함되는지 확인)
   function hasScope(s) { return !!grantedScopes && grantedScopes.indexOf(s) !== -1; }
   function isLoggedIn() { return !!accessToken; }
   function onLogin(cb) { onLoginCallback = cb; }

@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260607_58" />
+  <link rel="stylesheet" href="style.css?v=20260607_59" />
 </head>
 <body>
 
@@ -249,7 +249,6 @@
             <a id="btn-open-sheet" class="btn-primary-sm" href="#" target="_blank" style="background:#10b981; border-color:#10b981; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600; padding:6px 12px; border-radius:6px; font-size:12px;">📊 구글 시트 열기</a>
             <button id="btn-bulk-edit" class="btn-primary-sm hidden" style="background:#4f46e5; border-color:#4f46e5; font-weight:600;">✏️ 선택 수정</button>
             <button id="btn-bulk-delete" class="btn-primary-sm hidden" style="background:#dc2626; border-color:#dc2626; font-weight:600;">🗑️ 선택 삭제</button>
-            <!-- <button id="scan-drive-screenshots-btn" class="btn-primary-sm" style="background:#ea580c; border-color:#ea580c;">📸 드라이브 이미지 판독</button> -->
             <button id="apply-formulas-btn" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 실시간 주가 수식 반영</button>
             <button id="restore-portfolio-btn" class="btn-primary-sm" style="background:#4b5563; border-color:#6b7280;">↩️ 직전 작업 취소 (원복)</button>
             <button id="add-holding-btn" class="btn-primary-sm">+ 종목 추가</button>
@@ -1498,55 +1497,6 @@
   </div>
 </div>
 
-<!-- ════════════ 스크린샷 판독 결과 모달 ════════════ -->
-<div id="modal-screenshot-import" class="modal-overlay hidden" style="z-index: 210;">
-  <div class="modal" style="max-width: 900px; width: 90vw;">
-    <div class="modal-header">
-      <h3 style="color: var(--accent-orange); display: flex; align-items: center; gap: 8px;">📸 스크린샷 잔고 판독 결과</h3>
-      <button class="modal-close" data-modal="modal-screenshot-import">✕</button>
-    </div>
-    <div class="modal-body" style="padding: 20px 24px;">
-      <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid var(--accent-orange); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 15px;">
-        💡 <strong>안내:</strong> Gemini AI가 이미지에서 추출해 낸 계좌 잔고 데이터입니다. 잘못된 정보가 있다면 표에서 직접 수정한 후 가져오기를 진행해 주세요.
-      </div>
-      <div class="table-wrap" style="max-height: 350px; overflow-y: auto;">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>종목명 *</th>
-              <th style="width: 100px;">티커</th>
-              <th style="width: 100px;">시장</th>
-              <th style="width: 100px;">보유수량 *</th>
-              <th style="width: 140px;">평균단가 *</th>
-              <th>보유 계좌/증권사</th>
-              <th style="width: 70px;">작업</th>
-            </tr>
-          </thead>
-          <tbody id="screenshot-import-tbody">
-            <!-- 판독된 종목 행들이 동적으로 추가됩니다 -->
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-cancel" data-modal="modal-screenshot-import">가져오기 취소</button>
-      <button id="btn-confirm-screenshot-import" class="btn-primary" style="background: var(--accent-orange); border-color: var(--accent-orange);">포트폴리오 일괄 추가</button>
-    </div>
-  </div>
-</div>
-
-<!-- ════════════ 이미지 판독 중 로딩 스피너 ════════════ -->
-<div id="modal-scanning-spinner" class="modal-overlay hidden" style="z-index: 300;">
-  <div style="text-align: center; color: var(--text-primary); background: var(--bg-surface); padding: 30px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
-    <div class="scanner-container" style="position: relative; width: 80px; height: 80px; margin: 0 auto 20px; border: 2px solid var(--border-hover); border-radius: 8px; overflow: hidden; background: var(--bg-elevated);">
-      <div class="scanner-grid" style="width: 100%; height: 100%; opacity: 0.15; background-image: linear-gradient(rgba(245,158,11,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(245,158,11,0.3) 1px, transparent 1px); background-size: 10px 10px;"></div>
-      <div class="scan-line" style="position: absolute; left: 0; right: 0; height: 3px; background: var(--accent-orange); box-shadow: 0 0 10px var(--accent-orange); animation: scanAnimation 2s infinite ease-in-out;"></div>
-    </div>
-    <div id="scanning-spinner-text" style="font-size: 15px; font-weight: 600; color: var(--text-primary);">구글 드라이브 스캔 중...</div>
-    <div id="scanning-spinner-sub" style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">스마트폰에서 업로드한 스크린샷 파일을 분석하고 있습니다.</div>
-  </div>
-</div>
-
 <!-- ════════════ 포트폴리오 다중 수정 모달 ════════════ -->
 <div id="modal-bulk-edit-portfolio" class="modal-overlay hidden">
   <div class="modal" style="max-width: 800px; width: 90vw;">
@@ -1840,10 +1790,6 @@
       '기타(금, 암호화폐 등)',
       '대출(부채)',
     ],
-    KIS_HOSTS: {
-      REAL: 'https://openapi.koreainvestment.com:29443',
-      MOCK: 'https://openapivts.koreainvestment.com:29443',
-    },
     STRATEGY: {
       FILTER_1_MARKET_TREND: true,
       FILTER_2_SECTOR_TREND: true,
@@ -1960,11 +1906,11 @@
     console.error('Gemini OAuth 스코프 적용 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260607_58"></script>
-<script src="js/sheets.js?v=20260607_58"></script>
-<script src="js/toochangi.js?v=20260607_58"></script>
-<script src="js/broker.js?v=20260607_58"></script>
-<script src="js/main.js?v=20260607_58"></script>
+<script src="js/auth.js?v=20260607_59"></script>
+<script src="js/sheets.js?v=20260607_59"></script>
+<script src="js/toochangi.js?v=20260607_59"></script>
+<script src="js/broker.js?v=20260607_59"></script>
+<script src="js/main.js?v=20260607_59"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 

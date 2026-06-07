@@ -237,7 +237,7 @@ const Toochangi = (() => {
     return { model: _lastGeminiModel || '', provider: 'gemini', auth: _lastGeminiAuthMode || 'key' };
   }
 
-  // OAuth(cloud-platform 토큰)에서만 호출 가능한 모델 → OAuth 미준비 시 대체할 안전 모델
+  // OAuth(generative-language scope 토큰)에서만 호출 가능한 모델 → OAuth 미준비 시 대체할 안전 모델
   const _OAUTH_ONLY_MODELS = {
     'gemini-3.5-flash': 'gemini-2.5-flash',
     'gemini-3.5-pro': 'gemini-2.5-pro',
@@ -250,7 +250,7 @@ const Toochangi = (() => {
     if (!fallback) return model;
     const st = getGeminiAuthStatus();
     if (!st.tokenHasScope) {
-      console.warn(`[Gemini] '${model}'은 OAuth 전용 — 토큰에 cloud-platform 권한 없음(재로그인 필요)이라 '${fallback}'로 대체합니다.`);
+      console.warn(`[Gemini] '${model}'은 OAuth 전용 — 토큰에 generative-language 권한 없음(재로그인 필요)이라 '${fallback}'로 대체합니다.`);
       return fallback;
     }
     return model;
