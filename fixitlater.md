@@ -30,3 +30,33 @@
   (범위 크고 회귀 위험 있어 별도 작업으로).
 - [ ] **broker.js 토큰 만료 방어값** — `(expires_in - 7200)`은 KIS 24h 토큰엔 문제없지만, 짧은 토큰 가정 시
   음수 가능. `Math.max(...)` 클램프로 방어(현재 실사용엔 영향 없음).
+
+## Tier 3 — 추가 발견(낮은 우선순위)
+
+### 일관성 / 리팩터링
+- [ ] **그라운딩 출처 추출 중복(3곳)** — `toochangi.js`의 `runEconomyVideoSummary`·`runGeminiAnalysis`·
+  `runAutoRecommendation`가 `chunks.map(c => c.web ? {title,url} : null).filter(Boolean)`를 각각 재구현.
+  `_extractSources(candidate)` 헬퍼로 통합.
+- [ ] **시트 getter 반환형 불일치** — 일부(`getPortfolio`/`getTradeLog`/`getAnalysisHistory`)는 실패 시 throw,
+  나머지는 `[]`/`null` 반환. `loadAll`의 `Promise.all`이 throw 시 전체 거부될 수 있음 → catch+`[]`로 표준화.
+- [ ] **콤마 제거 파서 불일치** — `getGachangiMonthlySavings`/`getAssetStatus`는 `_num`/`_int` 대신
+  인라인 `replace(/,/g,'')` 사용. 공용 `_num`으로 통일.
+- [ ] **헤더 리터럴 중복** — 예적금/부동산 헤더 배열이 모듈 const + `_initHeaders` + ensure 로직에 3중 정의.
+  공용 const 참조로 단일화.
+- [ ] **STRATEGY_CONTEXT 중복** — `index.html` 인라인 기본 config와 localStorage 마이그레이션 스크립트에
+  동일 텍스트가 2번. 한 곳에서만 정의하도록.
+
+### 정확성(엣지)
+- [ ] **시트 스키마 감지를 행 길이로 추정** — `getSavings`(owner_account 판정)·`getRealEstate`(loan 메타 판정)가
+  `r.length` 기반. Sheets가 후행 빈 셀을 잘라 오분류→필드 누락/날짜 손실 가능. 헤더 행 기준 감지로 변경.
+- [ ] **거래량순위 등락 부호** — `broker.js`에서 `prdy_vrss_sign === '2'`만 `+`. 하락(코드 4/5)도 양수 %로
+  표기됨. 4/5는 `-` 접두. (모의는 데이터 없어 영향 적음)
+- [ ] **예수금 필드 OR** — `broker.js` `cash = dnca_tot_amt || prvs_rcvb_amt` — 의미 다른 두 금액을 OR.
+  한 필드로 확정하거나 의도 문서화.
+
+### 데드/문서
+- [ ] **`getBalanceData`/`_balanceData`(broker.js)** — export됐으나 소비처 없음(추정 데드). 확인 후 제거.
+- [ ] **config.example.js에 `KIS_PROXY_URL` 누락** — `broker.js`는 이 키를 폴백 소스로 읽지만 예시엔 없음.
+  주석으로 `KIS_PROXY_URL: ''` 추가해 문서화.
+- [ ] **colspan 불일치** — 포트폴리오 empty-state `colspan`이 실제 열수(13)와, 부동산이 실제(15)와 어긋남.
+  HTML/JS 모두 실제 열수로 정렬.
