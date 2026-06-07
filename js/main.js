@@ -1561,6 +1561,30 @@ function initAssetMonthSelector() {
   }).join('');
 }
 
+// 이번 달 자동 스냅샷이 없으면 실시간 자산 값을 자산현황 시트에 기록 (추이/월별 스냅샷 자동 누적)
+async function ensureMonthlyAssetSnapshot(summary) {
+  if ((summary.totalAssets || 0) <= 0 && (summary.totalDebt || 0) <= 0) return; // 데이터 없으면 스킵
+  const SNAP_MEMO = '자동 월별 스냅샷';
+  const now = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const history = Toochangi.getAssetHistory() || [];
+  // 이번 달 자동 스냅샷이 이미 있으면 중복 기록하지 않음
+  if (history.some(a => a.date && String(a.date).startsWith(monthKey) && a.memo === SNAP_MEMO)) return;
+
+  const today = `${monthKey}-${String(now.getDate()).padStart(2, '0')}`;
+  const rows = [
+    { category: '국내주식/투자', name: '주식 자산(자동)',   balance: Math.floor(summary.stock) },
+    { category: '예적금/현금',   name: '현금 자산(자동)',   balance: Math.floor(summary.cash) },
+    { category: '부동산',        name: '부동산 시세(자동)', balance: Math.floor(summary.realEstateValue) },
+    { category: '대출(부채)',    name: '부동산 대출(자동)', balance: Math.floor(summary.realEstateDebt) },
+  ].filter(r => r.balance > 0);
+
+  for (const r of rows) {
+    await SheetsAPI.appendAsset({ date: today, category: r.category, name: r.name, balance: r.balance, memo: SNAP_MEMO });
+  }
+  await Toochangi.reloadAssetHistory();
+}
+
 async function renderAssetsTab() {
   // ── 실시간 자산 요약 (주식+예적금+부동산 기준, 월 선택과 무관하게 항상 표시) ──
   const summary = computeLiveAssetSummary();
@@ -1570,8 +1594,19 @@ async function renderAssetsTab() {
   netEl.textContent = `${Math.floor(summary.netWorth).toLocaleString()}원`;
   netEl.style.color = summary.netWorth >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
 
-  // 자산 구성 비중(실시간 도넛) + 순자산 변화 추이(스냅샷 기록)
+  // 부채비율(%) = 부채 / 총 자산
+  const ratioEl = document.getElementById('asset-debt-ratio');
+  if (ratioEl) ratioEl.textContent = summary.totalAssets > 0
+    ? `${(summary.totalDebt / summary.totalAssets * 100).toFixed(1)}%`
+    : '—';
+
+  // 순자산 구성 비중(실시간 도넛)
   Toochangi.renderLiveAssetAllocationChart(summary.stock, summary.cash, summary.realEstateNet);
+
+  // 자동 월별 스냅샷: 이번 달 기록이 없으면 실시간 값을 자산현황 시트에 저장 → 추이/스냅샷 자동 누적
+  try { await ensureMonthlyAssetSnapshot(summary); } catch (e) { console.warn('월별 스냅샷 자동 저장 실패:', e); }
+
+  // 순자산 변화 추이(스냅샷 기록 기반)
   Toochangi.renderNetWorthTrendChart();
 
   // ── 월별 자산 세부 기록 (스냅샷) ──

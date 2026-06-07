@@ -547,6 +547,10 @@ ${youtubeFeedText}
 
   // ── 자산현황 계산 및 연동 ──────────────────────────────────────
   function getAssetHistory() { return _assetHistory; }
+  async function reloadAssetHistory() {
+    _assetHistory = await SheetsAPI.getAssetStatus();
+    return _assetHistory;
+  }
 
   function calcAssetMetrics(selectedMonthKey) {
     let totalAssets = 0;
@@ -1064,7 +1068,7 @@ ${youtubeFeedText}
     addPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, addTrade, saveAnalysis, saveFilter, applyFormulasToPortfolio, restorePortfolioFromBackup,
     addSavings, updateSavings, deleteSavings, updateSavingsRows, deleteSavingsRows, restoreSavingsFromBackup,
     addRealEstate, updateRealEstate, deleteRealEstate, updateRealEstateRows, deleteRealEstateRows,
-    getAssetHistory, calcAssetMetrics, syncPortfolioAssets, renderAssetCharts, renderLiveAssetAllocationChart, renderNetWorthTrendChart,
+    getAssetHistory, reloadAssetHistory, calcAssetMetrics, syncPortfolioAssets, renderAssetCharts, renderLiveAssetAllocationChart, renderNetWorthTrendChart,
     parseHoldingScreenshot
   };
 })();
