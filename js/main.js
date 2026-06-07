@@ -333,6 +333,9 @@ function renderPortfolioSummaryCards(portfolio, metrics) {
   setText('portfolio-total-asset', metrics.totalValue > 0 ? `${Math.floor(metrics.totalValue).toLocaleString()}원` : '—');
   setText('portfolio-total-asset-sub', '평가금액 기준');
 
+  // 투자 금액(최초 원금) = Σ(수량 × 평균단가)
+  setText('portfolio-invested', metrics.totalCost > 0 ? `${Math.floor(metrics.totalCost).toLocaleString()}원` : '—');
+
   const totalYieldEl = setText(
     'portfolio-total-yield',
     metrics.totalValue > 0 || metrics.totalCost > 0
@@ -344,7 +347,10 @@ function renderPortfolioSummaryCards(portfolio, metrics) {
       ? (metrics.totalYield > 0 ? 'var(--accent-green)' : (metrics.totalYield < 0 ? 'var(--accent-red)' : 'var(--text-muted)'))
       : '';
   }
-  setText('portfolio-total-yield-sub', '전체 보유 종목 기준');
+  setText('portfolio-total-yield-sub',
+    (metrics.totalValue > 0 || metrics.totalCost > 0)
+      ? `평가손익 ${metrics.totalPnL >= 0 ? '+' : ''}${Math.floor(metrics.totalPnL).toLocaleString()}원`
+      : '전체 보유 종목 기준');
 
   const kospiItems = portfolio.filter((item) => (item.market || '').trim() === '코스피');
   const kospiYield = computeMarketYield(kospiItems);
