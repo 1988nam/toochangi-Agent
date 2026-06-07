@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260607_24" />
+  <link rel="stylesheet" href="style.css?v=20260607_25" />
 </head>
 <body>
 
@@ -1047,6 +1047,11 @@
       <div style="background: rgba(59,130,246,0.1); border-left: 4px solid var(--accent-blue); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 14px;">
         💡 각 월의 <strong>주식 평가액</strong>과 <strong>부동산 시세</strong>만 입력하면, 현금(예적금)과 부채(부동산 대출)는 <strong>자동 계산</strong>되어 순자산 추이에 반영됩니다. 빈 행은 저장되지 않습니다. (이미 입력한 월은 덮어씁니다)
       </div>
+      <div style="margin-bottom: 14px;">
+        <label style="font-size: 12px; color: var(--text-muted); display:block; margin-bottom:6px;">📋 일괄 붙여넣기 <span style="font-weight:400;">— 한 줄에 <code>YYYY-MM 부동산금액</code> (주식도 있으면 <code>YYYY-MM 주식 부동산</code>) 형식으로 붙여넣고 채우기 버튼</span></label>
+        <textarea id="asset-backfill-paste" rows="4" placeholder="예)&#10;2025-01 822000000&#10;2025-03 802000000" style="width:100%; box-sizing:border-box; background:var(--bg-surface); border:1px solid var(--border); color:var(--text-primary); padding:8px 10px; border-radius:6px; font-family:monospace; font-size:12px; resize:vertical;"></textarea>
+        <button id="asset-backfill-paste-btn" class="btn-primary-sm" style="margin-top:8px; background:#4f46e5; border-color:#4f46e5;">📋 붙여넣기로 표 채우기</button>
+      </div>
       <div class="table-wrap" style="max-height: 52vh; overflow-y: auto;">
         <table class="data-table">
           <thead>
@@ -1781,11 +1786,11 @@
     console.error('설정 오버라이드 병합 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260607_24"></script>
-<script src="js/sheets.js?v=20260607_24"></script>
-<script src="js/toochangi.js?v=20260607_24"></script>
-<script src="js/broker.js?v=20260607_24"></script>
-<script src="js/main.js?v=20260607_24"></script>
+<script src="js/auth.js?v=20260607_25"></script>
+<script src="js/sheets.js?v=20260607_25"></script>
+<script src="js/toochangi.js?v=20260607_25"></script>
+<script src="js/broker.js?v=20260607_25"></script>
+<script src="js/main.js?v=20260607_25"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 

@@ -1514,6 +1514,7 @@ function bindAssetEvents() {
 
   document.getElementById('asset-backfill-btn')?.addEventListener('click', openAssetBackfillModal);
   document.getElementById('save-asset-backfill-btn')?.addEventListener('click', saveAssetBackfill);
+  document.getElementById('asset-backfill-paste-btn')?.addEventListener('click', fillBackfillFromPaste);
 
   document.getElementById('input-asset-category')?.addEventListener('change', () => {
     toggleAssetCategoryFields();
@@ -1642,6 +1643,30 @@ function openAssetBackfillModal() {
     }).join('');
   }
   document.getElementById('modal-asset-backfill').classList.remove('hidden');
+}
+
+// 붙여넣기 텍스트(한 줄에 'YYYY-MM 부동산' 또는 'YYYY-MM 주식 부동산')로 표를 자동 채움
+function fillBackfillFromPaste() {
+  const text = (document.getElementById('asset-backfill-paste')?.value) || '';
+  const tbody = document.getElementById('asset-backfill-tbody');
+  if (!tbody) return;
+  let filled = 0;
+  text.split('\n').forEach(line => {
+    const mm = line.match(/(\d{4})[-.\/]\s*(\d{1,2})/);
+    if (!mm) return;
+    const monthKey = `${mm[1]}-${String(parseInt(mm[2], 10)).padStart(2, '0')}`;
+    const row = tbody.querySelector(`tr[data-month="${monthKey}"]`);
+    if (!row) return;
+    const rest = line.slice(line.indexOf(mm[0]) + mm[0].length).replace(/,/g, '');
+    const nums = (rest.match(/\d+/g) || []).filter(n => n.length >= 5); // 금액만(일/층 등 작은 수 제외)
+    if (nums.length === 0) return;
+    let stock = null, realEstate;
+    if (nums.length >= 2) { stock = nums[0]; realEstate = nums[1]; } else { realEstate = nums[0]; }
+    if (stock != null) { const si = row.querySelector('.backfill-stock'); if (si) si.value = stock; }
+    const ri = row.querySelector('.backfill-realestate'); if (ri) ri.value = realEstate;
+    filled += 1;
+  });
+  toast(filled > 0 ? `✅ ${filled}개월 채웠습니다. 확인 후 저장하세요.` : '인식된 줄 없음 (형식: YYYY-MM 금액)', filled > 0 ? 'success' : 'error');
 }
 
 async function saveAssetBackfill() {
