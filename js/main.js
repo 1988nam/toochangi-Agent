@@ -1700,6 +1700,11 @@ async function renderAssetsTab() {
   netEl.textContent = `${Math.floor(summary.netWorth).toLocaleString()}원`;
   netEl.style.color = summary.netWorth >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
 
+  const stockEl = document.getElementById('asset-stock-val');
+  if (stockEl) stockEl.textContent = summary.stock > 0 ? `${Math.floor(summary.stock).toLocaleString()}원` : '—';
+  const cashEl = document.getElementById('asset-cash-val');
+  if (cashEl) cashEl.textContent = summary.cash > 0 ? `${Math.floor(summary.cash).toLocaleString()}원` : '—';
+
   // 부채비율(%) = 부채 / 총 자산
   const ratioEl = document.getElementById('asset-debt-ratio');
   if (ratioEl) ratioEl.textContent = summary.totalAssets > 0
