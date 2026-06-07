@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260607_52" />
+  <link rel="stylesheet" href="style.css?v=20260607_53" />
 </head>
 <body>
 
@@ -1824,7 +1824,16 @@
     }
   };
 </script>
-<script src="js/config.js"></script>
+<script>
+  // config.js는 키 보관용 '로컬 개발 전용' 파일이며 git에서 제외됩니다(배포본엔 없음).
+  // GitHub Pages 등 배포 환경에서 항상 불러오면 404가 나므로, 로컬에서만 동적으로 로드합니다.
+  // (배포 환경은 위 인라인 기본값 + localStorage 오버라이드로 동작)
+  (function () {
+    var h = location.hostname;
+    var isLocal = h === 'localhost' || h === '127.0.0.1' || h === '' || location.protocol === 'file:';
+    if (isLocal) document.write('<script src="js/config.js"><\/script>');
+  })();
+</script>
 <script>
   // Merge overrides from localStorage AFTER config.js is loaded
   try {
@@ -1922,11 +1931,11 @@
     console.error('Gemini OAuth 스코프 적용 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260607_52"></script>
-<script src="js/sheets.js?v=20260607_52"></script>
-<script src="js/toochangi.js?v=20260607_52"></script>
-<script src="js/broker.js?v=20260607_52"></script>
-<script src="js/main.js?v=20260607_52"></script>
+<script src="js/auth.js?v=20260607_53"></script>
+<script src="js/sheets.js?v=20260607_53"></script>
+<script src="js/toochangi.js?v=20260607_53"></script>
+<script src="js/broker.js?v=20260607_53"></script>
+<script src="js/main.js?v=20260607_53"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 
