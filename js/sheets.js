@@ -6,7 +6,7 @@ const SheetsAPI = (() => {
   const cfg = () => window.TOOCHANGI_CONFIG || TOOCHANGI_CONFIG;
   const DEFAULT_GACHANGI_SHEET_ID = '1RahTa8uculzZR_nv9lmKnSOYJiqBQ6eco2NYaUh18qo';
   const SAVINGS_SHEET = '\uC608\uC801\uAE08';
-  const SAVINGS_HEADER_RANGE = `${SAVINGS_SHEET}!A1:K1`;
+  const SAVINGS_HEADER_RANGE = `${SAVINGS_SHEET}!A1:N1`;
   const SAVINGS_HEADERS = [[
     '\uC790\uC0B0\uBA85',
     '\uAE08\uC735\uAE30\uAD00',
@@ -18,7 +18,10 @@ const SheetsAPI = (() => {
     '\uB9CC\uAE30\uC77C',
     '\uC790\uC0B0\uC6A9\uB3C4',
     '\uBA54\uBAA8',
-    '\uB4F1\uB85D\uC77C'
+    '\uB4F1\uB85D\uC77C',
+    '\uC6D4\uB0A9\uC785\uC561(\uC6D0)',
+    '\uB0A9\uC785\uAE30\uC900\uC77C',
+    '\uB0A9\uC785\uC2DC\uC791\uC77C'
   ]];
   const REAL_ESTATE_SHEET = '\uBD80\uB3D9\uC0B0';
   const REAL_ESTATE_HEADER_RANGE = `${REAL_ESTATE_SHEET}!A1:L1`;
