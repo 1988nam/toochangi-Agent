@@ -2738,7 +2738,7 @@ function bindSettingsEvents() {
 function renderGeminiAuthBadge() {
   const el = document.getElementById('gemini-auth-badge');
   if (!el) return;
-  if (!window.Toochangi || !Toochangi.getGeminiAuthStatus) { el.innerHTML = ''; return; }
+  if (typeof Toochangi === 'undefined' || !Toochangi.getGeminiAuthStatus) { el.innerHTML = ''; return; }
   const s = Toochangi.getGeminiAuthStatus();
   const chip = (text, color, bg) =>
     `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-weight:600;color:${color};background:${bg};">${text}</span>`;
