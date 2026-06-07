@@ -2734,6 +2734,51 @@ function bindSettingsEvents() {
   });
 }
 
+// Gemini 인증 상태 배지: 현재 OAuth/키 중 무엇으로 호출되는지, scope 설정 여부를 한눈에 표시
+function renderGeminiAuthBadge() {
+  const el = document.getElementById('gemini-auth-badge');
+  if (!el) return;
+  if (!window.Toochangi || !Toochangi.getGeminiAuthStatus) { el.innerHTML = ''; return; }
+  const s = Toochangi.getGeminiAuthStatus();
+  const chip = (text, color, bg) =>
+    `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-weight:600;color:${color};background:${bg};">${text}</span>`;
+
+  // 실제 마지막 호출 경로(있으면) 우선, 없으면 예상 경로로 안내
+  let line1;
+  if (s.lastUsed === 'oauth') {
+    line1 = chip('🔓 OAuth로 호출 중', '#065f46', 'rgba(16,185,129,0.18)') + ' <span style="color:#94a3b8;">— 키 없이 구글 로그인 토큰 사용</span>';
+  } else if (s.lastUsed === 'key') {
+    line1 = chip('🔑 API 키로 호출 중', '#92400e', 'rgba(245,158,11,0.18)') + ' <span style="color:#94a3b8;">— 브라우저에 키 저장됨</span>';
+  } else {
+    // 아직 호출 전 → 예상 경로
+    const map = {
+      oauth: [chip('🔓 OAuth 사용 예정', '#065f46', 'rgba(16,185,129,0.18)'), '토큰+scope 준비됨'],
+      'oauth-fallback': [chip('🔑 키(폴백) 예정', '#92400e', 'rgba(245,158,11,0.18)'), 'scope 미설정 → OAuth 시도 후 키로 폴백'],
+      key: [chip('🔑 API 키 사용 예정', '#92400e', 'rgba(245,158,11,0.18)'), '로그인 토큰 없음'],
+      oauth_only: [chip('🔓 OAuth 사용 예정', '#065f46', 'rgba(16,185,129,0.18)'), '키 없음'],
+      none: [chip('⚠️ 인증 없음', '#991b1b', 'rgba(239,68,68,0.18)'), '키도 토큰도 없음'],
+    };
+    const m = map[s.expected] || map.none;
+    line1 = m[0] + ` <span style="color:#94a3b8;">— ${m[1]} (호출 시 확정)</span>`;
+  }
+
+  // 상태 상세
+  const ok = (b) => b ? '<span style="color:#10b981;">●</span>' : '<span style="color:#64748b;">○</span>';
+  const line2 = `<div style="margin-top:6px;color:#94a3b8;">`
+    + `${ok(s.hasToken)} 구글 로그인 토큰 &nbsp; `
+    + `${ok(s.scopeConfigured)} cloud-platform scope &nbsp; `
+    + `${ok(s.hasKey)} API 키`
+    + `</div>`;
+
+  // scope 미설정 + 토큰 있음 → 켜는 방법 안내
+  let hint = '';
+  if (s.hasToken && !s.scopeConfigured) {
+    hint = `<div style="margin-top:6px;color:#64748b;">키 없이 OAuth로 쓰려면: GCP에서 Generative Language API 활성화 + 동의화면에 <code>cloud-platform</code> scope 추가 → index.html(또는 config.js)의 SCOPES에 같은 줄 추가 → 재로그인</div>`;
+  }
+
+  el.innerHTML = line1 + line2 + hint;
+}
+
 function initSettingsFields() {
   const cfg = window.TOOCHANGI_CONFIG || {};
   const sheetLink = document.getElementById('btn-open-sheet');
@@ -2769,6 +2814,7 @@ function initSettingsFields() {
     _tempYouTubeChannels = JSON.parse(JSON.stringify(cfg.DEFAULT_YOUTUBE_CHANNELS || []));
   }
   renderSettingsYouTubeChannels();
+  renderGeminiAuthBadge();
 
   // 설정 내보내기 토큰 생성 및 노출
   const overrides = {

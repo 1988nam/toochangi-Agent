@@ -194,6 +194,26 @@ const Toochangi = (() => {
     return !!(hasKey || hasToken);
   }
 
+  // 마지막으로 Gemini를 실제 호출했을 때 어떤 경로를 탔는지: 'oauth' | 'key' | null(아직 호출 전)
+  let _lastGeminiAuthMode = null;
+
+  // 환경설정 배지용: 현재 Gemini 인증 상태 요약
+  function getGeminiAuthStatus() {
+    const cfg = window.TOOCHANGI_CONFIG || {};
+    const apiKey = cfg.GEMINI_API_KEY;
+    const hasKey = !!(apiKey && !apiKey.startsWith('YOUR_'));
+    const hasToken = !!(typeof Auth !== 'undefined' && Auth.getToken && Auth.getToken());
+    const scopeConfigured = !!(cfg.SCOPES && cfg.SCOPES.indexOf('cloud-platform') !== -1);
+    // 다음 호출 시 '예상' 경로
+    let expected;
+    if (hasToken && scopeConfigured) expected = 'oauth';      // 토큰+scope → OAuth로 호출 시도(성공 예상)
+    else if (hasToken && hasKey) expected = 'oauth-fallback'; // 토큰은 있으나 scope 미설정 → OAuth 시도 후 키로 폴백 예상
+    else if (hasKey) expected = 'key';                        // 토큰 없음 → 키로 호출
+    else if (hasToken) expected = 'oauth';                    // 토큰만 있고 키 없음 → OAuth만 시도
+    else expected = 'none';                                   // 인증 수단 없음
+    return { hasKey, hasToken, scopeConfigured, lastUsed: _lastGeminiAuthMode, expected };
+  }
+
   // Gemini generateContent 호출.
   //  1) 구글 OAuth 액세스 토큰이 있으면 Authorization: Bearer 로 먼저 시도(키를 브라우저에 안 둬도 됨)
   //  2) 토큰이 없거나 401/403(스코프 미설정·API 비활성화)·네트워크 예외면 ?key= API 키 방식으로 폴백
@@ -213,9 +233,9 @@ const Toochangi = (() => {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: payload,
         });
-        if (res.ok) return res;
+        if (res.ok) { _lastGeminiAuthMode = 'oauth'; return res; }
         // 인증/권한 문제(401·403)는 키로 폴백 가능 → 키 있으면 폴백, 없으면 그대로 반환
-        if (!(hasKey && (res.status === 401 || res.status === 403))) return res;
+        if (!(hasKey && (res.status === 401 || res.status === 403))) { _lastGeminiAuthMode = 'oauth'; return res; }
         console.warn(`[Gemini] OAuth 호출 실패(${res.status}) → API 키 방식으로 폴백`);
       } catch (e) {
         if (!hasKey) throw e;
@@ -225,6 +245,7 @@ const Toochangi = (() => {
 
     // 2) API 키 폴백
     if (!hasKey) throw new Error('Gemini 인증 실패: 구글 로그인(OAuth) 토큰도, API 키도 사용할 수 없습니다.');
+    _lastGeminiAuthMode = 'key';
     return fetch(`${base}?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1106,6 +1127,7 @@ ${youtubeFeedText}
     runGeminiAnalysis,
     runAutoRecommendation,
     runEconomyVideoSummary,
+    getGeminiAuthStatus,
     getLatestRecommendation, saveRecommendation,
     renderAllocationChart,
     renderMarketAllocationChart,
