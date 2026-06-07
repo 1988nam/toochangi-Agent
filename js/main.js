@@ -3187,6 +3187,35 @@ function calculateLoanProgress(realEstateItem, asOf) {
   };
 }
 
+// 부동산 핵심 지표 카드 (총 시세 / 순자산 / 잔여 대출 / 평가손익)
+function renderRealestateSummaryCards(realEstate) {
+  let totalValue = 0, totalPurchase = 0, totalDebt = 0;
+  realEstate.forEach(item => {
+    totalValue += parseFloat(item.currentValue) || 0;
+    totalPurchase += parseFloat(item.purchasePrice) || 0;
+    const loanAmount = parseFloat(item.loanAmount) || 0;
+    if (loanAmount > 0) {
+      const p = calculateLoanProgress(item);
+      totalDebt += (p && p.remainingBalance != null) ? p.remainingBalance : loanAmount;
+    }
+  });
+  const net = totalValue - totalDebt;
+  const gain = totalValue - totalPurchase;
+  const gainPct = totalPurchase > 0 ? (gain / totalPurchase * 100) : 0;
+
+  const setV = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  setV('re-total-value', totalValue > 0 ? `${Math.floor(totalValue).toLocaleString()}원` : '—');
+  setV('re-net', (totalValue > 0 || totalDebt > 0) ? `${Math.floor(net).toLocaleString()}원` : '—');
+  setV('re-debt', totalDebt > 0 ? `${Math.floor(totalDebt).toLocaleString()}원` : '—');
+
+  const gainEl = document.getElementById('re-gain');
+  if (gainEl) {
+    gainEl.textContent = totalPurchase > 0 ? `${gain >= 0 ? '+' : ''}${Math.floor(gain).toLocaleString()}원` : '—';
+    gainEl.style.color = gain > 0 ? 'var(--accent-green)' : (gain < 0 ? 'var(--accent-red)' : 'var(--text-primary)');
+  }
+  setV('re-gain-sub', totalPurchase > 0 ? `매입가 대비 ${gainPct >= 0 ? '+' : ''}${gainPct.toFixed(1)}%` : '시세 − 매입가');
+}
+
 function renderRealestateTab() {
   const sheetLink = document.getElementById('btn-realestate-open-sheet');
   if (sheetLink) {
@@ -3196,6 +3225,7 @@ function renderRealestateTab() {
 
   const tbody = document.getElementById('realestate-tbody');
   const realEstate = Toochangi.getRealEstate();
+  renderRealestateSummaryCards(realEstate);
 
   if (realEstate.length === 0) {
     tbody.innerHTML = '<tr><td colspan="16" class="empty-state">부동산을 추가해 주세요</td></tr>';
