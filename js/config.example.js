@@ -19,6 +19,11 @@ const TOOCHANGI_CONFIG = {
   // 분석 완료 후 보관 폴더 ID
   ARCHIVE_FOLDER_ID: 'YOUR_ARCHIVE_FOLDER_ID',
 
+  // ── AI 제공자 (수동 분석·자동 추천) ───────────────────────────
+  AI_PROVIDER: 'gemini',          // 'gemini' | 'gpt'
+  OPENAI_API_KEY: 'YOUR_OPENAI_API_KEY',
+  OPENAI_MODEL: 'gpt-4o',
+
   // ── Gemini AI ─────────────────────────────────────────────────
   GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY',
   GEMINI_MODEL_ANALYSIS: 'gemini-2.5-pro',

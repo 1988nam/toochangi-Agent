@@ -2579,6 +2579,9 @@ function bindSettingsEvents() {
       GEMINI_MODEL_ANALYSIS: document.getElementById('setting-gemini-model-analysis').value,
       GEMINI_MODEL_RECOMMEND: document.getElementById('setting-gemini-model-recommend').value,
       GEMINI_MODEL_VISION: document.getElementById('setting-gemini-model-vision').value,
+      AI_PROVIDER: document.getElementById('setting-ai-provider')?.value || 'gemini',
+      OPENAI_API_KEY: document.getElementById('setting-openai-key')?.value.trim() || '',
+      OPENAI_MODEL: document.getElementById('setting-openai-model')?.value.trim() || 'gpt-4o',
       STRATEGY_CONTEXT: document.getElementById('setting-strategy-context')?.value || '',
     };
 
@@ -2672,6 +2675,9 @@ function initSettingsFields() {
   if (document.getElementById('setting-gemini-model-analysis')) document.getElementById('setting-gemini-model-analysis').value = cfg.GEMINI_MODEL_ANALYSIS || 'gemini-2.5-pro';
   if (document.getElementById('setting-gemini-model-recommend')) document.getElementById('setting-gemini-model-recommend').value = cfg.GEMINI_MODEL_RECOMMEND || 'gemini-2.5-flash';
   if (document.getElementById('setting-gemini-model-vision')) document.getElementById('setting-gemini-model-vision').value = cfg.GEMINI_MODEL_VISION || 'gemini-2.5-flash';
+  if (document.getElementById('setting-ai-provider')) document.getElementById('setting-ai-provider').value = cfg.AI_PROVIDER || 'gemini';
+  if (document.getElementById('setting-openai-key')) document.getElementById('setting-openai-key').value = cfg.OPENAI_API_KEY || '';
+  if (document.getElementById('setting-openai-model')) document.getElementById('setting-openai-model').value = cfg.OPENAI_MODEL || 'gpt-4o';
   if (document.getElementById('setting-strategy-context')) document.getElementById('setting-strategy-context').value = cfg.STRATEGY_CONTEXT || '';
 
   // 유튜브 채널 초기화
@@ -2700,6 +2706,9 @@ function initSettingsFields() {
     GEMINI_MODEL_ANALYSIS: cfg.GEMINI_MODEL_ANALYSIS || 'gemini-2.5-pro',
     GEMINI_MODEL_RECOMMEND: cfg.GEMINI_MODEL_RECOMMEND || 'gemini-2.5-flash',
     GEMINI_MODEL_VISION: cfg.GEMINI_MODEL_VISION || 'gemini-2.5-flash',
+    AI_PROVIDER: cfg.AI_PROVIDER || 'gemini',
+    OPENAI_API_KEY: cfg.OPENAI_API_KEY || '',
+    OPENAI_MODEL: cfg.OPENAI_MODEL || 'gpt-4o',
     STRATEGY_CONTEXT: cfg.STRATEGY_CONTEXT || '',
     youtubeChannels: _tempYouTubeChannels,
   };

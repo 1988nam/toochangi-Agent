@@ -106,10 +106,43 @@ const Toochangi = (() => {
     return { s1, s2, s3, verdict: allGreen ? '매수' : '대기' };
   }
 
+  // ── OpenAI(GPT) 호출 헬퍼 ───────────────────────────────────────
+  // 시스템/유저 프롬프트를 받아 Chat Completions로 텍스트 응답을 반환 (실시간 검색 없음)
+  async function _callOpenAI(systemPrompt, userPrompt) {
+    const apiKey = window.TOOCHANGI_CONFIG.OPENAI_API_KEY;
+    if (!apiKey || apiKey.startsWith('YOUR_')) {
+      throw new Error('OpenAI API 키가 설정되지 않았습니다. 환경설정에서 입력해주세요.');
+    }
+    const model = window.TOOCHANGI_CONFIG.OPENAI_MODEL || 'gpt-4o';
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.7,
+        max_completion_tokens: 4000,
+      }),
+    });
+    if (!res.ok) {
+      let msg = `OpenAI API 오류: ${res.status}`;
+      try { const e = await res.json(); if (e.error && e.error.message) msg += ` - ${e.error.message}`; } catch (_) {}
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    return (data.choices?.[0]?.message?.content || '').trim() || 'AI 응답을 받지 못했습니다.';
+  }
+
+  function _aiProvider() { return (window.TOOCHANGI_CONFIG.AI_PROVIDER || 'gemini'); }
+
   // ── Gemini AI 분석 ──────────────────────────────────────────────
   async function runGeminiAnalysis(query) {
+    const provider = _aiProvider();
     const apiKey = window.TOOCHANGI_CONFIG.GEMINI_API_KEY;
-    if (!apiKey || apiKey.startsWith('YOUR_')) {
+    if (provider === 'gemini' && (!apiKey || apiKey.startsWith('YOUR_'))) {
       return '⚠️ Gemini API 키가 설정되지 않았습니다. js/config.js의 GEMINI_API_KEY를 설정해주세요.';
     }
 
@@ -163,6 +196,12 @@ ${gachangiContext}
 질문에 대해 구체적이고 실행 가능한 투자 의견을 한국어로 답하세요.
 분석 시 3단계 필터 기준을 명시하고, 투자 의견(매수/매도/관망)과 기간(단기/중기/장기)을 반드시 포함하세요.`;
 
+    // GPT 선택 시 OpenAI로 분석 (실시간 검색 없음 → 출처 비움)
+    if (provider === 'gpt') {
+      const text = await _callOpenAI(systemPrompt, query);
+      return { text, sources: [] };
+    }
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${window.TOOCHANGI_CONFIG.GEMINI_MODEL_ANALYSIS}:generateContent?key=${apiKey}`;
     const body = {
       system_instruction: { parts: [{ text: systemPrompt }] },
@@ -198,8 +237,9 @@ ${gachangiContext}
   // KIS 거래량 데이터 + Google Search Grounding(뉴스/유튜브) + 포트폴리오 + 전략 Context를
   // 통합하여 흰챙이 가족 원칙에 맞는 종목을 자동 발굴·추천하는 함수
   async function runAutoRecommendation() {
+    const provider = _aiProvider();
     const apiKey = window.TOOCHANGI_CONFIG.GEMINI_API_KEY;
-    if (!apiKey || apiKey.startsWith('YOUR_')) {
+    if (provider === 'gemini' && (!apiKey || apiKey.startsWith('YOUR_'))) {
       throw new Error('Gemini API 키가 설정되지 않았습니다.');
     }
 
@@ -356,6 +396,17 @@ ${youtubeFeedText}
 마지막에 **[오늘의 시장 총평]** 섹션도 100자 내외로 추가해주세요.`;
 
     // ── Gemini API 호출 ────────────────────────────────────────────
+    // GPT 선택 시 OpenAI로 추천 (실시간 검색 없음 → 출처 비움)
+    if (provider === 'gpt') {
+      const text = await _callOpenAI(systemPrompt, userPrompt);
+      return {
+        text,
+        sources: [],
+        hadKisData: !!(marketData && marketData.volumeRank?.length > 0),
+        generatedAt: new Date().toLocaleString('ko-KR'),
+      };
+    }
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${window.TOOCHANGI_CONFIG.GEMINI_MODEL_RECOMMEND}:generateContent?key=${apiKey}`;
     const body = {
       system_instruction: { parts: [{ text: systemPrompt }] },
