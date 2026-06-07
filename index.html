@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260607_32" />
+  <link rel="stylesheet" href="style.css?v=20260607_33" />
 </head>
 <body>
 
@@ -966,7 +966,7 @@
                 <option value="gemini">Gemini (Google · 실시간 검색 지원)</option>
                 <option value="gpt">GPT (OpenAI · 실시간 검색 없음)</option>
               </select>
-              <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">GPT 선택 시 실시간 구글 검색(grounding)은 사용되지 않고, 입력된 컨텍스트·모델 지식 기반으로 분석합니다.</div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">GPT 선택 시 실시간 구글 검색(grounding)은 사용되지 않고, 입력된 컨텍스트·모델 지식 기반으로 분석합니다. (계좌 스크린샷 종목 인식은 제공자와 무관하게 항상 Gemini 키를 사용합니다)</div>
             </div>
             <div class="form-group">
               <label>Gemini API Key</label>
@@ -1263,6 +1263,15 @@
           <select id="input-stock-market">
             <option>코스피</option><option>코스닥</option>
             <option>나스닥</option><option>NYSE</option><option>기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>명의</label>
+          <select id="input-stock-owner">
+            <option value="">선택</option>
+            <option value="정현">정현</option>
+            <option value="혜영">혜영</option>
+            <option value="아챙">아챙</option>
           </select>
         </div>
       </div>
@@ -1840,11 +1849,11 @@
     console.error('설정 오버라이드 병합 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260607_32"></script>
-<script src="js/sheets.js?v=20260607_32"></script>
-<script src="js/toochangi.js?v=20260607_32"></script>
-<script src="js/broker.js?v=20260607_32"></script>
-<script src="js/main.js?v=20260607_32"></script>
+<script src="js/auth.js?v=20260607_33"></script>
+<script src="js/sheets.js?v=20260607_33"></script>
+<script src="js/toochangi.js?v=20260607_33"></script>
+<script src="js/broker.js?v=20260607_33"></script>
+<script src="js/main.js?v=20260607_33"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 

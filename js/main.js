@@ -675,6 +675,7 @@ function bindModalEvents() {
     document.getElementById('input-stock-avg').value = '';
     document.getElementById('input-stock-cur').value = '';
     document.getElementById('input-stock-memo').value = '';
+    if (document.getElementById('input-stock-owner')) document.getElementById('input-stock-owner').value = '';
     document.getElementById('modal-holding').classList.remove('hidden');
   });
 
@@ -987,6 +988,7 @@ function bindModalEvents() {
       document.getElementById('input-stock-avg').value = '';
       document.getElementById('input-stock-cur').value = '';
       document.getElementById('input-stock-memo').value = '';
+      if (document.getElementById('input-stock-owner')) document.getElementById('input-stock-owner').value = '';
       if (document.getElementById('input-stock-row-index')) document.getElementById('input-stock-row-index').value = '';
 
       renderPortfolioTab();
@@ -1591,8 +1593,8 @@ async function ensureMonthlyAssetSnapshot(summary) {
   const now = new Date();
   const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const history = Toochangi.getAssetHistory() || [];
-  // 이번 달 자동 스냅샷이 이미 있으면 중복 기록하지 않음
-  if (history.some(a => a.date && String(a.date).startsWith(monthKey) && a.memo === SNAP_MEMO)) return;
+  // 이번 달에 스냅샷(자동/과거 백필)이 이미 있으면 중복 기록하지 않음
+  if (history.some(a => a.date && String(a.date).startsWith(monthKey) && ASSET_SNAPSHOT_MEMOS.includes(a.memo))) return;
 
   const today = `${monthKey}-${String(now.getDate()).padStart(2, '0')}`;
   const rows = [
@@ -1740,17 +1742,21 @@ async function saveAssetBackfill() {
 let netWorthTrendView = 'recent';
 
 // 특정 월의 스냅샷 집계 (총자산/부채/순자산/주식/현금)
+const ASSET_SNAPSHOT_MEMOS = ['자동 월별 스냅샷', '과거 월별 스냅샷'];
 function assetSnapshotForMonth(monthKey) {
   const history = Toochangi.getAssetHistory() || [];
-  const entries = history.filter(a => a.date && String(a.date).startsWith(monthKey));
+  let entries = history.filter(a => a.date && String(a.date).startsWith(monthKey));
   if (entries.length === 0) return null;
+  // 단일 진실 원천: 스냅샷(자동/과거) 행이 있으면 스냅샷만 집계(수동/동기화 행 중복 방지)
+  const snapEntries = entries.filter(a => ASSET_SNAPSHOT_MEMOS.includes(a.memo));
+  if (snapEntries.length > 0) entries = snapEntries;
   let total = 0, debt = 0, stock = 0, cash = 0, realEstate = 0;
   entries.forEach(a => {
     const cat = a.category || '';
     const bal = a.balance || 0;
     if (cat === '대출(부채)') debt += bal; else total += bal;
     if (cat.includes('주식') || cat.includes('투자')) stock += bal;
-    if (cat.includes('현금') || cat.includes('예적금')) cash += bal;
+    if (cat.includes('현금') || cat.includes('예금') || cat.includes('적금')) cash += bal;
     if (cat.includes('부동산')) realEstate += bal;
   });
   return { total, debt, net: total - debt, stock, cash, realEstate };
@@ -1810,12 +1816,12 @@ async function renderAssetsTab() {
 
   // 전월 대비 증감 표시 (직전 월 스냅샷 대비)
   const prevSnap = previousAssetSnapshot();
-  setAssetDelta('asset-total-delta', summary.totalAssets, prevSnap ? prevSnap.total : null);
-  setAssetDelta('asset-net-delta',   summary.netWorth,    prevSnap ? prevSnap.net   : null);
-  setAssetDelta('asset-stock-delta', summary.stock,       prevSnap ? prevSnap.stock : null);
-  setAssetDelta('asset-cash-delta',  summary.cash,        prevSnap ? prevSnap.cash  : null);
-  setAssetDelta('asset-realestate-delta', summary.realEstateValue, prevSnap ? prevSnap.realEstate : null);
-  setAssetDelta('asset-debt-delta',  summary.totalDebt,   prevSnap ? prevSnap.debt  : null, true);
+  setAssetDelta('asset-total-delta', summary.totalAssets, prevSnap && prevSnap.total ? prevSnap.total : null);
+  setAssetDelta('asset-net-delta',   summary.netWorth,    prevSnap && prevSnap.net   ? prevSnap.net   : null);
+  setAssetDelta('asset-stock-delta', summary.stock,       prevSnap && prevSnap.stock ? prevSnap.stock : null);
+  setAssetDelta('asset-cash-delta',  summary.cash,        prevSnap && prevSnap.cash  ? prevSnap.cash  : null);
+  setAssetDelta('asset-realestate-delta', summary.realEstateValue, prevSnap && prevSnap.realEstate ? prevSnap.realEstate : null);
+  setAssetDelta('asset-debt-delta',  summary.totalDebt,   prevSnap && prevSnap.debt  ? prevSnap.debt  : null, true);
 
   // 총자산·순자산 추이(스냅샷 기록 기반, 현재 보기 모드 적용)
   Toochangi.renderNetWorthTrendChart(netWorthTrendView);

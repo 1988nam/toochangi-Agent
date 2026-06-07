@@ -117,15 +117,20 @@ const Toochangi = (() => {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.7,
-        max_completion_tokens: 4000,
-      }),
+      body: JSON.stringify((() => {
+        // 추론 전용 모델(o1/o3/o4 등)은 temperature 변경을 거부 → 생략
+        const isReasoning = /^o\d/i.test(model) || /reasoning/i.test(model);
+        const payload = {
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          max_completion_tokens: 4000,
+        };
+        if (!isReasoning) payload.temperature = 0.7;
+        return payload;
+      })()),
     });
     if (!res.ok) {
       let msg = `OpenAI API 오류: ${res.status}`;
@@ -137,6 +142,17 @@ const Toochangi = (() => {
   }
 
   function _aiProvider() { return (window.TOOCHANGI_CONFIG.AI_PROVIDER || 'gemini'); }
+
+  // 부동산 담보대출의 '남은 잔액'(상환 진행 반영). 화면/집계와 동일 기준. (calculateLoanProgress는 main.js 전역)
+  function _remainingLoan(r) {
+    const loan = parseFloat(r.loanAmount) || 0;
+    if (loan <= 0) return 0;
+    if (typeof calculateLoanProgress === 'function') {
+      const p = calculateLoanProgress(r);
+      if (p && p.remainingBalance != null) return Math.round(p.remainingBalance);
+    }
+    return loan;
+  }
 
   // ── Gemini AI 분석 ──────────────────────────────────────────────
   async function runGeminiAnalysis(query) {
@@ -155,7 +171,7 @@ const Toochangi = (() => {
       : '- 보유 예적금 없음';
 
     const realEstateSummary = _realEstate.length > 0
-      ? _realEstate.map(r => `- ${r.name}: 매입가 ${r.purchasePrice.toLocaleString()}원, 현재가 ${r.currentValue.toLocaleString()}원, 담보대출 ${r.loanAmount.toLocaleString()}원(금리 ${r.loanRate}%), 전세보증금 ${r.deposit.toLocaleString()}원, 연간 상환액 ${r.maintenance.toLocaleString()}원, 용도: ${r.purpose}`).join('\n')
+      ? _realEstate.map(r => `- ${r.name}: 매입가 ${r.purchasePrice.toLocaleString()}원, 현재가 ${r.currentValue.toLocaleString()}원, 담보대출잔액 ${_remainingLoan(r).toLocaleString()}원(금리 ${r.loanRate}%), 연간 상환액 ${r.maintenance.toLocaleString()}원, 용도: ${r.purpose}`).join('\n')
       : '- 보유 부동산 없음';
 
     const assetSummary = `[보유 주식/ETF]\n${stocksSummary}\n\n[보유 예적금]\n${savingsSummary}\n\n[보유 부동산]\n${realEstateSummary}`;
@@ -180,10 +196,15 @@ const Toochangi = (() => {
 - 'ISA/투자' 및 '정현/혜영' 이름 태그 자산은 '7년 뒤 상급지 주택 자금' 분류.
 - IRP 연 600만 원 한도는 환급금 데이터와 연동 관리.`;
 
+    const searchNote = provider === 'gpt'
+      ? `[정보 한계]
+- 실시간 인터넷 검색은 불가합니다. 제공된 자산 현황·운용 원칙과 모델 지식만으로 분석하고, 확인되지 않은 최신 뉴스/시세는 단정하지 마세요.`
+      : `구글 검색 기능 연동 (Google Search Grounding):
+- 당신에게는 실시간 인터넷 검색 기능이 주어져 있습니다. 질문에 나타난 종목에 대해 실시간 네이버/구글 뉴스 보도 내용 및 유튜브(YouTube) 영상 여론/댓글 트렌드, 시장 토론방 분위기를 적극적으로 검색하여 분석에 반영하세요.`;
+
     const systemPrompt = `당신은 투챙이 - 흰챙이 가족의 AI 투자 비서입니다.
 
-구글 검색 기능 연동 (Google Search Grounding):
-- 당신에게는 실시간 인터넷 검색 기능이 주어져 있습니다. 질문에 나타난 종목에 대해 실시간 네이버/구글 뉴스 보도 내용 및 유튜브(YouTube) 영상 여론/댓글 트렌드, 시장 토론방 분위기를 적극적으로 검색하여 분석에 반영하세요.
+${searchNote}
 
 [흰챙이 커스텀 자산 운용 가이드라인 & 원칙]
 ${strategyContext}
@@ -319,7 +340,7 @@ ${gachangiContext}
       : '- 보유 예적금 없음';
 
     const realEstateSummary = _realEstate.length > 0
-      ? _realEstate.map(r => `- ${r.name}: 매입가 ${r.purchasePrice.toLocaleString()}원, 현재가 ${r.currentValue.toLocaleString()}원, 담보대출 ${r.loanAmount.toLocaleString()}원(금리 ${r.loanRate}%), 전세보증금 ${r.deposit.toLocaleString()}원, 연간 상환액 ${r.maintenance.toLocaleString()}원, 용도: ${r.purpose}`).join('\n')
+      ? _realEstate.map(r => `- ${r.name}: 매입가 ${r.purchasePrice.toLocaleString()}원, 현재가 ${r.currentValue.toLocaleString()}원, 담보대출잔액 ${_remainingLoan(r).toLocaleString()}원(금리 ${r.loanRate}%), 연간 상환액 ${r.maintenance.toLocaleString()}원, 용도: ${r.purpose}`).join('\n')
       : '- 보유 부동산 없음';
 
     const assetSummary = `[보유 주식/ETF]\n${stocksSummary}\n\n[보유 예적금]\n${savingsSummary}\n\n[보유 부동산]\n${realEstateSummary}`;
@@ -353,8 +374,11 @@ ${rankLines}`;
     // ── Gemini 프롬프트 구성 ──────────────────────────────────────
     const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
 
+    const recSearchNote = provider === 'gpt'
+      ? '실시간 인터넷 검색은 불가합니다. 제공된 데이터·운용 원칙·모델 지식만으로 발굴하고, 확인되지 않은 최신 정보는 단정하지 마세요.'
+      : '실시간 인터넷 검색 기능(Google Search Grounding)이 활성화되어 있습니다.';
     const systemPrompt = `당신은 투챙이 - 흰챙이 가족의 AI 자동 투자 발굴 엔진입니다.
-실시간 인터넷 검색 기능(Google Search Grounding)이 활성화되어 있습니다.
+${recSearchNote}
 
 [흰챙이 커스텀 자산 운용 가이드라인]
 ${strategyContext}`;
@@ -445,11 +469,6 @@ ${youtubeFeedText}
   let _chartPortfolioMarketAllocation = null;
   let _chartMonthly    = null;
 
-  function renderCharts() {
-    renderAllocationChart();
-    renderAssetPortfolioChart();
-  }
-
   function renderAllocationChart(canvasId = 'chart-allocation', isPortfolioTab = false) {
     const ctx = document.getElementById(canvasId);
     if (!ctx) return;
@@ -489,64 +508,6 @@ ${youtubeFeedText}
     } else {
       _chartAllocation = chart;
     }
-  }
-
-  function renderAssetPortfolioChart() {
-    const ctx = document.getElementById('chart-monthly-yield');
-    if (!ctx) return;
-    if (_chartMonthly) _chartMonthly.destroy();
-
-    // 자산 포트폴리오 비중: 주식 / 현금 / 부동산(순자산)
-    const metrics = calcPortfolioMetrics();
-    const stockValue = metrics.totalValue || 0;
-    const cashValue = (_savings || []).reduce((sum, s) => sum + calcSavingsBalance(s), 0);
-    const realEstateNet = (_realEstate || []).reduce((sum, r) => {
-      const value = parseFloat(r.currentValue) || 0;
-      const loanAmount = parseFloat(r.loanAmount) || 0;
-      // 부동산 메뉴/대시보드와 동일하게 '남은 대출잔액' 기준. 계산 불가 시 원래 대출액으로 폴백.
-      let loan = loanAmount;
-      if (loanAmount > 0 && typeof calculateLoanProgress === 'function') {
-        const progress = calculateLoanProgress(r);
-        if (progress && progress.remainingBalance != null) loan = progress.remainingBalance;
-      }
-      return sum + (value - loan);
-    }, 0);
-
-    const entries = [
-      { label: '주식 자산',   value: stockValue,    color: '#8b5cf6' },
-      { label: '현금 자산',   value: cashValue,     color: '#3b82f6' },
-      { label: '부동산 자산', value: realEstateNet, color: '#f59e0b' },
-    ].filter(e => e.value > 0);
-
-    const total = entries.reduce((s, e) => s + e.value, 0);
-
-    const labels = entries.length > 0 ? entries.map(e => e.label) : ['등록된 자산 없음'];
-    const data   = entries.length > 0 ? entries.map(e => e.value) : [1];
-    const colors = entries.length > 0 ? entries.map(e => e.color) : ['#374151'];
-
-    _chartMonthly = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels,
-        datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#111827' }],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Outfit', size: 12 }, boxWidth: 12 } },
-          tooltip: {
-            callbacks: {
-              label: ctx => {
-                if (ctx.label === '등록된 자산 없음') return ctx.label;
-                const pct = total > 0 ? (ctx.raw / total * 100).toFixed(1) : '0.0';
-                return `${ctx.label}: ${Math.floor(ctx.raw).toLocaleString()}원 (${pct}%)`;
-              },
-            },
-          },
-        },
-        cutout: '65%',
-      },
-    });
   }
 
   function renderMarketAllocationChart() {
@@ -650,60 +611,6 @@ ${youtubeFeedText}
   let _chartAssetAllocation = null;
   let _chartNetWorthTrend = null;
 
-  function renderAssetCharts(selectedMonthKey) {
-    renderAssetAllocationChart(selectedMonthKey);
-    renderNetWorthTrendChart();
-  }
-
-  function renderAssetAllocationChart(selectedMonthKey) {
-    const ctx = document.getElementById('chart-asset-allocation');
-    if (!ctx) return;
-    if (_chartAssetAllocation) _chartAssetAllocation.destroy();
-
-    const monthEntries = _assetHistory.filter(a => a.date && a.date.startsWith(selectedMonthKey) && a.category !== '대출(부채)');
-    const catTotals = {};
-    monthEntries.forEach(a => {
-      catTotals[a.category] = (catTotals[a.category] || 0) + a.balance;
-    });
-
-    const labels = Object.keys(catTotals);
-    const data = Object.values(catTotals);
-
-    if (labels.length === 0) {
-      labels.push('등록된 자산 없음');
-      data.push(1);
-    }
-
-    const colors = [
-      '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b',
-      '#ef4444', '#06b6d4', '#ec4899', '#84cc16'
-    ];
-
-    _chartAssetAllocation = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels,
-        datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#111827' }],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Outfit', size: 11 }, boxWidth: 10 } },
-          tooltip: {
-            callbacks: {
-              label: ctx => {
-                const val = ctx.raw;
-                if (ctx.label === '등록된 자산 없음') return ctx.label;
-                return `${ctx.label}: ${val.toLocaleString()}원`;
-              }
-            }
-          }
-        },
-        cutout: '60%',
-      },
-    });
-  }
-
   // 실시간 자산 구성 비중 도넛 (주식/현금/부동산) — 자산현황 탭에서 사용
   function renderLiveAssetAllocationChart(stock, cash, realEstateNet) {
     const ctx = document.getElementById('chart-asset-allocation');
@@ -744,18 +651,24 @@ ${youtubeFeedText}
     if (!ctx) return;
     if (_chartNetWorthTrend) _chartNetWorthTrend.destroy();
 
-    const monthsMap = {};
+    // 월별로 행을 모은 뒤, 스냅샷(자동/과거) 행이 있는 달은 스냅샷만 집계(수동/동기화 행 중복 방지)
+    const SNAP_MEMOS = ['자동 월별 스냅샷', '과거 월별 스냅샷'];
+    const monthRows = {};
     _assetHistory.forEach(a => {
       if (!a.date) return;
-      const monthKey = a.date.substring(0, 7); // "YYYY-MM"
-      if (!monthsMap[monthKey]) {
-        monthsMap[monthKey] = { assets: 0, debt: 0 };
-      }
-      if (a.category === '대출(부채)') {
-        monthsMap[monthKey].debt += a.balance;
-      } else {
-        monthsMap[monthKey].assets += a.balance;
-      }
+      const mk = a.date.substring(0, 7);
+      (monthRows[mk] = monthRows[mk] || []).push(a);
+    });
+    const monthsMap = {};
+    Object.keys(monthRows).forEach(mk => {
+      let rows = monthRows[mk];
+      const snap = rows.filter(a => SNAP_MEMOS.includes(a.memo));
+      if (snap.length > 0) rows = snap;
+      let assets = 0, debt = 0;
+      rows.forEach(a => {
+        if (a.category === '대출(부채)') debt += a.balance; else assets += a.balance;
+      });
+      monthsMap[mk] = { assets, debt };
     });
 
     const allMonths = Object.keys(monthsMap).sort();
@@ -1093,7 +1006,9 @@ ${youtubeFeedText}
       }],
       generationConfig: {
         responseMimeType: "application/json",
-        temperature: 0.1
+        temperature: 0.1,
+        maxOutputTokens: 8192,
+        thinkingConfig: { thinkingBudget: 0 }
       }
     };
 
@@ -1133,14 +1048,13 @@ ${youtubeFeedText}
     evaluateFilter, updateFilterSignal, evaluateFinalVerdict,
     runGeminiAnalysis,
     runAutoRecommendation,
-    renderCharts,
     renderAllocationChart,
     renderMarketAllocationChart,
     getPortfolio, getTradeLog, getAnalysis, getGachangiData, getGachangiAccounts, getSavings, getRealEstate, calcSavingsBalance,
     addPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, addTrade, saveAnalysis, saveFilter, applyFormulasToPortfolio, restorePortfolioFromBackup,
     addSavings, updateSavings, deleteSavings, updateSavingsRows, deleteSavingsRows, restoreSavingsFromBackup,
     addRealEstate, updateRealEstate, deleteRealEstate, updateRealEstateRows, deleteRealEstateRows,
-    getAssetHistory, reloadAssetHistory, calcAssetMetrics, syncPortfolioAssets, renderAssetCharts, renderLiveAssetAllocationChart, renderNetWorthTrendChart,
+    getAssetHistory, reloadAssetHistory, calcAssetMetrics, syncPortfolioAssets, renderLiveAssetAllocationChart, renderNetWorthTrendChart,
     parseHoldingScreenshot
   };
 })();
