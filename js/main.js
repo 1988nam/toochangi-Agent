@@ -1691,6 +1691,46 @@ async function saveAssetBackfill() {
   }
 }
 
+// 특정 월의 스냅샷 집계 (총자산/부채/순자산/주식/현금)
+function assetSnapshotForMonth(monthKey) {
+  const history = Toochangi.getAssetHistory() || [];
+  const entries = history.filter(a => a.date && String(a.date).startsWith(monthKey));
+  if (entries.length === 0) return null;
+  let total = 0, debt = 0, stock = 0, cash = 0;
+  entries.forEach(a => {
+    const cat = a.category || '';
+    const bal = a.balance || 0;
+    if (cat === '대출(부채)') debt += bal; else total += bal;
+    if (cat.includes('주식') || cat.includes('투자')) stock += bal;
+    if (cat.includes('현금') || cat.includes('예적금')) cash += bal;
+  });
+  return { total, debt, net: total - debt, stock, cash };
+}
+// 현재 월보다 이전인 가장 최근 스냅샷 월의 집계
+function previousAssetSnapshot() {
+  const history = Toochangi.getAssetHistory() || [];
+  const now = new Date();
+  const cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const months = [...new Set(history.filter(a => a.date).map(a => String(a.date).substring(0, 7)))]
+    .filter(mk => mk < cur)
+    .sort();
+  if (months.length === 0) return null;
+  return assetSnapshotForMonth(months[months.length - 1]);
+}
+// 전월 대비 증감 표시 (invert=true면 증가가 부정적 = 부채)
+function setAssetDelta(id, current, prev, invert) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (prev == null || Number.isNaN(prev)) { el.textContent = ''; return; }
+  const diff = current - prev;
+  if (Math.abs(diff) < 1) { el.textContent = '전월과 동일'; el.style.color = 'var(--text-muted)'; return; }
+  const pct = prev !== 0 ? (diff / Math.abs(prev)) * 100 : 0;
+  const up = diff > 0;
+  el.textContent = `전월 대비 ${up ? '+' : '−'}${Math.abs(Math.floor(diff)).toLocaleString()}원 ${up ? '▲' : '▼'}${Math.abs(pct).toFixed(1)}%`;
+  const good = invert ? !up : up;
+  el.style.color = good ? 'var(--accent-green)' : 'var(--accent-red)';
+}
+
 async function renderAssetsTab() {
   // ── 실시간 자산 요약 (주식+예적금+부동산 기준, 월 선택과 무관하게 항상 표시) ──
   const summary = computeLiveAssetSummary();
@@ -1716,6 +1756,14 @@ async function renderAssetsTab() {
 
   // 자동 월별 스냅샷: 이번 달 기록이 없으면 실시간 값을 자산현황 시트에 저장 → 추이/스냅샷 자동 누적
   try { await ensureMonthlyAssetSnapshot(summary); } catch (e) { console.warn('월별 스냅샷 자동 저장 실패:', e); }
+
+  // 전월 대비 증감 표시 (직전 월 스냅샷 대비)
+  const prevSnap = previousAssetSnapshot();
+  setAssetDelta('asset-total-delta', summary.totalAssets, prevSnap ? prevSnap.total : null);
+  setAssetDelta('asset-net-delta',   summary.netWorth,    prevSnap ? prevSnap.net   : null);
+  setAssetDelta('asset-stock-delta', summary.stock,       prevSnap ? prevSnap.stock : null);
+  setAssetDelta('asset-cash-delta',  summary.cash,        prevSnap ? prevSnap.cash  : null);
+  setAssetDelta('asset-debt-delta',  summary.totalDebt,   prevSnap ? prevSnap.debt  : null, true);
 
   // 순자산 변화 추이(스냅샷 기록 기반)
   Toochangi.renderNetWorthTrendChart();
