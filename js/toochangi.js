@@ -239,6 +239,16 @@ const Toochangi = (() => {
     return model;
   }
 
+  // OAuth(Bearer) 호출 시 쿼터·과금을 매길 GCP 프로젝트(x-goog-user-project).
+  // 미지정 시 구글이 기본 프로젝트로 처리해 "이 프로젝트에 API 미활성화" 403이 남.
+  // 우선순위: 명시 설정(GCP_PROJECT) → CLIENT_ID 앞부분의 프로젝트 번호 자동 추출.
+  function _gcpProject() {
+    const cfg = window.TOOCHANGI_CONFIG || {};
+    if (cfg.GCP_PROJECT) return String(cfg.GCP_PROJECT).trim();
+    const m = String(cfg.CLIENT_ID || '').match(/^(\d+)-/);
+    return m ? m[1] : '';
+  }
+
   // Gemini generateContent 호출.
   //  1) 구글 OAuth 액세스 토큰이 있으면 Authorization: Bearer 로 먼저 시도(키를 브라우저에 안 둬도 됨)
   //  2) 토큰이 없거나 401/403(스코프 미설정·API 비활성화)·네트워크 예외면 ?key= API 키 방식으로 폴백
@@ -254,15 +264,18 @@ const Toochangi = (() => {
     // 1) OAuth(Bearer) 우선
     if (token) {
       try {
-        const res = await fetch(base, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: payload,
-        });
+        const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+        const proj = _gcpProject();
+        if (proj) headers['x-goog-user-project'] = proj; // 쿼터/과금 프로젝트 지정 → 403(프로젝트 미지정) 방지
+        const res = await fetch(base, { method: 'POST', headers, body: payload });
         if (res.ok) { _lastGeminiAuthMode = 'oauth'; return res; }
         // 인증/권한 문제(401·403)는 키로 폴백 가능 → 키 있으면 폴백, 없으면 그대로 반환
         if (!(hasKey && (res.status === 401 || res.status === 403))) { _lastGeminiAuthMode = 'oauth'; return res; }
-        console.warn(`[Gemini] OAuth 호출 실패(${res.status}) → API 키 방식으로 폴백`);
+        let detail = '';
+        try { detail = (await res.text()).replace(/\s+/g, ' ').slice(0, 400); } catch (_) {}
+        console.warn(`[Gemini] OAuth 호출 실패(${res.status}) → API 키 방식으로 폴백`
+          + (proj ? ` | x-goog-user-project=${proj}` : ' | ⚠️프로젝트 미지정(CLIENT_ID에서 추출 실패)')
+          + (detail ? ` | 사유: ${detail}` : ''));
       } catch (e) {
         if (!hasKey) throw e;
         console.warn('[Gemini] OAuth 호출 예외 → API 키 방식으로 폴백:', e.message);
