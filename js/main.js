@@ -39,7 +39,10 @@ function bindLoginEvents() {
 }
 
 // ── 로그인 성공 ────────────────────────────────────────────────
+let _loginHandled = false;
 async function onLoginSuccess(user) {
+  if (_loginHandled) return; // 캐시 토큰 + 인터랙티브 콜백 중복 호출 시 이중 refreshAll 방지
+  _loginHandled = true;
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('user-name-sidebar').textContent = user.name || '흰챙이';
@@ -208,8 +211,7 @@ function switchTab(tab) {
 
   if (tab === 'dashboard') renderDashboard();
   if (tab === 'portfolio') {
-    Toochangi.renderAllocationChart('chart-portfolio-allocation', true);
-    Toochangi.renderMarketAllocationChart();
+    renderPortfolioTab(); // 표+요약+차트 모두 갱신(차트만 그리던 stale 위험 제거)
   }
   if (tab === 'savings') renderSavingsTab();
   if (tab === 'realestate') renderRealestateTab();
@@ -563,8 +565,11 @@ function renderPortfolioTab() {
   // 전체 선택 체크박스 상태 동기화 및 가시성 제어
   const chkAll = document.getElementById('chk-portfolio-all');
   if (chkAll) {
-    chkAll.checked = false;
-    chkAll.addEventListener('change', (e) => {
+    // 매 렌더마다 핸들러가 쌓이지 않도록 노드 교체 후 1회 바인딩(예적금과 동일 패턴)
+    const newChkAll = chkAll.cloneNode(true);
+    chkAll.parentNode.replaceChild(newChkAll, chkAll);
+    newChkAll.checked = false;
+    newChkAll.addEventListener('change', (e) => {
       const checked = e.target.checked;
       tbody.querySelectorAll('.chk-portfolio-row').forEach(chk => {
         chk.checked = checked;
@@ -1587,7 +1592,9 @@ function initAssetMonthSelector() {
 }
 
 // 이번 달 자동 스냅샷이 없으면 실시간 자산 값을 자산현황 시트에 기록 (추이/월별 스냅샷 자동 누적)
+let _snapshotInFlight = false;
 async function ensureMonthlyAssetSnapshot(summary) {
+  if (_snapshotInFlight) return; // 동시 호출(이중 로그인/월 전환) 시 중복 기록 방지
   if ((summary.totalAssets || 0) <= 0 && (summary.totalDebt || 0) <= 0) return; // 데이터 없으면 스킵
   const SNAP_MEMO = '자동 월별 스냅샷';
   const now = new Date();
@@ -1604,10 +1611,15 @@ async function ensureMonthlyAssetSnapshot(summary) {
     { category: '대출(부채)',    name: '부동산 대출(자동)', balance: Math.floor(summary.realEstateDebt) },
   ].filter(r => r.balance > 0);
 
-  for (const r of rows) {
-    await SheetsAPI.appendAsset({ date: today, category: r.category, name: r.name, balance: r.balance, memo: SNAP_MEMO });
+  _snapshotInFlight = true;
+  try {
+    for (const r of rows) {
+      await SheetsAPI.appendAsset({ date: today, category: r.category, name: r.name, balance: r.balance, memo: SNAP_MEMO });
+    }
+    await Toochangi.reloadAssetHistory();
+  } finally {
+    _snapshotInFlight = false;
   }
-  await Toochangi.reloadAssetHistory();
 }
 
 // ── 과거 월별 스냅샷 (1~지난달) 입력 ──────────────────────────
@@ -1743,21 +1755,35 @@ let netWorthTrendView = 'recent';
 
 // 특정 월의 스냅샷 집계 (총자산/부채/순자산/주식/현금)
 const ASSET_SNAPSHOT_MEMOS = ['자동 월별 스냅샷', '과거 월별 스냅샷'];
+// 카테고리 → 버킷(주식/현금/부동산/부채/기타)
+function assetCategoryBucket(category) {
+  const c = category || '';
+  if (c === '대출(부채)') return 'debt';
+  if (c.includes('주식') || c.includes('투자')) return 'stock';
+  if (c.includes('현금') || c.includes('예금') || c.includes('적금')) return 'cash';
+  if (c.includes('부동산')) return 'realEstate';
+  return 'other';
+}
+// 해당 월에서 집계에 '반영'되는 행만 반환 (스냅샷이 커버한 버킷의 수동/동기화 행은 제외)
+function activeAssetRows(monthEntries) {
+  const snapBuckets = new Set(
+    monthEntries.filter(a => ASSET_SNAPSHOT_MEMOS.includes(a.memo)).map(a => assetCategoryBucket(a.category))
+  );
+  if (snapBuckets.size === 0) return monthEntries;
+  return monthEntries.filter(a => ASSET_SNAPSHOT_MEMOS.includes(a.memo) || !snapBuckets.has(assetCategoryBucket(a.category)));
+}
 function assetSnapshotForMonth(monthKey) {
   const history = Toochangi.getAssetHistory() || [];
-  let entries = history.filter(a => a.date && String(a.date).startsWith(monthKey));
+  const entries = history.filter(a => a.date && String(a.date).startsWith(monthKey));
   if (entries.length === 0) return null;
-  // 단일 진실 원천: 스냅샷(자동/과거) 행이 있으면 스냅샷만 집계(수동/동기화 행 중복 방지)
-  const snapEntries = entries.filter(a => ASSET_SNAPSHOT_MEMOS.includes(a.memo));
-  if (snapEntries.length > 0) entries = snapEntries;
   let total = 0, debt = 0, stock = 0, cash = 0, realEstate = 0;
-  entries.forEach(a => {
-    const cat = a.category || '';
+  activeAssetRows(entries).forEach(a => {
     const bal = a.balance || 0;
-    if (cat === '대출(부채)') debt += bal; else total += bal;
-    if (cat.includes('주식') || cat.includes('투자')) stock += bal;
-    if (cat.includes('현금') || cat.includes('예금') || cat.includes('적금')) cash += bal;
-    if (cat.includes('부동산')) realEstate += bal;
+    const bucket = assetCategoryBucket(a.category);
+    if (bucket === 'debt') debt += bal; else total += bal;
+    if (bucket === 'stock') stock += bal;
+    else if (bucket === 'cash') cash += bal;
+    else if (bucket === 'realEstate') realEstate += bal;
   });
   return { total, debt, net: total - debt, stock, cash, realEstate };
 }
@@ -1842,10 +1868,13 @@ async function renderAssetsTab() {
   if (monthEntries.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" class="empty-state">해당 월에 등록된 자산 내역이 없습니다.</td></tr>';
   } else {
-    tbody.innerHTML = monthEntries.map(a => `
-      <tr>
+    const activeSet = new Set(activeAssetRows(monthEntries).map(a => a.rowIndex));
+    tbody.innerHTML = monthEntries.map(a => {
+      const inactive = !activeSet.has(a.rowIndex); // 추이/집계에 미반영(스냅샷이 같은 버킷을 대체)
+      return `
+      <tr style="${inactive ? 'opacity:0.5;' : ''}">
         <td>${a.date}</td>
-        <td><span class="badge" style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${a.category}</span></td>
+        <td><span class="badge" style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${a.category}</span>${inactive ? ' <span style="color: var(--text-muted); font-size: 10px;">추이 미반영</span>' : ''}</td>
         <td><strong>${a.name}</strong></td>
         <td style="color: ${a.category === '대출(부채)' ? 'var(--accent-red)' : 'var(--text-normal)'}">${a.balance.toLocaleString()}원</td>
         <td style="color: var(--text-muted)">${a.memo || '—'}</td>
@@ -1855,8 +1884,9 @@ async function renderAssetsTab() {
           <button class="btn-text-sm delete-asset-btn" data-row="${a.rowIndex}" style="color: var(--accent-red); margin-left: 6px;">삭제</button>
         </td>
       </tr>
-    `).join('');
-    
+    `;
+    }).join('');
+
     tbody.querySelectorAll('.edit-asset-btn').forEach(btn => {
       btn.addEventListener('click', () => openAssetModal(parseInt(btn.dataset.row)));
     });
@@ -2399,7 +2429,8 @@ window.showKisOrderConfirmModal = (params) => {
   return new Promise((resolve) => {
     const modal = document.getElementById('modal-kis-order');
     if (!modal) {
-      resolve(confirm(`[주문 최종 확인] ${params.name}(${params.ticker}) ${params.qty}주 주문하시겠습니까?`));
+      const ok = confirm(`[주문 최종 확인] ${params.name}(${params.ticker}) ${params.qty}주 주문하시겠습니까?`);
+      resolve({ confirmed: ok, qty: params.qty }); // 호출부가 {confirmed, qty}를 기대 → 형태 일치
       return;
     }
 

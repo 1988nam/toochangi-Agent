@@ -40,6 +40,10 @@ const SheetsAPI = (() => {
     '\uB4F1\uB85D\uC77C'
   ]];
 
+  // 시트 셀 숫자 파싱 (천 단위 콤마 제거 — 기본 FORMATTED_VALUE로 "1,234,567"이 와도 안전)
+  function _num(v) { return parseFloat(String(v == null ? '' : v).replace(/,/g, '')) || 0; }
+  function _int(v) { return parseInt(String(v == null ? '' : v).replace(/,/g, ''), 10) || 0; }
+
   async function ensureRealEstateSheet(spreadsheetId) {
     const metaRes = await gapi.client.sheets.spreadsheets.get({
       spreadsheetId,
@@ -275,7 +279,7 @@ const SheetsAPI = (() => {
   }
 
   async function _initHeaders(sheetId) {
-    const portfolioHeaders = [['종목명','티커','시장','보유수량','평균단가(원)','현재가(원)','평가금액','수익률(%)','비중(%)','메모','최종수정일']];
+    const portfolioHeaders = [['종목명','티커','시장','보유수량','평균단가(원)','현재가(원)','평가금액','수익률(%)','비중(%)','명의','메모','최종수정일']];
     const tradeHeaders     = [['날짜','종목명','구분','수량','단가(원)','금액(원)','3단계필터','메모']];
     const analysisHeaders  = [['날짜','질문','AI분석결과','관련종목','투자의견','기간']];
     const filterHeaders    = [['날짜','시장신호','섹터신호','종목신호','최종판단','메모']];
@@ -312,12 +316,12 @@ const SheetsAPI = (() => {
       name:    r[0]  || '',
       ticker:  r[1]  || '',
       market:  r[2]  || '',
-      qty:     parseFloat(r[3])  || 0,
-      avgPrice:parseFloat(r[4])  || 0,
-      curPrice:parseFloat(r[5])  || 0,
-      value:   parseFloat(r[6])  || 0,
-      yield:   parseFloat(r[7])  || 0,
-      weight:  parseFloat(r[8])  || 0,
+      qty:     _num(r[3]),
+      avgPrice:_num(r[4]),
+      curPrice:_num(r[5]),
+      value:   _num(r[6]),
+      yield:   _num(r[7]),
+      weight:  _num(r[8]),
       owner:   hasOwnerColumns ? (r[9] || '') : '',
       memo:    hasOwnerColumns ? (r[10] || '') : (r[9] || ''),
       date:    hasOwnerColumns ? (r[11] || '') : (r[10] || ''),
@@ -342,15 +346,15 @@ const SheetsAPI = (() => {
           owner:    schema === 'legacy' ? '' : (r[2] || ''),
           accountNumber: schema === 'owner_account' ? (r[3] || '') : '',
           type:     schema === 'owner_account' ? (r[4] || '') : (schema === 'owner_only' ? (r[3] || '') : (r[2] || '')),
-          rate:     parseFloat(schema === 'owner_account' ? r[5] : (schema === 'owner_only' ? r[4] : r[3])) || 0,
-          balance:  parseFloat(schema === 'owner_account' ? r[6] : (schema === 'owner_only' ? r[5] : r[4])) || 0,
+          rate:     _num(schema === 'owner_account' ? r[5] : (schema === 'owner_only' ? r[4] : r[3])),
+          balance:  _num(schema === 'owner_account' ? r[6] : (schema === 'owner_only' ? r[5] : r[4])),
           maturity: schema === 'owner_account' ? (r[7] || '') : (schema === 'owner_only' ? (r[6] || '') : (r[5] || '')),
           purpose:  schema === 'owner_account' ? (r[8] || '') : (schema === 'owner_only' ? (r[7] || '') : (r[6] || '')),
           memo:     schema === 'owner_account' ? (r[9] || '') : (schema === 'owner_only' ? (r[8] || '') : (r[7] || '')),
           date:     schema === 'owner_account' ? (r[10] || '') : (schema === 'owner_only' ? (r[9] || '') : (r[8] || '')),
           // 자동 납입(누적) 메타 — owner_account 스키마(L·M·N열)에서만 존재
-          monthlyDeposit:   schema === 'owner_account' ? (parseFloat(r[11]) || 0) : 0,
-          depositDay:       schema === 'owner_account' ? (parseInt(r[12], 10) || 0) : 0,
+          monthlyDeposit:   schema === 'owner_account' ? _num(r[11]) : 0,
+          depositDay:       schema === 'owner_account' ? _int(r[12]) : 0,
           depositStartDate: schema === 'owner_account' ? (r[13] || '') : '',
         };
       });
@@ -373,16 +377,16 @@ const SheetsAPI = (() => {
         return {
         rowIndex: idx + 2,
         name:     r[0] || '',
-        purchasePrice: parseFloat(r[1]) || 0,
-        currentValue:  parseFloat(r[2]) || 0,
-        loanAmount:    parseFloat(r[3]) || 0,
-        loanRate:      parseFloat(r[4]) || 0,
-        deposit:       parseFloat(r[5]) || 0,
-        maintenance:   parseFloat(r[6]) || 0,
+        purchasePrice: _num(r[1]),
+        currentValue:  _num(r[2]),
+        loanAmount:    _num(r[3]),
+        loanRate:      _num(r[4]),
+        deposit:       _num(r[5]),
+        maintenance:   _num(r[6]),
         purpose:       r[7] || '',
         memo:          r[8] || '',
         loanStartDate: hasLoanMeta ? (r[9] || '') : '',
-        loanTermYears: hasLoanMeta ? (parseInt(r[10], 10) || 0) : 0,
+        loanTermYears: hasLoanMeta ? _int(r[10]) : 0,
         date:          hasLoanMeta ? (r[11] || '') : (r[9] || ''),
         };
       });
@@ -604,7 +608,7 @@ const SheetsAPI = (() => {
       row.purpose || '',
       row.memo || '',
       row.loanStartDate || '',
-      parseInt(row.loanTermYears, 10) || '',
+      parseInt(row.loanTermYears, 10) || 0,
       now
     ]];
     await gapi.client.sheets.spreadsheets.values.append({
@@ -630,7 +634,7 @@ const SheetsAPI = (() => {
       row.purpose || '',
       row.memo || '',
       row.loanStartDate || '',
-      parseInt(row.loanTermYears, 10) || '',
+      parseInt(row.loanTermYears, 10) || 0,
       now
     ]];
     await gapi.client.sheets.spreadsheets.values.update({
@@ -686,7 +690,7 @@ const SheetsAPI = (() => {
           row.purpose || '',
           row.memo || '',
           row.loanStartDate || '',
-          parseInt(row.loanTermYears, 10) || '',
+          parseInt(row.loanTermYears, 10) || 0,
           now
         ]]
       };
@@ -743,7 +747,7 @@ const SheetsAPI = (() => {
     const portfolio = await getPortfolio();
     const nextRow = portfolio.length + 2;
 
-    const fFormula = `=IF(ISBLANK(B${nextRow}), 0, IF(REGEXMATCH(TO_TEXT(B${nextRow}), "^[0-9]{1,6}$"), INT(GOOGLEFINANCE("KRX:"&TEXT(B${nextRow},"000000"))), IF(OR(C${nextRow}="나스닥", C${nextRow}="NYSE"), INT(GOOGLEFINANCE(B${nextRow}) * GOOGLEFINANCE("USDKRW")), INT(GOOGLEFINANCE(B${nextRow})))))`;
+    const fFormula = `=IF(ISBLANK(B${nextRow}), 0, IF(OR(C${nextRow}="나스닥", C${nextRow}="NYSE"), INT(GOOGLEFINANCE(B${nextRow}) * GOOGLEFINANCE("USDKRW")), INT(GOOGLEFINANCE("KRX:" & IF(ISNUMBER(B${nextRow}), TEXT(B${nextRow},"000000"), TO_TEXT(B${nextRow}))))))`;
     const gFormula = `=D${nextRow}*F${nextRow}`;
     const hFormula = `=IF(E${nextRow}>0, (F${nextRow}-E${nextRow})/E${nextRow}, 0)`;
     const iFormula = `=IF(SUM(G$2:G$100)>0, G${nextRow}/SUM(G$2:G$100), 0)`;
@@ -768,7 +772,7 @@ const SheetsAPI = (() => {
 
     await backupPortfolio();
 
-    const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(REGEXMATCH(TO_TEXT(B${rowIndex}), "^[0-9]{1,6}$"), INT(GOOGLEFINANCE("KRX:"&TEXT(B${rowIndex},"000000"))), IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("USDKRW")), INT(GOOGLEFINANCE(B${rowIndex})))))`;
+    const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("USDKRW")), INT(GOOGLEFINANCE("KRX:" & IF(ISNUMBER(B${rowIndex}), TEXT(B${rowIndex},"000000"), TO_TEXT(B${rowIndex}))))))`;
     const gFormula = `=D${rowIndex}*F${rowIndex}`;
     const hFormula = `=IF(E${rowIndex}>0, (F${rowIndex}-E${rowIndex})/E${rowIndex}, 0)`;
     const iFormula = `=IF(SUM(G$2:G$100)>0, G${rowIndex}/SUM(G$2:G$100), 0)`;
@@ -822,7 +826,7 @@ const SheetsAPI = (() => {
     await backupPortfolio();
 
     const data = updates.map(({ rowIndex, row }) => {
-      const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(REGEXMATCH(TO_TEXT(B${rowIndex}), "^[0-9]{1,6}$"), INT(GOOGLEFINANCE("KRX:"&TEXT(B${rowIndex},"000000"))), IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("USDKRW")), INT(GOOGLEFINANCE(B${rowIndex})))))`;
+      const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("USDKRW")), INT(GOOGLEFINANCE("KRX:" & IF(ISNUMBER(B${rowIndex}), TEXT(B${rowIndex},"000000"), TO_TEXT(B${rowIndex}))))))`;
       const gFormula = `=D${rowIndex}*F${rowIndex}`;
       const hFormula = `=IF(E${rowIndex}>0, (F${rowIndex}-E${rowIndex})/E${rowIndex}, 0)`;
       const iFormula = `=IF(SUM(G$2:G$100)>0, G${rowIndex}/SUM(G$2:G$100), 0)`;
@@ -884,7 +888,7 @@ const SheetsAPI = (() => {
 
     // 현재 포트폴리오 값을 가져와 행의 개수를 파악
     const res = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId: id, range: '포트폴리오!A2:K',
+      spreadsheetId: id, range: '포트폴리오!A2:L',
     });
     const rows = res.result.values || [];
     if (rows.length === 0) return;
@@ -894,7 +898,7 @@ const SheetsAPI = (() => {
     rows.forEach((r, index) => {
       const rowIndex = index + 2; // 2행부터 시작
       const range = `포트폴리오!F${rowIndex}:I${rowIndex}`;
-      const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(REGEXMATCH(TO_TEXT(B${rowIndex}), "^[0-9]{1,6}$"), INT(GOOGLEFINANCE("KRX:"&TEXT(B${rowIndex},"000000"))), IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("USDKRW")), INT(GOOGLEFINANCE(B${rowIndex})))))`;
+      const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("USDKRW")), INT(GOOGLEFINANCE("KRX:" & IF(ISNUMBER(B${rowIndex}), TEXT(B${rowIndex},"000000"), TO_TEXT(B${rowIndex}))))))`;
       const gFormula = `=D${rowIndex}*F${rowIndex}`;
       const hFormula = `=IF(E${rowIndex}>0, (F${rowIndex}-E${rowIndex})/E${rowIndex}, 0)`;
       const iFormula = `=IF(SUM(G$2:G$100)>0, G${rowIndex}/SUM(G$2:G$100), 0)`;
@@ -925,9 +929,9 @@ const SheetsAPI = (() => {
       date:    r[0] || '',
       name:    r[1] || '',
       type:    r[2] || '',
-      qty:     parseFloat(r[3]) || 0,
-      price:   parseFloat(r[4]) || 0,
-      amount:  parseFloat(r[5]) || 0,
+      qty:     _num(r[3]),
+      price:   _num(r[4]),
+      amount:  _num(r[5]),
       filter:  r[6] || '',
       memo:    r[7] || '',
     }));
@@ -1209,7 +1213,7 @@ const SheetsAPI = (() => {
     try {
       const res = await gapi.client.sheets.spreadsheets.values.get({
         spreadsheetId: id,
-        range: '포트폴리오!A1:K',
+        range: '포트폴리오!A1:L',
         valueRenderOption: 'FORMULA'
       });
       const values = res.result.values;
@@ -1237,7 +1241,7 @@ const SheetsAPI = (() => {
 
       await gapi.client.sheets.spreadsheets.values.clear({
         spreadsheetId: id,
-        range: '포트폴리오_백업!A1:K'
+        range: '포트폴리오_백업!A1:L'
       });
 
       await gapi.client.sheets.spreadsheets.values.update({
@@ -1258,7 +1262,7 @@ const SheetsAPI = (() => {
 
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: id,
-      range: '포트폴리오_백업!A1:K',
+      range: '포트폴리오_백업!A1:L',
       valueRenderOption: 'FORMULA'
     });
     const values = res.result.values;
@@ -1268,7 +1272,7 @@ const SheetsAPI = (() => {
 
     await gapi.client.sheets.spreadsheets.values.clear({
       spreadsheetId: id,
-      range: '포트폴리오!A1:K'
+      range: '포트폴리오!A1:L'
     });
 
     await gapi.client.sheets.spreadsheets.values.update({

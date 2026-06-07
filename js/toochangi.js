@@ -361,11 +361,12 @@ ${gachangiContext}
         .join('\n');
       kisSection = `[KIS 실시간 거래량 순위 TOP ${marketData.volumeRank.length}]
 ${rankLines}`;
-      if (marketData.indices) {
+      if (marketData.indices && typeof marketData.indices === 'object' && !Array.isArray(marketData.indices)) {
         const idxLines = Object.entries(marketData.indices)
-          .map(([k, v]) => `  ${k}: ${v.current} (${v.rate}%)`)
+          .filter(([, v]) => v && v.current != null)
+          .map(([k, v]) => `  ${k}: ${v.current} (${v.rate != null ? v.rate : '-'}%)`)
           .join('\n');
-        kisSection += `\n\n[코스피/코스닥 지수]\n${idxLines}`;
+        if (idxLines) kisSection += `\n\n[코스피/코스닥 지수]\n${idxLines}`;
       }
     } else {
       kisSection = '[KIS 거래량 데이터] KIS 미연동 또는 모의환경 — 아래 검색 지시에 따라 직접 검색하세요.';
@@ -653,6 +654,14 @@ ${youtubeFeedText}
 
     // 월별로 행을 모은 뒤, 스냅샷(자동/과거) 행이 있는 달은 스냅샷만 집계(수동/동기화 행 중복 방지)
     const SNAP_MEMOS = ['자동 월별 스냅샷', '과거 월별 스냅샷'];
+    const bucketOf = (cat) => {
+      cat = cat || '';
+      if (cat === '대출(부채)') return 'debt';
+      if (cat.includes('주식') || cat.includes('투자')) return 'stock';
+      if (cat.includes('현금') || cat.includes('예금') || cat.includes('적금')) return 'cash';
+      if (cat.includes('부동산')) return 'realEstate';
+      return 'other';
+    };
     const monthRows = {};
     _assetHistory.forEach(a => {
       if (!a.date) return;
@@ -661,9 +670,12 @@ ${youtubeFeedText}
     });
     const monthsMap = {};
     Object.keys(monthRows).forEach(mk => {
-      let rows = monthRows[mk];
-      const snap = rows.filter(a => SNAP_MEMOS.includes(a.memo));
-      if (snap.length > 0) rows = snap;
+      const all = monthRows[mk];
+      // 스냅샷이 커버한 '버킷'에 한해서만 수동/동기화 행 제외(연금·기타·부분입력 카테고리는 보존)
+      const snapBuckets = new Set(all.filter(a => SNAP_MEMOS.includes(a.memo)).map(a => bucketOf(a.category)));
+      const rows = snapBuckets.size > 0
+        ? all.filter(a => SNAP_MEMOS.includes(a.memo) || !snapBuckets.has(bucketOf(a.category)))
+        : all;
       let assets = 0, debt = 0;
       rows.forEach(a => {
         if (a.category === '대출(부채)') debt += a.balance; else assets += a.balance;
