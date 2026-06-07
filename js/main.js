@@ -1613,12 +1613,13 @@ function realEstateDebtAsOf(date) {
   });
   return debt;
 }
-// 입력 대상 월: 올해 1월 ~ 지난달 (이번 달은 자동 스냅샷이 처리)
+// 입력 대상 월: 지난달부터 과거로 18개월 (이번 달은 자동 스냅샷이 처리)
 function _backfillMonths() {
   const now = new Date();
   const months = [];
-  for (let m = 1; m < (now.getMonth() + 1); m += 1) {
-    months.push(`${now.getFullYear()}-${String(m).padStart(2, '0')}`);
+  for (let i = 18; i >= 1; i -= 1) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
   }
   return months;
 }
