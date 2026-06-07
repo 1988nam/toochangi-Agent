@@ -7,6 +7,7 @@ const Auth = (() => {
   let gisInited = false;
   let tokenClient = null;
   let accessToken = null;
+  let grantedScopes = '';   // 현재 토큰이 실제로 부여받은 scope(공백 구분 문자열)
   let onLoginCallback = null;
 
   /** GAPI 초기화 */
@@ -47,9 +48,11 @@ const Auth = (() => {
         callback: (tokenResponse) => {
           if (tokenResponse.error !== undefined) throw tokenResponse;
           accessToken = tokenResponse.access_token;
+          grantedScopes = tokenResponse.scope || '';
           const expiry = Date.now() + tokenResponse.expires_in * 1000;
           localStorage.setItem('toochangi_access_token', accessToken);
           localStorage.setItem('toochangi_token_expiry', expiry);
+          localStorage.setItem('toochangi_token_scope', grantedScopes);
           gapi.client.setToken({ access_token: accessToken });
           console.log('✅ 구글 로그인 완료.');
           if (onLoginCallback) onLoginCallback({ name: '흰챙이' });
@@ -69,12 +72,14 @@ const Auth = (() => {
     const expiry = localStorage.getItem('toochangi_token_expiry');
     if (storedToken && expiry && parseInt(expiry, 10) > Date.now()) {
       accessToken = storedToken;
+      grantedScopes = localStorage.getItem('toochangi_token_scope') || '';
       gapi.client.setToken({ access_token: accessToken });
       console.log('✅ 캐시 토큰으로 자동 로그인.');
       if (onLoginCallback) onLoginCallback({ name: '흰챙이' });
     } else {
       localStorage.removeItem('toochangi_access_token');
       localStorage.removeItem('toochangi_token_expiry');
+      localStorage.removeItem('toochangi_token_scope');
     }
   }
 
@@ -99,15 +104,19 @@ const Auth = (() => {
   function logout() {
     if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {});
     accessToken = null;
+    grantedScopes = '';
     localStorage.removeItem('toochangi_access_token');
     localStorage.removeItem('toochangi_token_expiry');
+    localStorage.removeItem('toochangi_token_scope');
     gapi.client.setToken(null);
     console.log('로그아웃 완료.');
   }
 
   function getToken() { return accessToken; }
+  function getTokenScopes() { return grantedScopes; }      // 현재 토큰이 부여받은 scope 문자열
+  function hasScope(s) { return !!grantedScopes && grantedScopes.indexOf(s) !== -1; }
   function isLoggedIn() { return !!accessToken; }
   function onLogin(cb) { onLoginCallback = cb; }
 
-  return { initGapi, initGis, login, logout, getToken, isLoggedIn, onLogin };
+  return { initGapi, initGis, login, logout, getToken, getTokenScopes, hasScope, isLoggedIn, onLogin };
 })();

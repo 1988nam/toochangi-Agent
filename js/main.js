@@ -2750,39 +2750,43 @@ function renderGeminiAuthBadge() {
   const chip = (text, color, bg) =>
     `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-weight:600;color:${color};background:${bg};">${text}</span>`;
 
-  // 실제 마지막 호출 경로(있으면) 우선, 없으면 예상 경로로 안내
+  // '재로그인 필요'(config엔 scope 있으나 토큰 미반영)는 마지막 호출 경로와 무관하게 최우선 경고
   let line1;
-  if (s.lastUsed === 'oauth') {
+  if (s.needsRelogin) {
+    line1 = chip('🔄 재로그인 필요', '#92400e', 'rgba(245,158,11,0.18)')
+      + ' <span style="color:#94a3b8;">— scope는 설정됐지만 현재 토큰엔 미반영 (지금은 키로 폴백 중)</span>';
+  } else if (s.lastUsed === 'oauth') {
     line1 = chip('🔓 OAuth로 호출 중', '#065f46', 'rgba(16,185,129,0.18)') + ' <span style="color:#94a3b8;">— 키 없이 구글 로그인 토큰 사용</span>';
   } else if (s.lastUsed === 'key') {
     line1 = chip('🔑 API 키로 호출 중', '#92400e', 'rgba(245,158,11,0.18)') + ' <span style="color:#94a3b8;">— 브라우저에 키 저장됨</span>';
   } else {
     // 아직 호출 전 → 예상 경로
     const map = {
-      oauth: [chip('🔓 OAuth 사용 예정', '#065f46', 'rgba(16,185,129,0.18)'), '토큰+scope 준비됨'],
+      oauth: [chip('🔓 OAuth 사용 예정', '#065f46', 'rgba(16,185,129,0.18)'), '토큰에 scope 반영됨'],
+      relogin: [chip('🔄 재로그인 필요', '#92400e', 'rgba(245,158,11,0.18)'), 'scope 설정됐으나 토큰 미반영'],
       'oauth-fallback': [chip('🔑 키(폴백) 예정', '#92400e', 'rgba(245,158,11,0.18)'), 'scope 미설정 → OAuth 시도 후 키로 폴백'],
       key: [chip('🔑 API 키 사용 예정', '#92400e', 'rgba(245,158,11,0.18)'), '로그인 토큰 없음'],
-      oauth_only: [chip('🔓 OAuth 사용 예정', '#065f46', 'rgba(16,185,129,0.18)'), '키 없음'],
       none: [chip('⚠️ 인증 없음', '#991b1b', 'rgba(239,68,68,0.18)'), '키도 토큰도 없음'],
     };
     const m = map[s.expected] || map.none;
     line1 = m[0] + ` <span style="color:#94a3b8;">— ${m[1]} (호출 시 확정)</span>`;
   }
 
-  // 상태 상세
+  // 상태 상세: config scope와 '토큰 실제 반영'을 구분 표시
   const ok = (b) => b ? '<span style="color:#10b981;">●</span>' : '<span style="color:#64748b;">○</span>';
   const line2 = `<div style="margin-top:6px;color:#94a3b8;">`
-    + `${ok(s.hasToken)} 구글 로그인 토큰 &nbsp; `
-    + `${ok(s.scopeConfigured)} cloud-platform scope &nbsp; `
+    + `${ok(s.hasToken)} 로그인 토큰 &nbsp; `
+    + `${ok(s.scopeConfigured)} scope 설정 &nbsp; `
+    + `${ok(s.tokenHasScope)} 토큰에 반영 &nbsp; `
     + `${ok(s.hasKey)} API 키`
     + `</div>`;
 
-  // scope 미설정 + 토큰 있음 → 켜는 방법 안내
+  // 상황별 안내
   let hint = '';
-  if (s.hasToken && !s.scopeConfigured) {
+  if (s.needsRelogin) {
+    hint = `<div style="margin-top:6px;color:#f59e0b;">➡️ <b>로그아웃 후 다시 로그인</b>하세요. 그때 동의화면에서 <code>cloud-platform</code> 권한을 새로 허용해야 토큰에 반영됩니다. (재로그인해도 403이면 GCP에서 <b>Generative Language API 활성화</b> 또는 동의화면 <b>scope 등록</b>이 안 된 것)</div>`;
+  } else if (s.hasToken && !s.scopeConfigured) {
     hint = `<div style="margin-top:6px;color:#64748b;">키 없이 OAuth로 쓰려면: GCP에서 Generative Language API 활성화 + 동의화면에 <code>cloud-platform</code> scope 등록 → 아래 <b>‘Gemini를 OAuth로 호출’ 체크 후 저장</b> → 로그아웃·재로그인</div>`;
-  } else if (s.hasToken && s.scopeConfigured && s.lastUsed !== 'oauth') {
-    hint = `<div style="margin-top:6px;color:#64748b;">scope가 설정됐습니다. 아직 OAuth로 호출된 적이 없다면 <b>로그아웃→다시 로그인</b>으로 새 권한을 토큰에 반영한 뒤, AI 분석/추천을 한 번 실행해 확인하세요.</div>`;
   }
 
   el.innerHTML = line1 + line2 + hint;

@@ -201,17 +201,25 @@ const Toochangi = (() => {
   function getGeminiAuthStatus() {
     const cfg = window.TOOCHANGI_CONFIG || {};
     const apiKey = cfg.GEMINI_API_KEY;
+    const CP = 'cloud-platform';
     const hasKey = !!(apiKey && !apiKey.startsWith('YOUR_'));
     const hasToken = !!(typeof Auth !== 'undefined' && Auth.getToken && Auth.getToken());
-    const scopeConfigured = !!(cfg.SCOPES && cfg.SCOPES.indexOf('cloud-platform') !== -1);
-    // 다음 호출 시 '예상' 경로
+    const scopeConfigured = !!(cfg.SCOPES && cfg.SCOPES.indexOf(CP) !== -1); // config(SCOPES)에 cloud-platform 포함
+    // 실제 토큰이 cloud-platform 권한을 부여받았는지(= OAuth 호출이 통할 핵심 조건)
+    const tokenHasScope = !!(typeof Auth !== 'undefined' && Auth.hasScope && Auth.hasScope(CP));
+    // config엔 scope가 있는데 토큰엔 없음 → '재로그인 필요' 상태
+    const needsRelogin = hasToken && scopeConfigured && !tokenHasScope;
+
+    // 다음 호출 시 '예상' 경로 (토큰의 실제 scope 기준)
     let expected;
-    if (hasToken && scopeConfigured) expected = 'oauth';      // 토큰+scope → OAuth로 호출 시도(성공 예상)
-    else if (hasToken && hasKey) expected = 'oauth-fallback'; // 토큰은 있으나 scope 미설정 → OAuth 시도 후 키로 폴백 예상
+    if (hasToken && tokenHasScope) expected = 'oauth';        // 토큰이 scope 보유 → OAuth 성공 예상
+    else if (needsRelogin && hasKey) expected = 'relogin';    // scope 설정됐지만 토큰 미반영 → 재로그인 필요(현재는 키 폴백)
+    else if (needsRelogin) expected = 'relogin';
+    else if (hasToken && hasKey) expected = 'oauth-fallback'; // scope 미설정 → OAuth 시도 후 키로 폴백
     else if (hasKey) expected = 'key';                        // 토큰 없음 → 키로 호출
-    else if (hasToken) expected = 'oauth';                    // 토큰만 있고 키 없음 → OAuth만 시도
-    else expected = 'none';                                   // 인증 수단 없음
-    return { hasKey, hasToken, scopeConfigured, lastUsed: _lastGeminiAuthMode, expected };
+    else if (hasToken) expected = 'oauth-fallback';           // 토큰만, scope 없음, 키 없음 → OAuth 시도(403 예상)
+    else expected = 'none';
+    return { hasKey, hasToken, scopeConfigured, tokenHasScope, needsRelogin, lastUsed: _lastGeminiAuthMode, expected };
   }
 
   // OAuth(cloud-platform 토큰)에서만 호출 가능한 모델 → OAuth 미준비 시 대체할 안전 모델
@@ -224,8 +232,8 @@ const Toochangi = (() => {
     const fallback = _OAUTH_ONLY_MODELS[model];
     if (!fallback) return model;
     const st = getGeminiAuthStatus();
-    if (!(st.hasToken && st.scopeConfigured)) {
-      console.warn(`[Gemini] '${model}'은 OAuth 전용 — OAuth 미준비 상태라 '${fallback}'로 대체합니다.`);
+    if (!st.tokenHasScope) {
+      console.warn(`[Gemini] '${model}'은 OAuth 전용 — 토큰에 cloud-platform 권한 없음(재로그인 필요)이라 '${fallback}'로 대체합니다.`);
       return fallback;
     }
     return model;
