@@ -185,11 +185,57 @@ const Toochangi = (() => {
     return loan;
   }
 
+  // ── Gemini 인증 헬퍼 (OAuth Bearer 우선 → API 키 폴백) ───────────
+  // 현재 Gemini를 호출할 수 있는 인증 수단(구글 로그인 토큰 또는 API 키)이 있는지
+  function _hasGeminiAuth() {
+    const apiKey = window.TOOCHANGI_CONFIG.GEMINI_API_KEY;
+    const hasKey = apiKey && !apiKey.startsWith('YOUR_');
+    const hasToken = (typeof Auth !== 'undefined' && Auth.getToken && Auth.getToken());
+    return !!(hasKey || hasToken);
+  }
+
+  // Gemini generateContent 호출.
+  //  1) 구글 OAuth 액세스 토큰이 있으면 Authorization: Bearer 로 먼저 시도(키를 브라우저에 안 둬도 됨)
+  //  2) 토큰이 없거나 401/403(스코프 미설정·API 비활성화)·네트워크 예외면 ?key= API 키 방식으로 폴백
+  // 반환: fetch Response (상위에서 res.ok/상태코드 처리)
+  async function _geminiFetch(model, body) {
+    const base = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    const apiKey = window.TOOCHANGI_CONFIG.GEMINI_API_KEY;
+    const hasKey = apiKey && !apiKey.startsWith('YOUR_');
+    const token = (typeof Auth !== 'undefined' && Auth.getToken) ? Auth.getToken() : null;
+    const payload = JSON.stringify(body);
+
+    // 1) OAuth(Bearer) 우선
+    if (token) {
+      try {
+        const res = await fetch(base, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: payload,
+        });
+        if (res.ok) return res;
+        // 인증/권한 문제(401·403)는 키로 폴백 가능 → 키 있으면 폴백, 없으면 그대로 반환
+        if (!(hasKey && (res.status === 401 || res.status === 403))) return res;
+        console.warn(`[Gemini] OAuth 호출 실패(${res.status}) → API 키 방식으로 폴백`);
+      } catch (e) {
+        if (!hasKey) throw e;
+        console.warn('[Gemini] OAuth 호출 예외 → API 키 방식으로 폴백:', e.message);
+      }
+    }
+
+    // 2) API 키 폴백
+    if (!hasKey) throw new Error('Gemini 인증 실패: 구글 로그인(OAuth) 토큰도, API 키도 사용할 수 없습니다.');
+    return fetch(`${base}?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload,
+    });
+  }
+
   // AI가 실시간 검색으로 최근 경제·투자 유튜브 영상을 직접 찾아 요약 (Gemini 그라운딩 필요)
   async function runEconomyVideoSummary() {
-    const apiKey = window.TOOCHANGI_CONFIG.GEMINI_API_KEY;
-    if (!apiKey || apiKey.startsWith('YOUR_')) {
-      throw new Error('실시간 검색 요약은 Gemini API 키가 필요합니다. 환경설정에서 입력해주세요.');
+    if (!_hasGeminiAuth()) {
+      throw new Error('실시간 검색 요약은 Gemini 인증이 필요합니다. 구글 로그인(OAuth) 또는 API 키를 설정해주세요.');
     }
     const today = new Date().toLocaleDateString('ko-KR');
     const systemPrompt = `당신은 한국 경제·투자 유튜브 큐레이터입니다. 실시간 인터넷/유튜브 검색이 가능합니다.
@@ -200,14 +246,13 @@ const Toochangi = (() => {
 • [제목] — 채널명
   └ 핵심 요약 1~2줄 (무엇을, 왜 중요한지)`;
     const userPrompt = `오늘(${today}) 기준, 최근 경제·투자 유튜브에서 꼭 봐야 할 핵심 영상들을 검색해 요약해줘.`;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${window.TOOCHANGI_CONFIG.GEMINI_MODEL_RECOMMEND}:generateContent?key=${apiKey}`;
     const body = {
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: [{ parts: [{ text: userPrompt }] }],
       tools: [{ googleSearch: {} }],
       generationConfig: { temperature: 0.6, maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } },
     };
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const res = await _geminiFetch(window.TOOCHANGI_CONFIG.GEMINI_MODEL_RECOMMEND, body);
     if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
     const data = await res.json();
     const cand = data.candidates?.[0];
@@ -220,9 +265,8 @@ const Toochangi = (() => {
   // ── Gemini AI 분석 ──────────────────────────────────────────────
   async function runGeminiAnalysis(query) {
     const provider = _aiProvider();
-    const apiKey = window.TOOCHANGI_CONFIG.GEMINI_API_KEY;
-    if (provider === 'gemini' && (!apiKey || apiKey.startsWith('YOUR_'))) {
-      return '⚠️ Gemini API 키가 설정되지 않았습니다. js/config.js의 GEMINI_API_KEY를 설정해주세요.';
+    if (provider === 'gemini' && !_hasGeminiAuth()) {
+      return '⚠️ Gemini 인증이 없습니다. 구글 로그인(OAuth) 또는 js/config.js의 GEMINI_API_KEY를 설정해주세요.';
     }
 
     const stocksSummary = _portfolio.length > 0
@@ -286,7 +330,6 @@ ${gachangiContext}
       return { text, sources: [] };
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${window.TOOCHANGI_CONFIG.GEMINI_MODEL_ANALYSIS}:generateContent?key=${apiKey}`;
     const body = {
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: [{ parts: [{ text: query }] }],
@@ -295,11 +338,7 @@ ${gachangiContext}
       generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
     };
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const res = await _geminiFetch(window.TOOCHANGI_CONFIG.GEMINI_MODEL_ANALYSIS, body);
 
     if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
     const data = await res.json();
@@ -322,9 +361,8 @@ ${gachangiContext}
   // 통합하여 흰챙이 가족 원칙에 맞는 종목을 자동 발굴·추천하는 함수
   async function runAutoRecommendation() {
     const provider = _aiProvider();
-    const apiKey = window.TOOCHANGI_CONFIG.GEMINI_API_KEY;
-    if (provider === 'gemini' && (!apiKey || apiKey.startsWith('YOUR_'))) {
-      throw new Error('Gemini API 키가 설정되지 않았습니다.');
+    if (provider === 'gemini' && !_hasGeminiAuth()) {
+      throw new Error('Gemini 인증이 없습니다. 구글 로그인(OAuth) 또는 API 키를 설정해주세요.');
     }
 
     // ── 데이터 수집 (KIS + 포트폴리오 + 전략 + 유튜브 RSS) ──────────────────
@@ -451,7 +489,6 @@ ${youtubeFeedText}
       };
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${window.TOOCHANGI_CONFIG.GEMINI_MODEL_RECOMMEND}:generateContent?key=${apiKey}`;
     const body = {
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: [{ parts: [{ text: userPrompt }] }],
@@ -460,11 +497,7 @@ ${youtubeFeedText}
       generationConfig: { temperature: 0.6, maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } },
     };
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const res = await _geminiFetch(window.TOOCHANGI_CONFIG.GEMINI_MODEL_RECOMMEND, body);
 
     if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
     const data = await res.json();
@@ -982,9 +1015,8 @@ ${youtubeFeedText}
   }
 
   async function parseHoldingScreenshot(base64Data, mimeType) {
-    const apiKey = window.TOOCHANGI_CONFIG.GEMINI_API_KEY;
-    if (!apiKey || apiKey.startsWith('YOUR_')) {
-      throw new Error('Gemini API 키가 설정되지 않았습니다.');
+    if (!_hasGeminiAuth()) {
+      throw new Error('Gemini 인증이 없습니다. 구글 로그인(OAuth) 또는 API 키를 설정해주세요.');
     }
 
     const systemPrompt = `당신은 이미지 분석 및 금융 데이터 추출 전문가입니다. 
@@ -1024,7 +1056,6 @@ ${youtubeFeedText}
 2. 평균 단가(avgPrice) 및 현재가(curPrice)에 소수점 기호(.)가 들어간 경우도 마찬가지로 정확한 소수(float)로 추출해 주십시오. (예: 38.557)
 3. 텍스트 설명이나 마크업 기호(예: \`\`\`json) 없이 오직 유효한 JSON 배열만 반환하세요.`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${window.TOOCHANGI_CONFIG.GEMINI_MODEL_VISION}:generateContent?key=${apiKey}`;
     const body = {
       contents: [{
         parts: [
@@ -1045,21 +1076,14 @@ ${youtubeFeedText}
       }
     };
 
-    let res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const visionModel = window.TOOCHANGI_CONFIG.GEMINI_MODEL_VISION;
+    let res = await _geminiFetch(visionModel, body);
 
     // 429 (Rate Limit) 에러 발생 시 7초 대기 후 1회 자동 재시도
     if (res.status === 429) {
       console.warn('[Gemini API] 429 사용량 초과 감지. 7초 대기 후 재시도합니다...');
       await new Promise(resolve => setTimeout(resolve, 7000));
-      res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      res = await _geminiFetch(visionModel, body);
     }
 
     if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);

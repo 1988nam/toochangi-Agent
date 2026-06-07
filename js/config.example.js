@@ -31,9 +31,14 @@ const TOOCHANGI_CONFIG = {
   GEMINI_MODEL_VISION: 'gemini-2.5-flash',
 
   // ── OAuth 스코프 ──────────────────────────────────────────────
+  // ※ Gemini를 'API 키 없이' OAuth(구글 로그인 토큰)로 호출하려면 아래 cloud-platform 줄의
+  //    주석을 해제하세요. 단, 사전에 GCP에서 (1) "Generative Language API" 활성화,
+  //    (2) OAuth 동의 화면에 동일 스코프 등록이 되어 있어야 합니다.
+  //    설정 전이라면 주석인 채로 두세요(OAuth 호출은 실패해도 자동으로 API 키 방식으로 폴백됩니다).
   SCOPES: [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive',
+    // 'https://www.googleapis.com/auth/cloud-platform',  // ← Gemini OAuth 호출용(준비되면 주석 해제)
   ].join(' '),
 
   // ── 시트 탭 이름 ──────────────────────────────────────────────
