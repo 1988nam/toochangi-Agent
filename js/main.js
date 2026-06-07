@@ -2258,19 +2258,40 @@ function bindBrokerEvents() {
     toast('🧹 설정이 초기화되었습니다.', 'info');
   });
 
-  // 실시간 동기화 버튼
+  // 실시간 동기화 버튼 (강제 새로고침 — 캐시 무시)
   document.getElementById('refresh-broker-btn')?.addEventListener('click', async () => {
     toast('⏳ 실시간 잔고 갱신 중...', 'info');
     try {
-      await renderBrokerTab();
+      await renderBrokerTab(true);
       toast('✅ 잔고 갱신 완료', 'success');
     } catch (e) {
       toast('⚠️ 갱신 실패: ' + e.message, 'error');
     }
   });
+
+  // 관심 주식 추가/새로고침
+  document.getElementById('btn-add-watch')?.addEventListener('click', () => {
+    const t = document.getElementById('input-watch-ticker');
+    const n = document.getElementById('input-watch-name');
+    const ticker = (t?.value || '').trim();
+    if (!/^[0-9A-Za-z]{4,6}$/.test(ticker)) { toast('종목코드(6자리)를 입력하세요.', 'error'); return; }
+    Broker.addWatchlist(ticker, n?.value || '');
+    if (t) t.value = ''; if (n) n.value = '';
+    renderWatchlist();
+  });
+  document.getElementById('btn-refresh-watch')?.addEventListener('click', () => renderWatchlist());
+  document.getElementById('watchlist-tbody')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-watch-remove');
+    if (!btn) return;
+    Broker.removeWatchlist(btn.dataset.ticker);
+    renderWatchlist();
+  });
+
+  // 예약 주문 새로고침
+  document.getElementById('btn-refresh-reserved')?.addEventListener('click', () => renderReservedOrders());
 }
 
-async function renderBrokerTab() {
+async function renderBrokerTab(force = false) {
   const settings = Broker.getSettings();
 
   // 모의투자 탭의 '미설정 안내' 표시 토글 (대시보드와 반대로 동작)
@@ -2299,9 +2320,13 @@ async function renderBrokerTab() {
     document.getElementById('broker-dashboard').classList.remove('hidden');
     showEmpty(false);
 
+    // 관심 주식 + 예약 주문도 함께 갱신(잔고와 별개 섹션)
+    renderWatchlist();
+    renderReservedOrders();
+
     try {
-      const data = await Broker.loadBalanceAndHoldings();
-      
+      const data = await Broker.loadBalanceAndHoldings(force);
+
       // 예수금, 평가금액 렌더링
       document.getElementById('broker-cash').textContent = `${Math.floor(data.cash).toLocaleString()}원`;
       document.getElementById('broker-eval-amt').textContent = `${Math.floor(data.evalAmt).toLocaleString()}원`;
@@ -2315,11 +2340,11 @@ async function renderBrokerTab() {
       pnlEl.textContent = `${data.pnl >= 0 ? '+' : ''}${Math.floor(data.pnl).toLocaleString()}원`;
       yieldEl.textContent = `${data.yield >= 0 ? '+' : ''}${data.yield.toFixed(2)}%`;
 
-      // 색상 리셋 및 설정
+      // 색상 리셋 및 설정 (서구식 3색: 이익 초록 / 손실 빨강 / 0 회색 — 다른 메뉴와 동일)
       pnlCard.className = 'metric-card';
       yieldCard.className = 'metric-card';
-      pnlEl.style.color = '';
-      yieldEl.style.color = '';
+      pnlEl.style.color = 'var(--text-muted)';
+      yieldEl.style.color = 'var(--text-muted)';
 
       if (data.pnl > 0) {
         pnlCard.classList.add('accent-green');
@@ -2346,8 +2371,10 @@ async function renderBrokerTab() {
           tbody.innerHTML = data.holdings.map(h => {
             const pnlText = `${h.pnl >= 0 ? '+' : ''}${Math.floor(h.pnl).toLocaleString()}원`;
             const yieldText = `${h.yield >= 0 ? '+' : ''}${h.yield.toFixed(2)}%`;
-            const color = h.pnl > 0 ? 'var(--accent-green)' : (h.pnl < 0 ? 'var(--accent-red)' : '');
-            
+            // 서구식 3색(다른 메뉴와 동일): 이익 초록 / 손실 빨강 / 0 회색
+            const pnlColor = h.pnl > 0 ? 'var(--accent-green)' : (h.pnl < 0 ? 'var(--accent-red)' : 'var(--text-muted)');
+            const yieldColor = h.yield > 0 ? 'var(--accent-green)' : (h.yield < 0 ? 'var(--accent-red)' : 'var(--text-muted)');
+
             return `
               <tr>
                 <td style="font-weight: 600;">${h.name}</td>
@@ -2356,8 +2383,8 @@ async function renderBrokerTab() {
                 <td>${Math.floor(h.avgPrice).toLocaleString()}원</td>
                 <td>${Math.floor(h.curPrice).toLocaleString()}원</td>
                 <td style="font-weight: 500;">${Math.floor(h.value).toLocaleString()}원</td>
-                <td style="color: ${color}; font-weight: 500;">${pnlText}</td>
-                <td style="color: ${color}; font-weight: 500;">${yieldText}</td>
+                <td style="color: ${pnlColor}; font-weight: 500;">${pnlText}</td>
+                <td style="color: ${yieldColor}; font-weight: 500;">${yieldText}</td>
                 <td>
                   <div style="display: flex; gap: 4px;">
                     <button class="btn-primary-sm" style="padding: 2px 8px; font-size:11px; background:#ef4444; border-color:#ef4444;" onclick="quickOrder('${h.ticker}', 'buy')">매수</button>
@@ -2379,6 +2406,89 @@ async function renderBrokerTab() {
     document.getElementById('broker-dashboard').classList.add('hidden');
     showEmpty(true);
   }
+}
+
+// ⭐ 관심 주식: localStorage 목록 즉시 표시 + KIS 실시간 시세 비동기 채움
+async function renderWatchlist() {
+  const tbody = document.getElementById('watchlist-tbody');
+  if (!tbody || typeof Broker === 'undefined') return;
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const list = Broker.getWatchlist();
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">관심 종목을 추가하세요. (현재가는 KIS 실시간 시세 — 모의투자는 미지원일 수 있음)</td></tr>`;
+    return;
+  }
+  // 1) 즉시 목록 렌더(시세는 로딩 표시)
+  tbody.innerHTML = list.map(w => `
+    <tr data-ticker="${esc(w.ticker)}">
+      <td style="font-weight:600;">${esc(w.name || '-')}</td>
+      <td><code style="background:var(--bg-elevated); padding:2px 6px; border-radius:4px;">${esc(w.ticker)}</code></td>
+      <td class="wl-price" style="text-align:right;">…</td>
+      <td class="wl-change" style="text-align:right;">…</td>
+      <td class="wl-rate" style="text-align:right;">…</td>
+      <td><button class="btn-watch-remove btn-primary-sm" data-ticker="${esc(w.ticker)}" style="padding:2px 8px; font-size:11px; background:var(--accent-red); border-color:var(--accent-red);">삭제</button></td>
+    </tr>`).join('');
+
+  // 2) 종목별 시세 비동기 채움(서구식 3색)
+  const settings = Broker.getSettings();
+  if (!settings.appkey || !settings.secret) {
+    tbody.querySelectorAll('.wl-price, .wl-change, .wl-rate').forEach(c => c.textContent = '-');
+    return;
+  }
+  for (const w of list) {
+    const row = tbody.querySelector(`tr[data-ticker="${CSS.escape(w.ticker)}"]`);
+    if (!row) continue;
+    try {
+      const q = await Broker.getCurrentPrice(w.ticker);
+      const up = q.change > 0, down = q.change < 0;
+      const color = up ? 'var(--accent-green)' : (down ? 'var(--accent-red)' : 'var(--text-muted)');
+      const sign = up ? '+' : '';
+      row.querySelector('.wl-price').textContent = `${Math.floor(q.price).toLocaleString()}원`;
+      const chg = row.querySelector('.wl-change'); chg.textContent = `${sign}${Math.floor(q.change).toLocaleString()}`; chg.style.color = color;
+      const rt = row.querySelector('.wl-rate'); rt.textContent = `${sign}${q.rate.toFixed(2)}%`; rt.style.color = color;
+    } catch (e) {
+      row.querySelector('.wl-price').textContent = '-';
+      row.querySelector('.wl-change').textContent = '-';
+      row.querySelector('.wl-rate').textContent = '-';
+    }
+  }
+}
+
+// ⏰ 예약 주문: KIS 예약주문 조회(모의 미지원 가능 → 안내)
+async function renderReservedOrders() {
+  const tbody = document.getElementById('reserved-orders-tbody');
+  if (!tbody || typeof Broker === 'undefined') return;
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const settings = Broker.getSettings();
+  if (!settings.appkey || !settings.secret || !settings.account) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">KIS 설정 후 이용할 수 있습니다.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = `<tr><td colspan="7" class="empty-state">⏳ 예약 주문을 불러오는 중...</td></tr>`;
+  let orders = [];
+  try {
+    orders = await Broker.getReservedOrders();
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state" style="color:var(--text-muted)">예약 주문을 불러오지 못했습니다. (모의투자는 미지원일 수 있음)<br/><span style="font-size:11px;">${esc(e.message)}</span></td></tr>`;
+    return;
+  }
+  if (!orders.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">예약된 주문이 없습니다.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = orders.map(o => {
+    const sideColor = o.side === '매수' ? 'var(--accent-red)' : 'var(--accent-blue)';
+    return `
+      <tr>
+        <td style="font-weight:600;">${esc(o.name)}</td>
+        <td><code style="background:var(--bg-elevated); padding:2px 6px; border-radius:4px;">${esc(o.ticker)}</code></td>
+        <td style="color:${sideColor}; font-weight:600;">${esc(o.side)}</td>
+        <td style="text-align:right;">${(o.qty || 0).toLocaleString()}주</td>
+        <td style="text-align:right;">${o.price ? Math.floor(o.price).toLocaleString() + '원' : '시장가'}</td>
+        <td>${esc(o.date)}</td>
+        <td>${esc(o.status)}</td>
+      </tr>`;
+  }).join('');
 }
 
 // 퀵 오더 헬퍼

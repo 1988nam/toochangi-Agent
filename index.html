@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260607_60" />
+  <link rel="stylesheet" href="style.css?v=20260607_61" />
 </head>
 <body>
 
@@ -791,6 +791,47 @@
 
                 <button id="btn-submit-order" class="btn-primary" style="background: #ef4444; width: 100%; font-size: 15px; font-weight: bold; padding: 12px; margin-top: 10px;">즉시 매수 주문 전송</button>
               </div>
+            </div>
+          </div>
+
+          <!-- ⭐ 관심 주식 (워치리스트) -->
+          <div class="card" style="margin-bottom: 0;">
+            <div class="card-header">
+              <span class="card-title">⭐ 관심 주식</span>
+              <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                <input type="text" id="input-watch-ticker" placeholder="종목코드(6자리)" maxlength="6" class="input-dark" style="width:120px; padding:6px 10px;" />
+                <input type="text" id="input-watch-name" placeholder="종목명(선택)" class="input-dark" style="width:120px; padding:6px 10px;" />
+                <button id="btn-add-watch" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">➕ 추가</button>
+                <button id="btn-refresh-watch" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="watchlist-table">
+                <thead>
+                  <tr><th>종목명</th><th>종목코드</th><th>현재가</th><th>전일대비</th><th>등락률</th><th>액션</th></tr>
+                </thead>
+                <tbody id="watchlist-tbody">
+                  <tr><td colspan="6" class="empty-state">관심 종목을 추가하세요. (현재가는 KIS 실시간 시세 — 모의투자는 미지원일 수 있음)</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ⏰ 예약 주문 -->
+          <div class="card" style="margin-bottom: 0;">
+            <div class="card-header">
+              <span class="card-title">⏰ 예약 주문</span>
+              <button id="btn-refresh-reserved" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 새로고침</button>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="reserved-orders-table">
+                <thead>
+                  <tr><th>종목명</th><th>종목코드</th><th>구분</th><th>수량</th><th>주문가</th><th>접수일</th><th>상태</th></tr>
+                </thead>
+                <tbody id="reserved-orders-tbody">
+                  <tr><td colspan="7" class="empty-state">"새로고침"을 누르면 예약 주문을 불러옵니다. (모의투자는 미지원일 수 있음)</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -1925,11 +1966,11 @@
     console.error('Gemini OAuth 스코프 적용 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260607_60"></script>
-<script src="js/sheets.js?v=20260607_60"></script>
-<script src="js/toochangi.js?v=20260607_60"></script>
-<script src="js/broker.js?v=20260607_60"></script>
-<script src="js/main.js?v=20260607_60"></script>
+<script src="js/auth.js?v=20260607_61"></script>
+<script src="js/sheets.js?v=20260607_61"></script>
+<script src="js/toochangi.js?v=20260607_61"></script>
+<script src="js/broker.js?v=20260607_61"></script>
+<script src="js/main.js?v=20260607_61"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 

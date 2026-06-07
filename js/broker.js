@@ -4,6 +4,8 @@
  */
 const Broker = (() => {
   let _balanceData = null;
+  let _balanceCacheAt = 0;            // 마지막 잔고 조회 시각(ms)
+  const BALANCE_TTL_MS = 60 * 1000;   // 1분 내 재호출은 캐시 사용
 
   // ── 설정 로드 / 저장 ──────────────────────────────────────────
   function getSettings() {
@@ -61,9 +63,11 @@ const Broker = (() => {
       localStorage.setItem('toochangi_kis_proxy', (settings.proxyUrl || '').trim().replace(/\/+$/, ''));
     }
 
-    // 설정이 변경되면 기존에 발급받은 캐시 토큰 정리
+    // 설정이 변경되면 기존에 발급받은 캐시 토큰 + 잔고 캐시 정리
     localStorage.removeItem('toochangi_kis_token');
     localStorage.removeItem('toochangi_kis_token_expiry');
+    _balanceData = null;
+    _balanceCacheAt = 0;
   }
 
   // ── KIS API 토큰 조회 및 캐싱 ──────────────────────────────────
@@ -101,10 +105,15 @@ const Broker = (() => {
   }
 
   // ── 잔고 및 보유 종목 조회 ──────────────────────────────────────
-  async function loadBalanceAndHoldings() {
+  // force=false: 1분 내 재호출 시 캐시 반환(메뉴 재진입마다 API 호출 방지)
+  async function loadBalanceAndHoldings(force = false) {
     const settings = getSettings();
     if (!settings.appkey || !settings.secret || !settings.account) {
       throw new Error('증권사 API 설정(AppKey, Secret, 계좌번호)이 누락되었습니다.');
+    }
+
+    if (!force && _balanceData && (Date.now() - _balanceCacheAt < BALANCE_TTL_MS)) {
+      return _balanceData; // 캐시 히트
     }
 
     const token = await getAccessToken(settings);
@@ -158,8 +167,69 @@ const Broker = (() => {
       yield: parseFloat(summary.evlu_erng_rt_tot || 0), // 총 수익률
       holdings
     };
+    _balanceCacheAt = Date.now();
 
     return _balanceData;
+  }
+
+  // ── 관심 주식(워치리스트) — localStorage 관리 ─────────────────
+  function getWatchlist() {
+    try { const l = JSON.parse(localStorage.getItem('toochangi_watchlist') || '[]'); return Array.isArray(l) ? l : []; }
+    catch (_) { return []; }
+  }
+  function saveWatchlist(list) { localStorage.setItem('toochangi_watchlist', JSON.stringify(list || [])); }
+  function addWatchlist(ticker, name) {
+    ticker = (ticker || '').trim(); if (!ticker) return getWatchlist();
+    const l = getWatchlist();
+    if (!l.find(w => w.ticker === ticker)) l.push({ ticker, name: (name || '').trim() });
+    saveWatchlist(l); return l;
+  }
+  function removeWatchlist(ticker) { const l = getWatchlist().filter(w => w.ticker !== ticker); saveWatchlist(l); return l; }
+
+  // 종목 현재가 조회(워치리스트용). Worker /price 엔드포인트 필요.
+  async function getCurrentPrice(ticker) {
+    const settings = getSettings();
+    if (!settings.appkey || !settings.secret) throw new Error('KIS 설정이 필요합니다.');
+    const token = await getAccessToken(settings);
+    const res = await fetch(_proxyUrl('price'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appkey: settings.appkey, appsecret: settings.secret, token, ticker, isMock: settings.isMock }),
+    });
+    if (!res.ok) throw new Error(await _errMsg(res, '시세 조회 실패'));
+    const o = (await res.json()).output || {};
+    return {
+      price: parseFloat(o.stck_prpr) || 0,
+      change: parseFloat(o.prdy_vrss) || 0,
+      rate: parseFloat(o.prdy_ctrt) || 0,
+      sign: o.prdy_vrss_sign || '3', // 1상한2상승3보합4하한5하락
+    };
+  }
+
+  // ── 예약 주문 조회 ─────────────────────────────────────────────
+  // Worker /reserved-orders 엔드포인트 필요. (모의투자는 미지원일 수 있음)
+  async function getReservedOrders() {
+    const settings = getSettings();
+    if (!settings.appkey || !settings.secret || !settings.account) throw new Error('KIS 설정이 필요합니다.');
+    const token = await getAccessToken(settings);
+    const cleanAccount = settings.account.replace(/[^0-9]/g, '');
+    const cano = cleanAccount.substring(0, 8);
+    const acntPrdtCd = cleanAccount.substring(8, 10);
+    const res = await fetch(_proxyUrl('reserved-orders'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appkey: settings.appkey, appsecret: settings.secret, token, cano, acntPrdtCd, isMock: settings.isMock }),
+    });
+    if (!res.ok) throw new Error(await _errMsg(res, '예약주문 조회 실패'));
+    const rows = (await res.json()).output || [];
+    return rows.map(r => ({
+      name: r.prdt_name || r.pdno || '',
+      ticker: r.pdno || '',
+      side: (r.sll_buy_dvsn_cd === '02' || r.sll_buy_dvsn_cd === '2') ? '매수' : (r.sll_buy_dvsn_cd ? '매도' : ''),
+      qty: parseInt(r.ord_qty || r.rsvn_ord_qty || '0', 10) || 0,
+      price: parseFloat(r.ord_unpr || r.rsvn_ord_unpr || '0') || 0,
+      date: r.rsvn_ord_rcit_dt || r.ord_dt || '',
+      status: r.prcs_rslt || r.rsvn_ord_prcs_rslt || '',
+      orderNo: r.rsvn_ord_seq || r.odno || '',
+    }));
   }
 
   // ── 주문 실행 ──────────────────────────────────────────────────
@@ -346,6 +416,8 @@ const Broker = (() => {
     placeOrder,
     checkAndTriggerAutoTrade,
     getBalanceData,
-    fetchMarketData
+    fetchMarketData,
+    getWatchlist, addWatchlist, removeWatchlist, getCurrentPrice,
+    getReservedOrders
   };
 })();

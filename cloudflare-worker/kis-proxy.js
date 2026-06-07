@@ -67,6 +67,8 @@ export default {
         case 'order': return await placeOrder(host, b);
         case 'market-rank': return await volumeRank(host, b);
         case 'market-index': return await marketIndex(host, b);
+        case 'price': return await inquirePrice(host, b);
+        case 'reserved-orders': return await reservedOrders(host, b);
         default: return json({ error: 'unknown endpoint: ' + path }, 404);
       }
     } catch (e) {
@@ -145,6 +147,38 @@ async function volumeRank(host, b) {
   const r = await fetch(host + '/uapi/domestic-stock/v1/quotations/volume-rank?' + qs.toString(), {
     method: 'GET',
     headers: kisHeaders(b, 'FHPST01710000'),
+  });
+  return json(await r.json(), r.status);
+}
+
+// ── 종목 현재가 시세 (관심 주식용) ─────────────────────────────
+async function inquirePrice(host, b) {
+  const qs = new URLSearchParams({ FID_COND_MRKT_DIV_CODE: 'J', FID_INPUT_ISCD: String(b.ticker || '') });
+  const r = await fetch(host + '/uapi/domestic-stock/v1/quotations/inquire-price?' + qs.toString(), {
+    method: 'GET',
+    headers: kisHeaders(b, 'FHKST01010100'),
+  });
+  return json(await r.json(), r.status);
+}
+
+// ── 예약 주문 조회 (※ 모의투자 미지원일 수 있음) ───────────────
+async function reservedOrders(host, b) {
+  // 조회 기간: 최근 30일 ~ 오늘 (YYYYMMDD)
+  const ymd = (d) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  const today = new Date();
+  const past = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const qs = new URLSearchParams({
+    CANO: b.cano,
+    ACNT_PRDT_CD: b.acntPrdtCd,
+    RSVN_ORD_ORD_DT: ymd(past),
+    RSVN_ORD_END_DT: ymd(today),
+    TMNL_MDIA_KIND_CD: '00',
+    CTX_AREA_FK200: '',
+    CTX_AREA_NK200: '',
+  });
+  const r = await fetch(host + '/uapi/domestic-stock/v1/trading/order-resv-ccnl?' + qs.toString(), {
+    method: 'GET',
+    headers: kisHeaders(b, 'CTSC0004R'),
   });
   return json(await r.json(), r.status);
 }
