@@ -3227,7 +3227,13 @@ function renderRealestateSummaryCards(realEstate) {
     gainEl.textContent = totalPurchase > 0 ? `${gain >= 0 ? '+' : ''}${Math.floor(gain).toLocaleString()}원` : '—';
     gainEl.style.color = gain > 0 ? 'var(--accent-green)' : (gain < 0 ? 'var(--accent-red)' : 'var(--text-primary)');
   }
-  setV('re-gain-sub', totalPurchase > 0 ? `매입가 대비 ${gainPct >= 0 ? '+' : ''}${gainPct.toFixed(1)}%` : '시세 − 매입가');
+  const gainSubEl = document.getElementById('re-gain-sub');
+  if (gainSubEl) {
+    gainSubEl.textContent = totalPurchase > 0 ? `매입가 대비 ${gainPct >= 0 ? '+' : ''}${gainPct.toFixed(1)}%` : '시세 − 매입가';
+    gainSubEl.style.color = totalPurchase > 0
+      ? (gainPct > 0 ? 'var(--accent-green)' : (gainPct < 0 ? 'var(--accent-red)' : 'var(--text-muted)'))
+      : 'var(--text-muted)';
+  }
 
   // 전월 대비 (자산현황 월별 스냅샷 기준)
   const prevSnap = previousAssetSnapshot();
