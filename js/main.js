@@ -1512,6 +1512,9 @@ function bindAssetEvents() {
     syncPortfolioAssets();
   });
 
+  document.getElementById('asset-backfill-btn')?.addEventListener('click', openAssetBackfillModal);
+  document.getElementById('save-asset-backfill-btn')?.addEventListener('click', saveAssetBackfill);
+
   document.getElementById('input-asset-category')?.addEventListener('change', () => {
     toggleAssetCategoryFields();
   });
@@ -1583,6 +1586,109 @@ async function ensureMonthlyAssetSnapshot(summary) {
     await SheetsAPI.appendAsset({ date: today, category: r.category, name: r.name, balance: r.balance, memo: SNAP_MEMO });
   }
   await Toochangi.reloadAssetHistory();
+}
+
+// ── 과거 월별 스냅샷 (1~지난달) 입력 ──────────────────────────
+// monthKey 'YYYY-MM' → 해당 월 마지막 날 Date
+function _monthEndDate(monthKey) {
+  const parts = monthKey.split('-').map(Number);
+  return new Date(parts[0], parts[1], 0, 23, 59, 59);
+}
+// 특정 시점 기준 현금(예적금) 합계
+function cashAsOf(date) {
+  const savings = Toochangi.getSavings ? Toochangi.getSavings() : [];
+  return savings.reduce((sum, s) => sum + Toochangi.calcSavingsBalance(s, date), 0);
+}
+// 특정 시점 기준 부동산 대출 잔액 합계 (그 시점에 대출이 없었으면 0)
+function realEstateDebtAsOf(date) {
+  const realEstate = Toochangi.getRealEstate ? Toochangi.getRealEstate() : [];
+  let debt = 0;
+  realEstate.forEach(item => {
+    const loanAmount = parseFloat(item.loanAmount) || 0;
+    if (loanAmount <= 0) return;
+    const start = item.loanStartDate ? new Date(`${item.loanStartDate}T00:00:00`) : null;
+    if (start && date < start) return; // 그 시점엔 대출이 없었음
+    const progress = calculateLoanProgress(item, date);
+    debt += (progress && progress.remainingBalance != null) ? progress.remainingBalance : loanAmount;
+  });
+  return debt;
+}
+// 입력 대상 월: 올해 1월 ~ 지난달 (이번 달은 자동 스냅샷이 처리)
+function _backfillMonths() {
+  const now = new Date();
+  const months = [];
+  for (let m = 1; m < (now.getMonth() + 1); m += 1) {
+    months.push(`${now.getFullYear()}-${String(m).padStart(2, '0')}`);
+  }
+  return months;
+}
+
+function openAssetBackfillModal() {
+  const tbody = document.getElementById('asset-backfill-tbody');
+  if (!tbody) return;
+  const months = _backfillMonths();
+  if (months.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="empty-state">입력할 과거 월이 없습니다.</td></tr>';
+  } else {
+    const st = 'width:100%; box-sizing:border-box; background:var(--bg-surface); border:1px solid var(--border); color:var(--text-primary); padding:6px 10px; border-radius:6px; text-align:right;';
+    tbody.innerHTML = months.map(mk => {
+      const [y, m] = mk.split('-');
+      return `<tr data-month="${mk}">
+        <td style="font-weight:600;">${y}년 ${parseInt(m, 10)}월</td>
+        <td><input type="number" class="backfill-stock" placeholder="0" style="${st}" /></td>
+        <td><input type="number" class="backfill-realestate" placeholder="0" style="${st}" /></td>
+      </tr>`;
+    }).join('');
+  }
+  document.getElementById('modal-asset-backfill').classList.remove('hidden');
+}
+
+async function saveAssetBackfill() {
+  const tbody = document.getElementById('asset-backfill-tbody');
+  if (!tbody) return;
+  const targets = [];
+  tbody.querySelectorAll('tr[data-month]').forEach(tr => {
+    const monthKey = tr.dataset.month;
+    const stock = parseFloat(tr.querySelector('.backfill-stock')?.value) || 0;
+    const realEstateValue = parseFloat(tr.querySelector('.backfill-realestate')?.value) || 0;
+    if (stock > 0 || realEstateValue > 0) targets.push({ monthKey, stock, realEstateValue });
+  });
+  if (targets.length === 0) { toast('입력된 월이 없습니다', 'error'); return; }
+
+  toast('⏳ 과거 스냅샷 저장 중...', 'info');
+  document.getElementById('modal-asset-backfill').classList.add('hidden');
+  const BACKFILL_MEMO = '과거 월별 스냅샷';
+  try {
+    for (const t of targets) {
+      const asOf = _monthEndDate(t.monthKey);
+      const dateStr = `${t.monthKey}-${String(asOf.getDate()).padStart(2, '0')}`;
+      const cash = Math.floor(cashAsOf(asOf));
+      const debt = Math.floor(realEstateDebtAsOf(asOf));
+
+      // 같은 월의 기존 스냅샷(과거/자동) 행 제거 후 재기록 (중복 합산 방지)
+      const dup = (await SheetsAPI.getAssetStatus())
+        .filter(a => a.date && String(a.date).startsWith(t.monthKey) && (a.memo === BACKFILL_MEMO || a.memo === '자동 월별 스냅샷'))
+        .map(a => a.rowIndex)
+        .sort((a, b) => b - a);
+      for (const rIdx of dup) await SheetsAPI.deleteAsset(rIdx);
+
+      const rowsToWrite = [
+        { category: '국내주식/투자', name: '주식 자산(과거)',   balance: Math.floor(t.stock) },
+        { category: '예적금/현금',   name: '현금 자산(과거)',   balance: cash },
+        { category: '부동산',        name: '부동산 시세(과거)', balance: Math.floor(t.realEstateValue) },
+        { category: '대출(부채)',    name: '부동산 대출(과거)', balance: debt },
+      ].filter(r => r.balance > 0);
+      for (const r of rowsToWrite) {
+        await SheetsAPI.appendAsset({ date: dateStr, category: r.category, name: r.name, balance: r.balance, memo: BACKFILL_MEMO });
+      }
+    }
+    await Toochangi.reloadAssetHistory();
+    toast(`✅ 과거 ${targets.length}개월 스냅샷 저장 완료`, 'success');
+    initAssetMonthSelector();
+    renderAssetsTab();
+  } catch (e) {
+    toast('⚠️ 저장 실패: ' + e.message, 'error');
+  }
 }
 
 async function renderAssetsTab() {
@@ -2913,20 +3019,21 @@ function calcAnnualLoanRepayment(item) {
   return Math.round(monthlyPayment * 12);
 }
 
-function getElapsedLoanMonths(loanStartDate, termMonths) {
+function getElapsedLoanMonths(loanStartDate, termMonths, asOf) {
   if (!loanStartDate || !termMonths) return 0;
 
   const start = new Date(`${loanStartDate}T00:00:00`);
   if (Number.isNaN(start.getTime())) return 0;
 
-  const today = new Date();
+  const today = (asOf instanceof Date && !Number.isNaN(asOf.getTime())) ? asOf : new Date();
   let months = (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth());
   if (today.getDate() < start.getDate()) months -= 1;
 
   return Math.max(0, Math.min(termMonths, months));
 }
 
-function calculateLoanProgress(realEstateItem) {
+// asOf(Date)를 주면 그 시점 기준 상환 진행도를 계산 (과거 스냅샷용). 없으면 오늘 기준.
+function calculateLoanProgress(realEstateItem, asOf) {
   const principal = parseFloat(realEstateItem.loanAmount) || 0;
   const annualRate = parseFloat(realEstateItem.loanRate) || 0;
   const termYears = parseInt(realEstateItem.loanTermYears, 10) || 0;
@@ -2942,7 +3049,7 @@ function calculateLoanProgress(realEstateItem) {
   }
 
   const termMonths = termYears * 12;
-  const elapsedMonths = getElapsedLoanMonths(loanStartDate, termMonths);
+  const elapsedMonths = getElapsedLoanMonths(loanStartDate, termMonths, asOf);
   if (termMonths <= 0) {
     return {
       paidPrincipal: null,

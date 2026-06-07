@@ -801,7 +801,8 @@ ${youtubeFeedText}
   }
 
   // 저장된 기준잔액 + (납입 시작일부터 만기일/오늘까지 누적된 자동 납입액)
-  function calcSavingsBalance(s) {
+  // asOf(Date)를 주면 그 시점 기준 잔액을 계산 (과거 스냅샷용). 없으면 오늘 기준.
+  function calcSavingsBalance(s, asOf) {
     const base = parseFloat(s.balance) || 0;
     const monthly = parseFloat(s.monthlyDeposit) || 0;
     if (monthly <= 0) return base;
@@ -809,7 +810,7 @@ ${youtubeFeedText}
     if (!day) return base;
     const start = _parseSavingsDate(s.depositStartDate);
     if (!start) return base;
-    let end = new Date();
+    let end = (asOf instanceof Date && !isNaN(asOf.getTime())) ? asOf : new Date();
     const maturity = _parseSavingsDate(s.maturity);
     if (maturity && maturity < end) end = maturity; // 만기일 이후로는 누적 중단
     return base + monthly * _countMonthlyDeposits(start, end, day);

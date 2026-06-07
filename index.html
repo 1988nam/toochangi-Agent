@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260607_19" />
+  <link rel="stylesheet" href="style.css?v=20260607_20" />
 </head>
 <body>
 
@@ -824,6 +824,7 @@
               <!-- JS로 연/월 옵션 생성 -->
             </select>
             <button id="sync-portfolio-asset-btn" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 포트폴리오 주식 동기화</button>
+            <button id="asset-backfill-btn" class="btn-primary-sm" style="background:#4f46e5; border-color:#4f46e5;">📅 과거 월별 입력</button>
             <button id="add-asset-btn" class="btn-primary-sm">+ 자산 추가</button>
           </div>
         </div>
@@ -1008,6 +1009,33 @@
     </div>
 
   </main>
+</div>
+
+<!-- ════════════ 과거 월별 스냅샷 입력 모달 ════════════ -->
+<div id="modal-asset-backfill" class="modal-overlay hidden">
+  <div class="modal" style="max-width: 660px;">
+    <div class="modal-header">
+      <h3>📅 과거 월별 스냅샷 입력</h3>
+      <button class="modal-close" data-modal="modal-asset-backfill">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background: rgba(59,130,246,0.1); border-left: 4px solid var(--accent-blue); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 14px;">
+        💡 각 월의 <strong>주식 평가액</strong>과 <strong>부동산 시세</strong>만 입력하면, 현금(예적금)과 부채(부동산 대출)는 <strong>자동 계산</strong>되어 순자산 추이에 반영됩니다. 빈 행은 저장되지 않습니다. (이미 입력한 월은 덮어씁니다)
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>월</th><th>주식 평가액 (원)</th><th>부동산 시세 (원)</th></tr>
+          </thead>
+          <tbody id="asset-backfill-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" data-modal="modal-asset-backfill">취소</button>
+      <button id="save-asset-backfill-btn" class="btn-primary">저장</button>
+    </div>
+  </div>
 </div>
 
 <!-- ════════════ 자산 추가/수정 모달 ════════════ -->
@@ -1728,11 +1756,11 @@
     console.error('설정 오버라이드 병합 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260607_19"></script>
-<script src="js/sheets.js?v=20260607_19"></script>
-<script src="js/toochangi.js?v=20260607_19"></script>
-<script src="js/broker.js?v=20260607_19"></script>
-<script src="js/main.js?v=20260607_19"></script>
+<script src="js/auth.js?v=20260607_20"></script>
+<script src="js/sheets.js?v=20260607_20"></script>
+<script src="js/toochangi.js?v=20260607_20"></script>
+<script src="js/broker.js?v=20260607_20"></script>
+<script src="js/main.js?v=20260607_20"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 
