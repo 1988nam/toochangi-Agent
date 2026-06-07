@@ -369,6 +369,12 @@ function renderPortfolioSummaryCards(portfolio, metrics) {
   setText('portfolio-nasdaq-yield-sub', nasdaqItems.length > 0 ? `나스닥 ${nasdaqItems.length}종목 기준` : '나스닥 보유 종목 없음');
 }
 
+// KRX 숫자 티커(예: 5930)는 6자리로 앞자리 0을 채워 표기 (예: 005930). 미국 등 문자 티커는 그대로.
+function formatStockTicker(ticker) {
+  const t = String(ticker || '').trim();
+  return /^\d+$/.test(t) ? t.padStart(6, '0') : t;
+}
+
 function renderPortfolioTab() {
   const sheetLink = document.getElementById('btn-open-sheet');
   if (sheetLink) {
@@ -396,13 +402,14 @@ function renderPortfolioTab() {
   }
   tbody.innerHTML = portfolio.map(p => {
     const yieldStr = p._yield >= 0 ? `+${p._yield.toFixed(2)}%` : `${p._yield.toFixed(2)}%`;
-    const yieldClass = p._yield >= 0 ? 'yield-pos' : 'yield-neg';
+    // 한국식: 상승(+) 빨강, 하락(−) 파랑, 0% 중립
+    const yieldColor = p._yield > 0 ? '#ef4444' : (p._yield < 0 ? '#3b82f6' : 'var(--text-muted)');
     return `<tr data-rowindex="${p.rowIndex}">
       <td style="text-align: center;">
         <input type="checkbox" class="chk-portfolio-row" data-rowindex="${p.rowIndex}" style="cursor:pointer;" />
       </td>
       <td>${p.name}</td>
-      <td style="color:var(--text-muted)">${p.ticker}</td>
+      <td style="color:var(--text-muted)">${formatStockTicker(p.ticker)}</td>
       <td><span class="market-pill" data-market="${p.market || '기타'}">${p.market}</span></td>
       <td>${p.owner || '-'}</td>
       <td>${p.memo || '-'}</td>
@@ -410,7 +417,7 @@ function renderPortfolioTab() {
       <td>${Math.floor(p.avgPrice).toLocaleString()}원</td>
       <td>${Math.floor(p.curPrice || p.avgPrice).toLocaleString()}원</td>
       <td>${Math.floor(p._value || 0).toLocaleString()}원</td>
-      <td class="${yieldClass}">${yieldStr}</td>
+      <td style="color: ${yieldColor}; font-weight: 600;">${yieldStr}</td>
       <td style="color:var(--text-muted)">${(p._weight || 0).toFixed(1)}%</td>
       <td style="text-align: center;">
         <div style="display:flex; gap:4px; justify-content:center;">
@@ -430,7 +437,7 @@ function renderPortfolioTab() {
 
       document.getElementById('input-stock-row-index').value = rIdx;
       document.getElementById('input-stock-name').value = item.name;
-      document.getElementById('input-stock-ticker').value = item.ticker;
+      document.getElementById('input-stock-ticker').value = formatStockTicker(item.ticker);
       document.getElementById('input-stock-market').value = item.market;
       document.getElementById('input-stock-qty').value = item.qty;
       document.getElementById('input-stock-avg').value = item.avgPrice;

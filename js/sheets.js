@@ -727,6 +727,12 @@ const SheetsAPI = (() => {
     });
   }
 
+  // KRX 숫자 티커는 앞자리 0 보존을 위해 텍스트(아포스트로피 접두)로 시트에 저장. 미국 등 문자 티커는 그대로.
+  function tickerCell(ticker) {
+    const t = String(ticker || '').trim();
+    return /^\d+$/.test(t) ? `'${t.padStart(6, '0')}` : t;
+  }
+
   async function appendPortfolio(row) {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
     const now = new Date().toLocaleDateString('ko-KR');
@@ -743,7 +749,7 @@ const SheetsAPI = (() => {
     const iFormula = `=IF(SUM(G$2:G$100)>0, G${nextRow}/SUM(G$2:G$100), 0)`;
 
     const values = [[
-      row.name, row.ticker, row.market,
+      row.name, tickerCell(row.ticker), row.market,
       row.qty, row.avgPrice, fFormula,
       gFormula, hFormula, iFormula, row.owner || '', row.memo || '구글파이낸스 연동', now,
     ]];
@@ -768,7 +774,7 @@ const SheetsAPI = (() => {
     const iFormula = `=IF(SUM(G$2:G$100)>0, G${rowIndex}/SUM(G$2:G$100), 0)`;
 
     const values = [[
-      row.name, row.ticker, row.market,
+      row.name, tickerCell(row.ticker), row.market,
       row.qty, row.avgPrice, fFormula,
       gFormula, hFormula, iFormula, row.owner || '', row.memo || '수동 업데이트', now,
     ]];
@@ -824,7 +830,7 @@ const SheetsAPI = (() => {
       return {
         range: `포트폴리오!A${rowIndex}:L${rowIndex}`,
         values: [[
-          row.name, row.ticker, row.market,
+          row.name, tickerCell(row.ticker), row.market,
           row.qty, row.avgPrice, fFormula,
           gFormula, hFormula, iFormula, row.owner || '', row.memo || '수동 업데이트', now,
         ]]
