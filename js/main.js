@@ -1476,6 +1476,20 @@ function bindAutoAnalysisEvents() {
   });
 
   document.getElementById('btn-refresh-rec-history')?.addEventListener('click', () => renderAutoRecHistory());
+
+  // 추천 히스토리 항목 클릭 → 펼치기/접기(아코디언). 이벤트 위임(재렌더돼도 유지)
+  document.getElementById('rec-history-list')?.addEventListener('click', (e) => {
+    const item = e.target.closest('.rec-hist-item');
+    if (!item) return;
+    const expanded = item.getAttribute('data-expanded') === '1';
+    item.setAttribute('data-expanded', expanded ? '0' : '1');
+    const prev = item.querySelector('.rec-hist-preview');
+    const full = item.querySelector('.rec-hist-full');
+    const arrow = item.querySelector('.rec-hist-arrow');
+    if (prev) prev.style.display = expanded ? '' : 'none';
+    if (full) full.style.display = expanded ? 'none' : '';
+    if (arrow) arrow.textContent = expanded ? '▼' : '▲';
+  });
 }
 
 // 자동 추천 히스토리 렌더 (구글 시트 'AI추천기록' 전체 이력, 최신순)
@@ -1510,14 +1524,17 @@ async function renderAutoRecHistory() {
       : '<span style="color:var(--text-muted); font-size:12px;">구조화된 추천 종목 없음</span>';
     const txt = esc(rec.text || '');
     const preview = txt.slice(0, 280);
+    const truncated = (rec.text || '').length > 280;
+    const fullHtml = txt.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
     return `
-      <div class="analysis-item">
+      <div class="analysis-item rec-hist-item" data-expanded="0" style="cursor:pointer;" title="클릭하면 전체 내용을 펼치거나 접습니다">
         <div class="analysis-item-header">
           <span class="analysis-item-date">📅 ${esc(rec.generatedAt)}</span>
-          <span style="font-size:11px; color:var(--text-muted);">종목 ${items.length}개</span>
+          <span style="display:flex; align-items:center; gap:8px; font-size:11px; color:var(--text-muted);">종목 ${items.length}개 <span class="rec-hist-arrow">▼</span></span>
         </div>
         <div style="display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;">${chips}</div>
-        ${preview ? `<div class="analysis-item-preview">${preview}${rec.text && rec.text.length > 280 ? '…' : ''}</div>` : ''}
+        ${preview ? `<div class="rec-hist-preview analysis-item-preview">${preview}${truncated ? '…' : ''}</div>` : ''}
+        <div class="rec-hist-full" style="display:none; white-space:pre-wrap; line-height:1.6; font-size:13px; color:var(--text-secondary); margin-top:4px;">${fullHtml || '(내용 없음)'}</div>
       </div>
     `;
   }).join('');
