@@ -40,6 +40,10 @@ const Toochangi = (() => {
 
   let _lastRecommendation = null;
   function getLatestRecommendation() { return _lastRecommendation; }
+  // AI추천기록 시트의 전체 이력(최신순) 조회
+  async function getRecommendationHistory() {
+    return SheetsAPI.getRecommendationHistory ? await SheetsAPI.getRecommendationHistory() : [];
+  }
   async function saveRecommendation(items, text, generatedAt) {
     const gen = generatedAt || new Date().toLocaleString('ko-KR');
     await SheetsAPI.appendRecommendation(gen, items || [], text || '');
@@ -1238,7 +1242,7 @@ ${youtubeFeedText}
     runAutoRecommendation,
     runEconomyVideoSummary,
     getGeminiAuthStatus, listAvailableModels,
-    getLatestRecommendation, saveRecommendation,
+    getLatestRecommendation, getRecommendationHistory, saveRecommendation,
     renderAllocationChart,
     renderMarketAllocationChart,
     getPortfolio, getTradeLog, getAnalysis, getGachangiData, getGachangiAccounts, getSavings, getRealEstate, calcSavingsBalance,

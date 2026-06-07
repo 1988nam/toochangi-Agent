@@ -231,6 +231,7 @@ function switchTab(tab) {
   }
   if (tab === 'auto-analysis') {
     renderYouTubeFeed();
+    renderAutoRecHistory();
   }
 }
 
@@ -1428,6 +1429,7 @@ function bindAutoAnalysisEvents() {
       saveLastRecommendations(result.recommendations || [], result.generatedAt);
       try {
         await Toochangi.saveRecommendation(result.recommendations || [], result.text, result.generatedAt);
+        renderAutoRecHistory(); // 새 추천이 시트에 쌓였으니 히스토리 갱신
       } catch (saveErr) {
         console.warn('추천 클라우드 저장 실패(로컬만 유지):', saveErr);
       }
@@ -1449,6 +1451,53 @@ function bindAutoAnalysisEvents() {
     toast('🔄 유튜브 피드 갱신 중...', 'info');
     renderYouTubeFeed(true);
   });
+
+  document.getElementById('btn-refresh-rec-history')?.addEventListener('click', () => renderAutoRecHistory());
+}
+
+// 자동 추천 히스토리 렌더 (구글 시트 'AI추천기록' 전체 이력, 최신순)
+async function renderAutoRecHistory() {
+  const listEl = document.getElementById('rec-history-list');
+  if (!listEl) return;
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  listEl.innerHTML = '<div class="empty-state">⏳ 추천 기록을 불러오는 중...</div>';
+
+  let history = [];
+  try {
+    history = (typeof Toochangi !== 'undefined' && Toochangi.getRecommendationHistory)
+      ? await Toochangi.getRecommendationHistory() : [];
+  } catch (e) {
+    listEl.innerHTML = `<div class="empty-state" style="color:var(--accent-red)">⚠️ 추천 기록 로드 실패: ${esc(e.message)}</div>`;
+    return;
+  }
+  if (!history.length) {
+    listEl.innerHTML = `<div class="empty-state">저장된 자동 추천 기록이 없습니다. (자동 추천을 실행하면 구글 시트 'AI추천기록'에 쌓입니다)</div>`;
+    return;
+  }
+
+  const verdictBadge = (v) => v === '매수'
+    ? `<span class="badge-buy">매수</span>`
+    : `<span style="display:inline-block; padding:1px 7px; border-radius:8px; font-size:11px; font-weight:600; background:rgba(148,163,184,.18); color:#94a3b8;">${esc(v || '대기')}</span>`;
+  const chipStyle = 'display:inline-flex; align-items:center; gap:5px; background:var(--bg-surface); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:12px;';
+
+  listEl.innerHTML = history.map(rec => {
+    const items = Array.isArray(rec.items) ? rec.items : [];
+    const chips = items.length
+      ? items.map(it => `<span style="${chipStyle}">${esc(it.name || '')}${it.ticker ? ` (${esc(it.ticker)})` : ''} ${verdictBadge(it.verdict)}</span>`).join('')
+      : '<span style="color:var(--text-muted); font-size:12px;">구조화된 추천 종목 없음</span>';
+    const txt = esc(rec.text || '');
+    const preview = txt.slice(0, 280);
+    return `
+      <div class="analysis-item">
+        <div class="analysis-item-header">
+          <span class="analysis-item-date">📅 ${esc(rec.generatedAt)}</span>
+          <span style="font-size:11px; color:var(--text-muted);">종목 ${items.length}개</span>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;">${chips}</div>
+        ${preview ? `<div class="analysis-item-preview">${preview}${rec.text && rec.text.length > 280 ? '…' : ''}</div>` : ''}
+      </div>
+    `;
+  }).join('');
 }
 
 // ══════════════════════════════════════════════════════════════

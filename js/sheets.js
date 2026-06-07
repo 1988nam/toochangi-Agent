@@ -1013,6 +1013,25 @@ const SheetsAPI = (() => {
     }
   }
 
+  // AI추천기록 전체 이력(최신순) 조회 → [{ generatedAt, items, text }]
+  async function getRecommendationHistory() {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (!id || id.startsWith('YOUR_')) return [];
+    try {
+      await ensureRecommendationSheet(id);
+      const res = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: id, range: `${REC_SHEET}!A2:C` });
+      const rows = res.result.values || [];
+      return rows.map(r => {
+        let items = [];
+        try { items = JSON.parse(r[1] || '[]'); } catch (_) {}
+        return { generatedAt: r[0] || '', items: Array.isArray(items) ? items : [], text: r[2] || '' };
+      }).reverse(); // 최신이 위로
+    } catch (e) {
+      console.warn('[Sheets] AI추천기록 이력 로드 실패:', e);
+      return [];
+    }
+  }
+
   // ── 분석기록 ──────────────────────────────────────────────────
   async function getAnalysisHistory() {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
@@ -1365,6 +1384,7 @@ const SheetsAPI = (() => {
     syncPortfolioToAssets,
     appendRecommendation,
     getLatestRecommendation,
+    getRecommendationHistory,
   };
 
   // 모든 API 호출 전에 ensureGapiWrapped()가 먼저 실행되도록 랩핑
