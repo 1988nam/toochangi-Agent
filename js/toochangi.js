@@ -846,7 +846,67 @@ ${youtubeFeedText}
   }
   async function addTrade(row) {
     await SheetsAPI.appendTrade(row);
+    const portfolioAction = await applyTradeToPortfolio(row);
     await loadAll();
+    return { portfolioAction };
+  }
+
+  // 매매 기록을 포트폴리오(주식 리스트)에 자동 반영
+  // 반환: 'added' | 'updated' | 'removed' | 'skipped'
+  async function applyTradeToPortfolio(trade) {
+    const qty = parseFloat(trade.qty) || 0;
+    const price = parseFloat(trade.price) || 0;
+    if (qty <= 0) return 'skipped';
+
+    const portfolio = await SheetsAPI.getPortfolio();
+    // 종목명 + 명의로 매칭 (명의가 비어 있으면 와일드카드 취급)
+    const match = portfolio.find(p =>
+      p.name === trade.name &&
+      (!trade.owner || !p.owner || p.owner === trade.owner)
+    );
+
+    if (trade.type === '매도') {
+      if (!match) return 'skipped'; // 보유하지 않은 종목 → 반영 생략
+      const newQty = (match.qty || 0) - qty;
+      if (newQty <= 1e-9) {
+        await SheetsAPI.deletePortfolio(match.rowIndex); // 전량 매도 → 리스트에서 삭제
+        return 'removed';
+      }
+      // 매도 시 평균단가는 유지, 수량만 차감
+      await SheetsAPI.updatePortfolio(match.rowIndex, {
+        name: match.name, ticker: match.ticker, market: match.market,
+        qty: newQty, avgPrice: match.avgPrice, owner: match.owner, memo: match.memo,
+      });
+      return 'updated';
+    }
+
+    // 매수 (기본)
+    if (match) {
+      const totalQty = (match.qty || 0) + qty;
+      const newAvg = totalQty > 0
+        ? Math.round(((match.qty || 0) * (match.avgPrice || 0) + qty * price) / totalQty)
+        : price;
+      await SheetsAPI.updatePortfolio(match.rowIndex, {
+        name: match.name,
+        ticker: match.ticker || trade.ticker || '',
+        market: match.market || trade.market || '',
+        qty: totalQty, avgPrice: newAvg,
+        owner: match.owner || trade.owner || '',
+        memo: match.memo,
+      });
+      return 'updated';
+    }
+
+    // 신규 종목 → 포트폴리오에 추가 (현재가/수익률/비중은 GOOGLEFINANCE 수식 자동 생성)
+    await SheetsAPI.appendPortfolio({
+      name: trade.name,
+      ticker: trade.ticker || '',
+      market: trade.market || '',
+      qty, avgPrice: price,
+      owner: trade.owner || '',
+      memo: '매매일지 자동 반영',
+    });
+    return 'added';
   }
   async function saveAnalysis(row) {
     await SheetsAPI.appendAnalysis(row);

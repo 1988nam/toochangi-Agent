@@ -853,6 +853,14 @@ function bindModalEvents() {
 
   document.getElementById('add-trade-btn')?.addEventListener('click', () => {
     document.getElementById('input-trade-date').value = new Date().toISOString().slice(0,10);
+    document.getElementById('input-trade-type').value = '매수';
+    document.getElementById('input-trade-stock').value = '';
+    document.getElementById('input-trade-ticker').value = '';
+    document.getElementById('input-trade-market').value = '코스피';
+    document.getElementById('input-trade-owner').value = '';
+    document.getElementById('input-trade-qty').value = '';
+    document.getElementById('input-trade-price').value = '';
+    document.getElementById('input-trade-memo').value = '';
     document.getElementById('modal-trade').classList.remove('hidden');
   });
 
@@ -921,21 +929,29 @@ function bindModalEvents() {
 
   // 매매 저장
   document.getElementById('save-trade-btn')?.addEventListener('click', async () => {
-    const date  = document.getElementById('input-trade-date').value;
-    const name  = document.getElementById('input-trade-stock').value.trim();
-    const type  = document.getElementById('input-trade-type').value;
-    const qty   = parseFloat(document.getElementById('input-trade-qty').value);
-    const price = parseFloat(document.getElementById('input-trade-price').value);
+    const date   = document.getElementById('input-trade-date').value;
+    const name   = document.getElementById('input-trade-stock').value.trim();
+    const type   = document.getElementById('input-trade-type').value;
+    const ticker = document.getElementById('input-trade-ticker').value.trim();
+    const market = document.getElementById('input-trade-market').value;
+    const owner  = document.getElementById('input-trade-owner').value;
+    const qty    = parseFloat(document.getElementById('input-trade-qty').value);
+    const price  = parseFloat(document.getElementById('input-trade-price').value);
     if (!date || !name || !qty || !price) { toast('필수 항목을 입력해주세요', 'error'); return; }
 
     try {
-      await Toochangi.addTrade({
-        date, name, type, qty, price,
+      const result = await Toochangi.addTrade({
+        date, name, type, ticker, market, owner, qty, price,
         memo: document.getElementById('input-trade-memo').value,
       });
       document.getElementById('modal-trade').classList.add('hidden');
       renderTradelogTab();
-      toast(`✅ 매매 기록 저장 완료`, 'success');
+      renderPortfolioTab();   // 포트폴리오 자동 반영 결과 갱신
+      renderDashboard();
+      const reflectMsg = result && result.portfolioAction
+        ? { added: '신규 종목으로 추가', updated: '보유 종목에 반영', removed: '보유 종목 전량 매도 → 리스트에서 삭제', skipped: '미보유 종목이라 포트폴리오 반영은 생략' }[result.portfolioAction]
+        : '';
+      toast(`✅ 매매 기록 저장 완료${reflectMsg ? ` · ${reflectMsg}` : ''}`, 'success');
     } catch (e) {
       toast('⚠️ 저장 실패: ' + e.message, 'error');
     }

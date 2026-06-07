@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260607_1" />
+  <link rel="stylesheet" href="style.css?v=20260607_2" />
 </head>
 <body>
 
@@ -67,7 +67,7 @@
         <span class="nav-icon">🚦</span><span>3단계 필터</span>
       </button>
       <button class="nav-item" data-tab="tradelog" id="nav-tradelog">
-        <span class="nav-icon">📋</span><span>매매일지</span>
+        <span class="nav-icon">📋</span><span>주식 매매일지</span>
       </button>
       <button class="nav-item" data-tab="assets" id="nav-assets">
         <span class="nav-icon">💰</span><span>자산현황</span>
@@ -433,7 +433,7 @@
     <div id="tab-tradelog" class="tab-panel hidden">
       <div class="card">
         <div class="card-header">
-          <span class="card-title">📋 매매일지</span>
+          <span class="card-title">📋 주식 매매일지</span>
           <button id="add-trade-btn" class="btn-primary-sm">+ 매매 기록</button>
         </div>
         <div class="table-wrap">
@@ -1169,6 +1169,28 @@
       </div>
       <div class="form-row">
         <div class="form-group">
+          <label>티커 <span style="color: var(--text-muted); font-weight: 400; font-size: 12px;">— 신규 종목 매수 시 권장</span></label>
+          <input type="text" id="input-trade-ticker" placeholder="예: 005930" />
+        </div>
+        <div class="form-group">
+          <label>시장</label>
+          <select id="input-trade-market">
+            <option>코스피</option><option>코스닥</option>
+            <option>나스닥</option><option>NYSE</option><option>기타</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>명의</label>
+        <select id="input-trade-owner">
+          <option value="">선택</option>
+          <option value="정현">정현</option>
+          <option value="혜영">혜영</option>
+          <option value="아챙">아챙</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
           <label>수량 *</label>
           <input type="number" step="any" id="input-trade-qty" placeholder="0" />
         </div>
@@ -1664,11 +1686,11 @@
     console.error('설정 오버라이드 병합 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260607_1"></script>
-<script src="js/sheets.js?v=20260607_1"></script>
-<script src="js/toochangi.js?v=20260607_1"></script>
-<script src="js/broker.js?v=20260607_1"></script>
-<script src="js/main.js?v=20260607_1"></script>
+<script src="js/auth.js?v=20260607_2"></script>
+<script src="js/sheets.js?v=20260607_2"></script>
+<script src="js/toochangi.js?v=20260607_2"></script>
+<script src="js/broker.js?v=20260607_2"></script>
+<script src="js/main.js?v=20260607_2"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 
