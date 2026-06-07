@@ -277,7 +277,7 @@ function renderDashboard() {
   const yieldEl = document.getElementById('m-total-yield');
   if (yieldEl) {
     yieldEl.textContent = s.stockYield !== 0 ? `${s.stockYield >= 0 ? '+' : ''}${s.stockYield.toFixed(2)}%` : '—';
-    yieldEl.style.color = s.stockYield > 0 ? '#ef4444' : (s.stockYield < 0 ? '#3b82f6' : 'var(--text-muted)');
+    yieldEl.style.color = s.stockYield > 0 ? 'var(--accent-green)' : (s.stockYield < 0 ? 'var(--accent-red)' : 'var(--text-muted)');
   }
 
   // 현금 자산
@@ -341,7 +341,7 @@ function renderPortfolioSummaryCards(portfolio, metrics) {
   );
   if (totalYieldEl) {
     totalYieldEl.style.color = (metrics.totalValue > 0 || metrics.totalCost > 0)
-      ? (metrics.totalYield > 0 ? '#ef4444' : (metrics.totalYield < 0 ? '#3b82f6' : 'var(--text-muted)'))
+      ? (metrics.totalYield > 0 ? 'var(--accent-green)' : (metrics.totalYield < 0 ? 'var(--accent-red)' : 'var(--text-muted)'))
       : '';
   }
   setText('portfolio-total-yield-sub', '전체 보유 종목 기준');
@@ -353,7 +353,7 @@ function renderPortfolioSummaryCards(portfolio, metrics) {
     kospiYield === null ? '—' : `${kospiYield >= 0 ? '+' : ''}${kospiYield.toFixed(2)}%`
   );
   if (kospiYieldEl) {
-    kospiYieldEl.style.color = kospiYield === null ? '' : (kospiYield > 0 ? '#ef4444' : (kospiYield < 0 ? '#3b82f6' : 'var(--text-muted)'));
+    kospiYieldEl.style.color = kospiYield === null ? '' : (kospiYield > 0 ? 'var(--accent-green)' : (kospiYield < 0 ? 'var(--accent-red)' : 'var(--text-muted)'));
   }
   setText('portfolio-kospi-yield-sub', kospiItems.length > 0 ? `코스피 ${kospiItems.length}종목 기준` : '코스피 보유 종목 없음');
 
@@ -364,7 +364,7 @@ function renderPortfolioSummaryCards(portfolio, metrics) {
     nasdaqYield === null ? '—' : `${nasdaqYield >= 0 ? '+' : ''}${nasdaqYield.toFixed(2)}%`
   );
   if (nasdaqYieldEl) {
-    nasdaqYieldEl.style.color = nasdaqYield === null ? '' : (nasdaqYield > 0 ? '#ef4444' : (nasdaqYield < 0 ? '#3b82f6' : 'var(--text-muted)'));
+    nasdaqYieldEl.style.color = nasdaqYield === null ? '' : (nasdaqYield > 0 ? 'var(--accent-green)' : (nasdaqYield < 0 ? 'var(--accent-red)' : 'var(--text-muted)'));
   }
   setText('portfolio-nasdaq-yield-sub', nasdaqItems.length > 0 ? `나스닥 ${nasdaqItems.length}종목 기준` : '나스닥 보유 종목 없음');
 
@@ -373,7 +373,7 @@ function renderPortfolioSummaryCards(portfolio, metrics) {
     const items = portfolio.filter(item => (item.owner || '').trim() === owner);
     const oYield = computeMarketYield(items);
     const el = setText(valId, oYield === null ? '—' : `${oYield >= 0 ? '+' : ''}${oYield.toFixed(2)}%`);
-    if (el) el.style.color = oYield === null ? '' : (oYield > 0 ? '#ef4444' : (oYield < 0 ? '#3b82f6' : 'var(--text-muted)'));
+    if (el) el.style.color = oYield === null ? '' : (oYield > 0 ? 'var(--accent-green)' : (oYield < 0 ? 'var(--accent-red)' : 'var(--text-muted)'));
     setText(subId, items.length > 0 ? `${owner} 명의 ${items.length}종목 기준` : `${owner} 명의 종목 없음`);
   };
   renderOwnerYield('정현', 'portfolio-jeonghyeon-yield', 'portfolio-jeonghyeon-yield-sub');
@@ -414,7 +414,7 @@ function renderPortfolioTab() {
   tbody.innerHTML = portfolio.map(p => {
     const yieldStr = p._yield >= 0 ? `+${p._yield.toFixed(2)}%` : `${p._yield.toFixed(2)}%`;
     // 한국식: 상승(+) 빨강, 하락(−) 파랑, 0% 중립
-    const yieldColor = p._yield > 0 ? '#ef4444' : (p._yield < 0 ? '#3b82f6' : 'var(--text-muted)');
+    const yieldColor = p._yield > 0 ? 'var(--accent-green)' : (p._yield < 0 ? 'var(--accent-red)' : 'var(--text-muted)');
     return `<tr data-rowindex="${p.rowIndex}">
       <td style="text-align: center;">
         <input type="checkbox" class="chk-portfolio-row" data-rowindex="${p.rowIndex}" style="cursor:pointer;" />
@@ -2005,19 +2005,19 @@ async function renderBrokerTab() {
       yieldEl.style.color = '';
 
       if (data.pnl > 0) {
+        pnlCard.classList.add('accent-green');
+        pnlEl.style.color = 'var(--accent-green)';
+      } else if (data.pnl < 0) {
         pnlCard.classList.add('accent-red');
         pnlEl.style.color = 'var(--accent-red)';
-      } else if (data.pnl < 0) {
-        pnlCard.classList.add('accent-blue');
-        pnlEl.style.color = 'var(--accent-blue)';
       }
 
       if (data.yield > 0) {
+        yieldCard.classList.add('accent-green');
+        yieldEl.style.color = 'var(--accent-green)';
+      } else if (data.yield < 0) {
         yieldCard.classList.add('accent-red');
         yieldEl.style.color = 'var(--accent-red)';
-      } else if (data.yield < 0) {
-        yieldCard.classList.add('accent-blue');
-        yieldEl.style.color = 'var(--accent-blue)';
       }
 
       // 보유 주식 테이블 렌더링
@@ -2029,7 +2029,7 @@ async function renderBrokerTab() {
           tbody.innerHTML = data.holdings.map(h => {
             const pnlText = `${h.pnl >= 0 ? '+' : ''}${Math.floor(h.pnl).toLocaleString()}원`;
             const yieldText = `${h.yield >= 0 ? '+' : ''}${h.yield.toFixed(2)}%`;
-            const color = h.pnl > 0 ? 'var(--accent-red)' : (h.pnl < 0 ? 'var(--accent-blue)' : '');
+            const color = h.pnl > 0 ? 'var(--accent-green)' : (h.pnl < 0 ? 'var(--accent-red)' : '');
             
             return `
               <tr>
