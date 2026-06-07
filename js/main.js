@@ -1090,9 +1090,20 @@ function bindModalEvents() {
 let _youtubeFeedCache = null;
 let _youtubeFeedLoading = false;
 
+// 이스케이프된 텍스트의 URL을 클릭 가능한 링크로 변환 (escape 이후에 호출)
+function _linkifyUrls(s) {
+  return String(s == null ? '' : s).replace(/(https?:\/\/[^\s<）)]+)/g,
+    '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent-blue); text-decoration:underline; word-break:break-all;">$1</a>');
+}
+// 요약 텍스트 가공: 이스케이프 → **볼드** → URL 링크화
+function _formatSummaryText(text) {
+  const esc = String(text == null ? '' : text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return _linkifyUrls(esc.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'));
+}
+
 // 경제 영상 요약 HTML 빌더(신규 요약/시트 복원 공용)
 function _videoFeedHtml(text, sources, metaLine) {
-  const safe = String(text == null ? '' : text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const safe = _formatSummaryText(text);
   const srcHtml = (sources && sources.length)
     ? `<div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:6px;">${sources.slice(0, 8).map(s => `<a href="${s.url}" target="_blank" class="source-link" title="${s.title}">🔗 <span>${s.title}</span></a>`).join('')}</div>`
     : '';
@@ -1300,7 +1311,7 @@ async function renderAutoRecHistory() {
     const txt = esc(rec.text || '');
     const preview = txt.slice(0, 280);
     const truncated = (rec.text || '').length > 280;
-    const fullHtml = txt.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+    const fullHtml = _linkifyUrls(txt.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')).replace(/\n/g, '<br>');
     return `
       <div class="analysis-item rec-hist-item" data-expanded="0" style="cursor:pointer;" title="클릭하면 전체 내용을 펼치거나 접습니다">
         <div class="analysis-item-header">
@@ -1343,7 +1354,7 @@ async function renderNewsHistory() {
     const txt = esc(rec.text || '');
     const preview = txt.slice(0, 280);
     const truncated = (rec.text || '').length > 280;
-    const fullHtml = txt.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+    const fullHtml = _linkifyUrls(txt.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')).replace(/\n/g, '<br>');
     return `
       <div class="analysis-item rec-hist-item" data-expanded="0" style="cursor:pointer;" title="클릭하면 전체 내용을 펼치거나 접습니다">
         <div class="analysis-item-header">
