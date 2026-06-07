@@ -883,11 +883,11 @@ html, body {
   100% { top: 0%; }
 }
 
-/* ══════════════════════════ 유튜브 RSS 피드 UI ══════════════════════════ */
+/* ══════════════════════════ 경제 영상 AI 요약 UI ══════════════════════════ */
+/* AI 요약 텍스트 + 출처 칩을 위아래로 쌓는 블록 레이아웃
+   (과거 영상 카드 그리드는 미사용 → grid 제거하여 요약 출력 깨짐 방지) */
 .youtube-feed-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
+  display: block;
   width: 100%;
 }
 
