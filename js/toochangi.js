@@ -196,6 +196,8 @@ const Toochangi = (() => {
 
   // 마지막으로 Gemini를 실제 호출했을 때 어떤 경로를 탔는지: 'oauth' | 'key' | null(아직 호출 전)
   let _lastGeminiAuthMode = null;
+  // 마지막으로 실제 호출에 사용된 Gemini 모델명(_safeGeminiModel 대체 반영 후)
+  let _lastGeminiModel = null;
 
   // 환경설정 배지용: 현재 Gemini 인증 상태 요약
   function getGeminiAuthStatus() {
@@ -221,6 +223,14 @@ const Toochangi = (() => {
     else if (hasToken) expected = 'oauth-fallback';           // 토큰만, scope 없음, 키 없음 → OAuth 시도(403 예상)
     else expected = 'none';
     return { hasKey, hasToken, scopeConfigured, tokenHasScope, needsRelogin, lastUsed: _lastGeminiAuthMode, expected };
+  }
+
+  // AI 응답에 붙일 '어떤 모델/인증으로 답했는지' 정보. provider별로 구성.
+  function _answerModelInfo(provider) {
+    if (provider === 'gpt') {
+      return { model: (window.TOOCHANGI_CONFIG.OPENAI_MODEL || 'gpt'), provider: 'gpt', auth: 'key' };
+    }
+    return { model: _lastGeminiModel || '', provider: 'gemini', auth: _lastGeminiAuthMode || 'key' };
   }
 
   // OAuth(cloud-platform 토큰)에서만 호출 가능한 모델 → OAuth 미준비 시 대체할 안전 모델
@@ -256,6 +266,7 @@ const Toochangi = (() => {
   // 반환: fetch Response (상위에서 res.ok/상태코드 처리)
   async function _geminiFetch(model, body) {
     model = _safeGeminiModel(model);
+    _lastGeminiModel = model;
     const base = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
     const apiKey = window.TOOCHANGI_CONFIG.GEMINI_API_KEY;
     const hasKey = apiKey && !apiKey.startsWith('YOUR_');
@@ -322,7 +333,7 @@ const Toochangi = (() => {
     const text = (cand?.content?.parts || []).filter(p => p && p.text).map(p => p.text).join('').trim() || '요약을 받지 못했습니다.';
     const chunks = cand?.groundingMetadata?.groundingChunks || [];
     const sources = chunks.map(c => c.web ? { title: c.web.title, url: c.web.uri } : null).filter(Boolean);
-    return { text, sources };
+    return { text, sources, ..._answerModelInfo('gemini') };
   }
 
   // ── Gemini AI 분석 ──────────────────────────────────────────────
@@ -390,7 +401,7 @@ ${gachangiContext}
     // GPT 선택 시 OpenAI로 분석 (실시간 검색 없음 → 출처 비움)
     if (provider === 'gpt') {
       const text = await _callOpenAI(systemPrompt, query);
-      return { text, sources: [] };
+      return { text, sources: [], ..._answerModelInfo('gpt') };
     }
 
     const body = {
@@ -416,7 +427,7 @@ ${gachangiContext}
       }
       return null;
     }).filter(Boolean);
-    return { text, sources };
+    return { text, sources, ..._answerModelInfo('gemini') };
   }
 
   // ── 자동 투자 추천 ──────────────────────────────────────────────
@@ -549,6 +560,7 @@ ${youtubeFeedText}
         sources: [],
         hadKisData: !!(marketData && marketData.volumeRank?.length > 0),
         generatedAt: new Date().toLocaleString('ko-KR'),
+        ..._answerModelInfo('gpt'),
       };
     }
 
@@ -577,7 +589,8 @@ ${youtubeFeedText}
       recommendations,
       sources,
       hadKisData: !!(marketData && marketData.volumeRank?.length > 0),
-      generatedAt: new Date().toLocaleString('ko-KR')
+      generatedAt: new Date().toLocaleString('ko-KR'),
+      ..._answerModelInfo('gemini'),
     };
   }
 

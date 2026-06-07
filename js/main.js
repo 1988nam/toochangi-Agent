@@ -1303,12 +1303,15 @@ async function renderYouTubeFeed(force = false) {
   spinnerEl?.classList.remove('hidden');
   listEl.classList.add('hidden');
   try {
-    const { text, sources } = await Toochangi.runEconomyVideoSummary();
+    const vres = await Toochangi.runEconomyVideoSummary();
+    const { text, sources } = vres;
     const safe = String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const srcHtml = (sources && sources.length)
       ? `<div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:6px;">${sources.slice(0, 8).map(s => `<a href="${s.url}" target="_blank" class="source-link" title="${s.title}">🔗 <span>${s.title}</span></a>`).join('')}</div>`
       : '';
-    _youtubeFeedCache = `<div style="white-space:pre-wrap; line-height:1.6; font-size:13.5px; color:var(--text-secondary);">${safe}</div>${srcHtml}`;
+    const mlV = aiModelLabel(vres);
+    const mlHtml = mlV ? `<div style="margin-top:8px;font-size:11px;color:#64748b;">${mlV}</div>` : '';
+    _youtubeFeedCache = `<div style="white-space:pre-wrap; line-height:1.6; font-size:13.5px; color:var(--text-secondary);">${safe}</div>${srcHtml}${mlHtml}`;
     listEl.innerHTML = _youtubeFeedCache;
   } catch (err) {
     console.error('[EconomyVideo] 요약 실패:', err);
@@ -1401,9 +1404,10 @@ function bindAutoAnalysisEvents() {
         autoRecResult.classList.remove('hidden');
       }
 
-      // 생성 시각 표시
+      // 생성 시각 + 사용 모델 표시
       if (autoRecGenAt) {
-        autoRecGenAt.textContent = `📅 ${result.generatedAt}`;
+        const ml = aiModelLabel(result);
+        autoRecGenAt.textContent = `📅 ${result.generatedAt}` + (ml ? `  ·  ${ml}` : '');
         autoRecGenAt.style.display = 'inline';
       }
 
@@ -1469,8 +1473,16 @@ function bindManualAnalysisEvents() {
     saveBtn?.classList.add('hidden');
 
     try {
-      const { text, sources } = await Toochangi.runGeminiAnalysis(query);
+      const result = await Toochangi.runGeminiAnalysis(query);
+      const { text, sources } = result;
       resultEl.textContent = text;
+      const ml = aiModelLabel(result);
+      if (ml) {
+        const mb = document.createElement('div');
+        mb.style.cssText = 'margin-top:10px;font-size:11px;color:#64748b;';
+        mb.textContent = ml;
+        resultEl.appendChild(mb);
+      }
       _lastAnalysisResult = { query, result: text, sources };
 
       // Render search sources/citations
@@ -2739,6 +2751,13 @@ function bindSettingsEvents() {
       alert('⚠️ 올바르지 않은 설정 토큰입니다. 복사한 토큰이 깨졌는지 다시 확인해 주세요: ' + e.message);
     }
   });
+}
+
+// AI 응답에 붙일 모델/인증 라벨. 예: "🤖 gemini-3-pro-preview (OAuth)"
+function aiModelLabel(r) {
+  if (!r || !r.model) return '';
+  const auth = r.provider === 'gpt' ? 'OpenAI' : (r.auth === 'oauth' ? 'OAuth' : 'API키');
+  return `🤖 ${r.model} (${auth})`;
 }
 
 // Gemini 인증 상태 배지: 현재 OAuth/키 중 무엇으로 호출되는지, scope 설정 여부를 한눈에 표시
