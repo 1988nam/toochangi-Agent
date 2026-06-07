@@ -2579,6 +2579,32 @@ async function deleteBulkHoldings() {
 }
 
 // ── 예적금 / 부동산 탭 렌더링 및 벌크 액션 ──
+// 예적금 핵심 지표 카드: 현금 자산(잔액 합계) / 총 수익률(연 예상 이자 + 평균 금리)
+function renderSavingsSummaryCards(savings) {
+  let totalCash = 0;
+  let interestSum = 0;   // Σ(잔액 × 금리/100)
+  let weightedRateNum = 0; // Σ(잔액 × 금리)
+  savings.forEach(s => {
+    const bal = Toochangi.calcSavingsBalance(s);
+    const rate = parseFloat(s.rate) || 0;
+    totalCash += bal;
+    interestSum += bal * rate / 100;
+    weightedRateNum += bal * rate;
+  });
+  const avgRate = totalCash > 0 ? weightedRateNum / totalCash : 0;
+
+  const cashEl = document.getElementById('savings-total-cash');
+  if (cashEl) cashEl.textContent = totalCash > 0 ? `${Math.floor(totalCash).toLocaleString()}원` : '—';
+
+  const yieldEl = document.getElementById('savings-total-yield');
+  if (yieldEl) {
+    yieldEl.textContent = interestSum > 0 ? `+${Math.floor(interestSum).toLocaleString()}원` : (totalCash > 0 ? '0원' : '—');
+    yieldEl.style.color = interestSum > 0 ? 'var(--accent-green)' : 'var(--text-primary)';
+  }
+  const subEl = document.getElementById('savings-total-yield-sub');
+  if (subEl) subEl.textContent = totalCash > 0 ? `연 예상 이자 · 평균 금리 ${avgRate.toFixed(2)}%` : '예적금 이자 수익';
+}
+
 function renderSavingsTab() {
   const sheetLink = document.getElementById('btn-savings-open-sheet');
   if (sheetLink) {
@@ -2588,6 +2614,7 @@ function renderSavingsTab() {
 
   const tbody = document.getElementById('savings-tbody');
   const savings = Toochangi.getSavings();
+  renderSavingsSummaryCards(savings);
 
   if (savings.length === 0) {
     tbody.innerHTML = '<tr><td colspan="14" class="empty-state">자산을 추가해 주세요</td></tr>';
