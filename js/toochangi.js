@@ -273,8 +273,10 @@ const Toochangi = (() => {
         if (!(hasKey && (res.status === 401 || res.status === 403))) { _lastGeminiAuthMode = 'oauth'; return res; }
         let detail = '';
         try { detail = (await res.text()).replace(/\s+/g, ' ').slice(0, 400); } catch (_) {}
+        const grantedScopes = (typeof Auth !== 'undefined' && Auth.getTokenScopes) ? Auth.getTokenScopes() : '(unknown)';
         console.warn(`[Gemini] OAuth 호출 실패(${res.status}) → API 키 방식으로 폴백`
           + (proj ? ` | x-goog-user-project=${proj}` : ' | ⚠️프로젝트 미지정(CLIENT_ID에서 추출 실패)')
+          + ` | 토큰 부여 scope: [${grantedScopes}]`
           + (detail ? ` | 사유: ${detail}` : ''));
       } catch (e) {
         if (!hasKey) throw e;
