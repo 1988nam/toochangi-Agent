@@ -119,7 +119,9 @@ async function refreshAll() {
     }
 
     const brokerPanel = document.getElementById('tab-broker');
-    if (brokerPanel && !brokerPanel.classList.contains('hidden')) {
+    const mockPanel = document.getElementById('tab-mocktrade');
+    if ((brokerPanel && !brokerPanel.classList.contains('hidden')) ||
+        (mockPanel && !mockPanel.classList.contains('hidden'))) {
       renderBrokerTab();
     }
 
@@ -204,6 +206,7 @@ function switchTab(tab) {
     assets: '자산현황',
     'auto-analysis': '자동 투자 추천',
     'manual-analysis': '수동 AI 분석',
+    mocktrade: '모의투자',
     broker: '증권사 연동',
     settings: '환경 설정',
   };
@@ -220,7 +223,7 @@ function switchTab(tab) {
     initAssetMonthSelector();
     renderAssetsTab();
   }
-  if (tab === 'broker') {
+  if (tab === 'broker' || tab === 'mocktrade') {
     renderBrokerTab();
   }
   if (tab === 'settings') {
@@ -2360,7 +2363,11 @@ function bindBrokerEvents() {
 
 async function renderBrokerTab() {
   const settings = Broker.getSettings();
-  
+
+  // 모의투자 탭의 '미설정 안내' 표시 토글 (대시보드와 반대로 동작)
+  const emptyEl = document.getElementById('mocktrade-empty');
+  const showEmpty = (show) => { if (emptyEl) emptyEl.classList.toggle('hidden', !show); };
+
   // UI 인풋 필드에 저장된 값 뿌려주기 (처음 열었을 때 등)
   const appkeyEl = document.getElementById('input-kis-appkey');
   const secretEl = document.getElementById('input-kis-secret');
@@ -2381,7 +2388,8 @@ async function renderBrokerTab() {
   // 설정이 완비된 경우 대시보드 활성화 및 잔고 조회
   if (settings.appkey && settings.secret && settings.account) {
     document.getElementById('broker-dashboard').classList.remove('hidden');
-    
+    showEmpty(false);
+
     try {
       const data = await Broker.loadBalanceAndHoldings();
       
@@ -2455,10 +2463,12 @@ async function renderBrokerTab() {
     } catch (e) {
       console.error(e);
       document.getElementById('broker-dashboard').classList.add('hidden');
+      showEmpty(true);
       toast('⚠️ KIS 잔고 조회 실패: ' + e.message, 'error', 5000);
     }
   } else {
     document.getElementById('broker-dashboard').classList.add('hidden');
+    showEmpty(true);
   }
 }
 

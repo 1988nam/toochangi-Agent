@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260607_51" />
+  <link rel="stylesheet" href="style.css?v=20260607_52" />
 </head>
 <body>
 
@@ -76,6 +76,9 @@
       </button>
       <button class="nav-item" data-tab="filter" id="nav-filter">
         <span class="nav-icon">🚦</span><span>3단계 필터</span>
+      </button>
+      <button class="nav-item" data-tab="mocktrade" id="nav-mocktrade">
+        <span class="nav-icon">🏦</span><span>모의투자</span>
       </button>
 
       <div class="nav-section">AI 분석</div>
@@ -646,12 +649,20 @@
       </div>
     </div>
 
-    <!-- ── 증권사 연동 탭 ── -->
-    <div id="tab-broker" class="tab-panel hidden">
-      <!-- 증권사 연동 상단 레이아웃: 설정 및 수동 주문 / 계좌 요약 및 보유 종목 -->
+    <!-- ── 모의투자 탭 (KIS 예수금·보유종목·수동주문 대시보드) ── -->
+    <div id="tab-mocktrade" class="tab-panel hidden">
       <div style="display: flex; flex-direction: column; gap: 20px;">
-        
-        <!-- 상단 요약 대시보드 (로그인 되어 연동되었을 때 표시) -->
+
+        <!-- 미설정 안내 (KIS 키/프록시 미설정 시 표시) -->
+        <div id="mocktrade-empty" class="card" style="max-width: 800px; margin: 0 auto; width: 100%;">
+          <div class="empty-state" style="padding: 30px 16px; line-height: 1.7;">
+            🏦 모의투자 계좌가 아직 연동되지 않았습니다.<br/>
+            좌측 <b>시스템 → 증권사 연동</b>에서 KIS API 키와 프록시 URL을 저장하면<br/>
+            이곳에 <b>예수금·보유 종목·수동 주문</b>이 표시됩니다.
+          </div>
+        </div>
+
+        <!-- 상단 요약 대시보드 (연동되었을 때 표시) -->
         <div id="broker-dashboard" class="hidden" style="display: flex; flex-direction: column; gap: 20px;">
           <!-- 핵심 지표 카드 -->
           <div class="metrics-grid">
@@ -749,6 +760,12 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ── 증권사 연동 탭 (KIS 키 설정만) ── -->
+    <div id="tab-broker" class="tab-panel hidden">
+      <div style="display: flex; flex-direction: column; gap: 20px;">
 
         <!-- API 설정 카드 -->
         <div class="card" style="max-width: 800px; margin: 0 auto; width: 100%;">
@@ -805,7 +822,7 @@
             </div>
 
             <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; padding: 12px; border-radius: 4px; font-size: 13px; color: #9ca3af; line-height: 1.5;">
-              💡 <strong>안내:</strong> API Key 정보는 서버나 데이터베이스에 절대 저장되지 않으며, 사용자 브라우저의 <code>localStorage</code>에 암호화되지 않은 상태로 보관됩니다. 개인 PC가 아닌 공용 환경에서는 사용을 자제하고 완료 후 설정을 초기화하십시오. KIS API는 CORS 제한을 우회하기 위해 로컬 백엔드 프록시(Express) 서버를 거쳐 동작합니다.
+              💡 <strong>안내:</strong> API Key 정보는 서버나 데이터베이스에 절대 저장되지 않으며, 사용자 브라우저의 <code>localStorage</code>에 암호화되지 않은 상태로 보관됩니다. 개인 PC가 아닌 공용 환경에서는 사용을 자제하고 완료 후 설정을 초기화하십시오. KIS API는 CORS 제한을 우회하기 위해 위에 입력한 <strong>KIS 프록시(Cloudflare Worker)</strong>를 거쳐 동작합니다. 연동 후 예수금·보유 종목·수동 주문은 좌측 <strong>주식 매매 → 모의투자</strong> 메뉴에서 확인합니다.
             </div>
 
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
@@ -1905,11 +1922,11 @@
     console.error('Gemini OAuth 스코프 적용 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260607_51"></script>
-<script src="js/sheets.js?v=20260607_51"></script>
-<script src="js/toochangi.js?v=20260607_51"></script>
-<script src="js/broker.js?v=20260607_51"></script>
-<script src="js/main.js?v=20260607_51"></script>
+<script src="js/auth.js?v=20260607_52"></script>
+<script src="js/sheets.js?v=20260607_52"></script>
+<script src="js/toochangi.js?v=20260607_52"></script>
+<script src="js/broker.js?v=20260607_52"></script>
+<script src="js/main.js?v=20260607_52"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 
