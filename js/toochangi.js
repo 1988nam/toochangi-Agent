@@ -154,36 +154,36 @@ const Toochangi = (() => {
     return loan;
   }
 
-  // 유튜브 채널 최신 영상 조회: 백엔드 프록시(/api) 우선, 없으면 공개 CORS 프록시로 RSS 직접 파싱
-  async function fetchYoutubeFeed(channelId, channelName) {
-    // 1) 백엔드 프록시가 있으면 그대로 사용
-    try {
-      const r = await fetch(`/api/youtube-rss?channelId=${channelId}`);
-      if (r.ok) {
-        const d = await r.json();
-        if (d && Array.isArray(d.entries)) return d.entries;
-      }
-    } catch (_) { /* 백엔드 없음 → CORS 프록시로 폴백 */ }
+  // AI가 실시간 검색으로 최근 경제·투자 유튜브 영상을 직접 찾아 요약 (Gemini 그라운딩 필요)
+  async function runEconomyVideoSummary() {
+    const apiKey = window.TOOCHANGI_CONFIG.GEMINI_API_KEY;
+    if (!apiKey || apiKey.startsWith('YOUR_')) {
+      throw new Error('실시간 검색 요약은 Gemini API 키가 필요합니다. 환경설정에서 입력해주세요.');
+    }
+    const today = new Date().toLocaleDateString('ko-KR');
+    const systemPrompt = `당신은 한국 경제·투자 유튜브 큐레이터입니다. 실시간 인터넷/유튜브 검색이 가능합니다.
+최근 1~2주 내 화제가 된 경제·투자 관련 유튜브 영상(예: 삼프로TV, 슈카월드, 박곰희TV, 김작가TV 등)과 시장 이슈를 검색하여,
+가장 중요한 5~7개를 골라 각각 아래 형식으로 한국어로 정리하세요. 추측하지 말고 검색 결과에 근거하세요.
 
-    // 2) 정적 호스팅용: 공개 CORS 프록시로 유튜브 RSS를 직접 읽어 파싱
-    const rss = `https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`;
-    const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rss)}`);
-    if (!res.ok) throw new Error(`Status ${res.status}`);
+형식(각 항목):
+• [제목] — 채널명
+  └ 핵심 요약 1~2줄 (무엇을, 왜 중요한지)`;
+    const userPrompt = `오늘(${today}) 기준, 최근 경제·투자 유튜브에서 꼭 봐야 할 핵심 영상들을 검색해 요약해줘.`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${window.TOOCHANGI_CONFIG.GEMINI_MODEL_RECOMMEND}:generateContent?key=${apiKey}`;
+    const body = {
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ parts: [{ text: userPrompt }] }],
+      tools: [{ googleSearch: {} }],
+      generationConfig: { temperature: 0.6, maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } },
+    };
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
     const data = await res.json();
-    const xml = (data && data.contents) ? data.contents : '';
-    if (!xml || xml.indexOf('<entry') === -1) throw new Error('빈 피드');
-    const doc = new DOMParser().parseFromString(xml, 'text/xml');
-    const feedTitle = (doc.getElementsByTagName('title')[0] || {}).textContent || channelName || '';
-    return Array.from(doc.getElementsByTagName('entry')).slice(0, 8).map(e => {
-      const vid = (e.getElementsByTagName('yt:videoId')[0] || {}).textContent || '';
-      return {
-        title:       (e.getElementsByTagName('title')[0] || {}).textContent || '',
-        published:   (e.getElementsByTagName('published')[0] || {}).textContent || '',
-        videoId:     vid,
-        videoUrl:    vid ? `https://www.youtube.com/watch?v=${vid}` : '',
-        channelName: channelName || feedTitle,
-      };
-    });
+    const cand = data.candidates?.[0];
+    const text = (cand?.content?.parts || []).filter(p => p && p.text).map(p => p.text).join('').trim() || '요약을 받지 못했습니다.';
+    const chunks = cand?.groundingMetadata?.groundingChunks || [];
+    const sources = chunks.map(c => c.web ? { title: c.web.title, url: c.web.uri } : null).filter(Boolean);
+    return { text, sources };
   }
 
   // ── Gemini AI 분석 ──────────────────────────────────────────────
@@ -306,60 +306,10 @@ ${gachangiContext}
       }
     }
 
-    // 유튜브 채널 로드 및 RSS 피드 실시간 조회
-    let youtubeChannels = [];
-    try {
-      const stored = localStorage.getItem('toochangi_youtube_channels');
-      if (stored) {
-        youtubeChannels = JSON.parse(stored);
-      } else {
-        youtubeChannels = window.TOOCHANGI_CONFIG.DEFAULT_YOUTUBE_CHANNELS || [];
-      }
-    } catch (e) {
-      console.error('[AutoRec] YouTube 채널 로드 실패:', e);
-      youtubeChannels = window.TOOCHANGI_CONFIG.DEFAULT_YOUTUBE_CHANNELS || [];
-    }
-
-    let youtubeFeedText = '';
-    if (youtubeChannels.length > 0) {
-      const fetchPromises = youtubeChannels.map(async (ch) => {
-        try {
-          const entries = await fetchYoutubeFeed(ch.id, ch.name);
-          return { name: ch.name, entries: entries || [] };
-        } catch (err) {
-          console.warn(`[AutoRec] YouTube feed fetch failed for ${ch.name} (${ch.id}):`, err.message);
-          return { name: ch.name, entries: [], error: err.message };
-        }
-      });
-
-      try {
-        const settled = await Promise.allSettled(fetchPromises);
-        const feeds = settled
-          .filter(s => s.status === 'fulfilled')
-          .map(s => s.value);
-
-        const feedLines = [];
-        feeds.forEach(f => {
-          if (f.entries && f.entries.length > 0) {
-            feedLines.push(`- ${f.name}:`);
-            f.entries.slice(0, 3).forEach(entry => {
-              const dateStr = entry.published ? entry.published.substring(0, 10) : '';
-              feedLines.push(`  * "${entry.title}" (${dateStr})`);
-            });
-          }
-        });
-        if (feedLines.length > 0) {
-          youtubeFeedText = `[구독 유튜브 채널 실시간 피드 (최신 업로드)]\n${feedLines.join('\n')}`;
-        } else {
-          youtubeFeedText = '[구독 유튜브 채널 실시간 피드] 유튜브 피드 데이터를 가져오지 못했습니다.';
-        }
-      } catch (err) {
-        console.error('[AutoRec] YouTube RSS 전체 조회 중 오류:', err);
-        youtubeFeedText = '[구독 유튜브 채널 실시간 피드] 피드 조회 중 에러가 발생했습니다.';
-      }
-    } else {
-      youtubeFeedText = '[구독 유튜브 채널 실시간 피드] 구독 중인 유튜브 채널이 없습니다.';
-    }
+    // 유튜브: 채널 RSS 직접 조회(정적 호스팅에서 CORS로 실패) 대신, 실시간 검색으로 AI가 직접 경제 유튜브를 찾아 요약하도록 지시
+    const youtubeFeedText = (provider === 'gpt')
+      ? ''
+      : `[경제 유튜브 검색 지시]\n최근 1~2주 내 한국 경제·투자 관련 화제의 유튜브 영상(삼프로TV·슈카월드·박곰희TV 등 포함)과 시장 이슈를 실시간 검색해, 핵심 논점·여론을 분석에 반영하세요.`;
 
     const stocksSummary = _portfolio.length > 0
       ? _portfolio.map(p => `- ${p.name}(${p.ticker}): ${p.qty}주, 평단 ${p.avgPrice.toLocaleString()}원, 현재가 ${(p.curPrice||p.avgPrice).toLocaleString()}원 (비중 ${(p._weight || 0).toFixed(1)}%, 용도: ${p.memo || '투자'})`).join('\n')
@@ -1090,7 +1040,7 @@ ${youtubeFeedText}
     evaluateFilter, updateFilterSignal, evaluateFinalVerdict,
     runGeminiAnalysis,
     runAutoRecommendation,
-    fetchYoutubeFeed,
+    runEconomyVideoSummary,
     renderAllocationChart,
     renderMarketAllocationChart,
     getPortfolio, getTradeLog, getAnalysis, getGachangiData, getGachangiAccounts, getSavings, getRealEstate, calcSavingsBalance,

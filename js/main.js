@@ -1218,69 +1218,33 @@ function bindModalEvents() {
 let _youtubeFeedCache = null;
 let _youtubeFeedLoading = false;
 
+// AI(Gemini 실시간 검색)가 최근 경제·투자 유튜브를 찾아 요약. 자동 호출(force=false)에선 검색하지 않고 안내만(쿼터 절약)
 async function renderYouTubeFeed(force = false) {
   const listEl = document.getElementById('youtube-feed-list');
   const spinnerEl = document.getElementById('youtube-feed-loading');
   if (!listEl) return;
-
   if (_youtubeFeedLoading) return;
 
-  // 캐시가 있고 강제 새로고침이 아니라면 캐시 사용
-  if (_youtubeFeedCache && !force) {
-    displayYouTubeFeed(_youtubeFeedCache);
-    return;
-  }
-
-  // 채널 정보 가져오기
-  let youtubeChannels = [];
-  try {
-    const stored = localStorage.getItem('toochangi_youtube_channels');
-    if (stored) {
-      youtubeChannels = JSON.parse(stored);
-    } else {
-      youtubeChannels = window.TOOCHANGI_CONFIG.DEFAULT_YOUTUBE_CHANNELS || [];
-    }
-  } catch (e) {
-    console.error('[YouTubeFeed] 채널 로드 실패:', e);
-    youtubeChannels = window.TOOCHANGI_CONFIG.DEFAULT_YOUTUBE_CHANNELS || [];
-  }
-
-  if (youtubeChannels.length === 0) {
-    listEl.innerHTML = '<div class="empty-state">구독 중인 유튜브 채널이 없습니다. 환경설정에서 추가해주세요.</div>';
+  if (!force) {
+    if (_youtubeFeedCache) { listEl.innerHTML = _youtubeFeedCache; return; }
+    listEl.innerHTML = '<div class="empty-state">🔄 "요약 받기"를 누르면 AI가 최근 경제·투자 유튜브 핵심을 실시간 검색해 요약합니다.</div>';
     return;
   }
 
   _youtubeFeedLoading = true;
   spinnerEl?.classList.remove('hidden');
   listEl.classList.add('hidden');
-
   try {
-    const fetchPromises = youtubeChannels.map(async (ch) => {
-      try {
-        return await Toochangi.fetchYoutubeFeed(ch.id, ch.name) || [];
-      } catch (err) {
-        console.warn(`[YouTubeFeed] Fetch failed for ${ch.name}:`, err.message);
-        return [];
-      }
-    });
-
-    const settled = await Promise.allSettled(fetchPromises);
-    let allEntries = [];
-    settled.forEach(s => {
-      if (s.status === 'fulfilled') {
-        allEntries = allEntries.concat(s.value);
-      }
-    });
-
-    // 날짜 순 정렬 (최신순)
-    allEntries.sort((a, b) => new Date(b.published) - new Date(a.published));
-
-    // 최근 12개 비디오만 노출
-    _youtubeFeedCache = allEntries.slice(0, 12);
-    displayYouTubeFeed(_youtubeFeedCache);
+    const { text, sources } = await Toochangi.runEconomyVideoSummary();
+    const safe = String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const srcHtml = (sources && sources.length)
+      ? `<div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:6px;">${sources.slice(0, 8).map(s => `<a href="${s.url}" target="_blank" class="source-link" title="${s.title}">🔗 <span>${s.title}</span></a>`).join('')}</div>`
+      : '';
+    _youtubeFeedCache = `<div style="white-space:pre-wrap; line-height:1.6; font-size:13.5px; color:var(--text-secondary);">${safe}</div>${srcHtml}`;
+    listEl.innerHTML = _youtubeFeedCache;
   } catch (err) {
-    console.error('[YouTubeFeed] 피드 동기화 실패:', err);
-    listEl.innerHTML = '<div class="empty-state" style="color:var(--accent-red)">⚠️ 유튜브 피드를 가져오지 못했습니다. 네트워크 또는 외부 프록시(allorigins) 상태를 확인하세요.</div>';
+    console.error('[EconomyVideo] 요약 실패:', err);
+    listEl.innerHTML = `<div class="empty-state" style="color:var(--accent-red)">⚠️ ${err.message}</div>`;
   } finally {
     _youtubeFeedLoading = false;
     spinnerEl?.classList.add('hidden');
@@ -1288,7 +1252,7 @@ async function renderYouTubeFeed(force = false) {
   }
 }
 
-function displayYouTubeFeed(entries) {
+function _unusedDisplayYouTubeFeed(entries) {
   const listEl = document.getElementById('youtube-feed-list');
   if (!listEl) return;
 
