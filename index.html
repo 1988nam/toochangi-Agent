@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260607_2" />
+  <link rel="stylesheet" href="style.css?v=20260607_3" />
 </head>
 <body>
 
@@ -110,56 +110,31 @@
       </div>
     </div>
 
-    <!-- ── 대시보드 탭 ── -->
+    <!-- ── 대시보드 탭 (가벼운 홈) ── -->
     <div id="tab-dashboard" class="tab-panel active">
       <div class="metrics-grid" style="margin-bottom: 18px;">
         <div class="metric-card accent-red">
           <div class="metric-label">총 자산</div>
           <div class="metric-value" id="m-grand-total-asset">—</div>
-          <div class="metric-sub" id="m-grand-total-asset-sub">주식 + 현금 + 부동산 자산 합계</div>
+          <div class="metric-sub">주식 + 현금 + 부동산 시세 합계 (실시간)</div>
         </div>
       </div>
       <!-- 핵심 지표 카드 -->
       <div class="metrics-grid">
-        <div class="metric-card accent-purple">
-          <div class="metric-label">주식 자산</div>
-          <div class="metric-value" id="m-total-asset">—</div>
-          <div class="metric-sub" id="m-total-asset-sub">가챙이 연동 중...</div>
-        </div>
         <div class="metric-card accent-green">
+          <div class="metric-label">순자산 (Net Worth)</div>
+          <div class="metric-value" id="m-net-worth">—</div>
+          <div class="metric-sub">총 자산 − 부채(부동산 대출)</div>
+        </div>
+        <div class="metric-card accent-purple">
           <div class="metric-label">주식 수익률</div>
           <div class="metric-value" id="m-total-yield">—</div>
-          <div class="metric-sub" id="m-total-yield-sub">평가손익 기준</div>
+          <div class="metric-sub">평가손익 기준</div>
         </div>
         <div class="metric-card accent-blue">
           <div class="metric-label">현금 자산</div>
           <div class="metric-value" id="m-available">—</div>
           <div class="metric-sub">예적금 보유 현황 합계</div>
-        </div>
-        <div class="metric-card accent-orange">
-          <div class="metric-label">부동산 자산</div>
-          <div class="metric-value" id="m-signal">—</div>
-          <div class="metric-sub" id="m-signal-sub">시장 · 섹터 · 종목</div>
-        </div>
-      </div>
-
-      <!-- 차트 & 포트폴리오 요약 -->
-      <div class="chart-row">
-        <div class="card chart-card">
-          <div class="card-header">
-            <span class="card-title">자산 포트폴리오 비중</span>
-          </div>
-          <div class="chart-wrap">
-            <canvas id="chart-monthly-yield"></canvas>
-          </div>
-        </div>
-        <div class="card chart-card">
-          <div class="card-header">
-            <span class="card-title">주식 투자 현황</span>
-          </div>
-          <div class="chart-wrap">
-            <canvas id="chart-allocation"></canvas>
-          </div>
         </div>
       </div>
 
@@ -171,6 +146,19 @@
         </div>
         <div id="recent-analysis-list" class="analysis-list">
           <div class="empty-state">분석 기록이 없습니다</div>
+        </div>
+      </div>
+
+      <!-- 바로가기 -->
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-header">
+          <span class="card-title">🔗 바로가기</span>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; padding: 6px 0;">
+          <button class="btn-primary-sm" onclick="switchTab('assets')">💰 자산현황</button>
+          <button class="btn-primary-sm" onclick="switchTab('portfolio')">💼 주식</button>
+          <button class="btn-primary-sm" onclick="switchTab('savings')">🏦 예적금</button>
+          <button class="btn-primary-sm" onclick="switchTab('realestate')">🏠 부동산</button>
         </div>
       </div>
     </div>
@@ -740,12 +728,12 @@
         <div class="metric-card accent-purple">
           <div class="metric-label">총 자산</div>
           <div class="metric-value" id="asset-total-val">—</div>
-          <div class="metric-sub">부채 제외 실자산 합계</div>
+          <div class="metric-sub">주식 + 현금 + 부동산 시세 (실시간)</div>
         </div>
         <div class="metric-card accent-red">
           <div class="metric-label">부채 총액</div>
           <div class="metric-value" id="asset-debt-val">—</div>
-          <div class="metric-sub">대출 및 부채 합계</div>
+          <div class="metric-sub">부동산 대출 잔액 (실시간)</div>
         </div>
         <div class="metric-card accent-green">
           <div class="metric-label">순자산 (Net Worth)</div>
@@ -777,7 +765,7 @@
       <!-- 자산 상세 관리 및 동기화 -->
       <div class="card">
         <div class="card-header">
-          <span class="card-title">💰 자산 세부 목록</span>
+          <span class="card-title">💰 월별 자산 스냅샷 (기록)</span>
           <div style="display: flex; gap: 8px; align-items: center;">
             <select id="asset-month-select" class="month-selector-sm" style="background:#1f2937; border:1px solid #374151; color:#f3f4f6; border-radius:4px; padding:4px 8px; font-family:Outfit; font-size:13px; outline:none; cursor:pointer;">
               <!-- JS로 연/월 옵션 생성 -->
@@ -1686,11 +1674,11 @@
     console.error('설정 오버라이드 병합 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260607_2"></script>
-<script src="js/sheets.js?v=20260607_2"></script>
-<script src="js/toochangi.js?v=20260607_2"></script>
-<script src="js/broker.js?v=20260607_2"></script>
-<script src="js/main.js?v=20260607_2"></script>
+<script src="js/auth.js?v=20260607_3"></script>
+<script src="js/sheets.js?v=20260607_3"></script>
+<script src="js/toochangi.js?v=20260607_3"></script>
+<script src="js/broker.js?v=20260607_3"></script>
+<script src="js/main.js?v=20260607_3"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 

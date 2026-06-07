@@ -197,7 +197,7 @@ function switchTab(tab) {
   const titles = {
     dashboard: '대시보드', portfolio: '주식',
     savings: '예적금', realestate: '부동산',
-    filter: '3단계 필터', tradelog: '매매일지',
+    filter: '3단계 필터', tradelog: '주식 매매일지',
     assets: '자산현황',
     'auto-analysis': '자동 투자 추천',
     'manual-analysis': '수동 AI 분석',
@@ -206,7 +206,7 @@ function switchTab(tab) {
   };
   document.getElementById('page-title').textContent = titles[tab] || tab;
 
-  if (tab === 'dashboard') Toochangi.renderCharts();
+  if (tab === 'dashboard') renderDashboard();
   if (tab === 'portfolio') {
     Toochangi.renderAllocationChart('chart-portfolio-allocation', true);
     Toochangi.renderMarketAllocationChart();
@@ -231,76 +231,57 @@ function switchTab(tab) {
 // ══════════════════════════════════════════════════════════════
 // ── 대시보드 렌더링 ───────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
-function renderDashboard() {
+// 주식 + 예적금 + 부동산을 실시간으로 집계한 자산 요약 (대시보드/자산현황 공통 소스)
+function computeLiveAssetSummary() {
   const metrics = Toochangi.calcPortfolioMetrics();
-  const gaData  = Toochangi.getGachangiData();
   const savings = Toochangi.getSavings ? Toochangi.getSavings() : [];
   const realEstate = Toochangi.getRealEstate ? Toochangi.getRealEstate() : [];
-  const totalCashAssets = savings.reduce((sum, item) => sum + Toochangi.calcSavingsBalance(item), 0);
-  const totalRealEstateValue = realEstate.reduce((sum, item) => sum + (parseFloat(item.currentValue) || 0), 0);
-  // 부동산 메뉴와 동일하게 '남은 대출잔액'(상환 진행 반영) 기준으로 집계.
-  // 대출 시작일/상환년수가 없어 잔액을 계산할 수 없으면 원래 대출액으로 폴백.
-  const totalRealEstateLoan = realEstate.reduce((sum, item) => {
+
+  const stock = metrics.totalValue || 0;
+  const stockYield = metrics.totalYield || 0;
+  const cash = savings.reduce((sum, s) => sum + Toochangi.calcSavingsBalance(s), 0);
+
+  let realEstateValue = 0;
+  let realEstateDebt = 0;
+  realEstate.forEach(item => {
+    realEstateValue += parseFloat(item.currentValue) || 0;
     const loanAmount = parseFloat(item.loanAmount) || 0;
-    if (loanAmount <= 0) return sum;
-    const progress = calculateLoanProgress(item);
-    const remaining = (progress && progress.remainingBalance != null)
-      ? progress.remainingBalance
-      : loanAmount;
-    return sum + remaining;
-  }, 0);
-  const totalRealEstateNet = totalRealEstateValue - totalRealEstateLoan;
-  const totalDashboardAssets = (metrics.totalValue || 0) + totalCashAssets + totalRealEstateNet;
-  const formatToEok = (amount) => {
-    const eok = amount / 100000000;
-    return `${parseFloat(eok.toFixed(2)).toLocaleString('ko-KR')}억원`;
-  };
+    if (loanAmount > 0) {
+      // 부동산 메뉴와 동일하게 '남은 대출잔액' 기준, 계산 불가 시 원래 대출액으로 폴백
+      const progress = calculateLoanProgress(item);
+      realEstateDebt += (progress && progress.remainingBalance != null) ? progress.remainingBalance : loanAmount;
+    }
+  });
+  const realEstateNet = realEstateValue - realEstateDebt;
 
-  const grandTotalEl = document.getElementById('m-grand-total-asset');
-  if (grandTotalEl) {
-    grandTotalEl.textContent = totalDashboardAssets > 0 ? `${Math.floor(totalDashboardAssets).toLocaleString()}원` : '—';
-  }
+  const totalAssets = stock + cash + realEstateValue; // 총자산(부채 차감 전)
+  const totalDebt = realEstateDebt;
+  const netWorth = totalAssets - totalDebt;
 
-  // 총 투자 자산
-  document.getElementById('m-total-asset').textContent =
-    metrics.totalValue > 0 ? `${Math.floor(metrics.totalValue).toLocaleString()}원` : '—';
-  document.getElementById('m-total-asset-sub').textContent =
-    metrics.totalPnL !== 0
-      ? `평가손익 ${metrics.totalPnL >= 0 ? '+' : ''}${Math.floor(metrics.totalPnL).toLocaleString()}원`
-      : '포트폴리오를 입력해주세요';
+  return { stock, stockYield, cash, realEstateValue, realEstateDebt, realEstateNet, totalAssets, totalDebt, netWorth };
+}
 
-  // 총 수익률
+function renderDashboard() {
+  const s = computeLiveAssetSummary();
+  const setVal = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+
+  // 총 자산 (주식 + 현금 + 부동산 시세)
+  setVal('m-grand-total-asset', s.totalAssets > 0 ? `${Math.floor(s.totalAssets).toLocaleString()}원` : '—');
+
+  // 순자산 (총자산 − 부채)
+  setVal('m-net-worth', (s.totalAssets > 0 || s.totalDebt > 0) ? `${Math.floor(s.netWorth).toLocaleString()}원` : '—');
+  const netEl = document.getElementById('m-net-worth');
+  if (netEl) netEl.style.color = s.netWorth >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+
+  // 주식 수익률
   const yieldEl = document.getElementById('m-total-yield');
-  yieldEl.textContent = metrics.totalYield !== 0 ? `${metrics.totalYield >= 0 ? '+' : ''}${metrics.totalYield.toFixed(2)}%` : '—';
-  yieldEl.style.color = metrics.totalYield >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
-
-  // 이번 달 투자 가능액 (가챙이 연동)
-  const availEl = document.getElementById('m-available');
-  if (gaData) {
-    const avail = Math.max(0, gaData.available);
-    availEl.textContent = `${avail.toLocaleString()}원`;
-    document.getElementById('m-total-asset-sub').textContent = `가챙이 월 저축: ${gaData.savings.toLocaleString()}원`;
-  } else {
-    availEl.textContent = '—';
+  if (yieldEl) {
+    yieldEl.textContent = s.stockYield !== 0 ? `${s.stockYield >= 0 ? '+' : ''}${s.stockYield.toFixed(2)}%` : '—';
+    yieldEl.style.color = s.stockYield >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
   }
 
-  availEl.textContent = totalCashAssets > 0 ? `${Math.floor(totalCashAssets).toLocaleString()}원` : '—';
-
-  // 부동산 자산 요약
-  const signalEl = document.getElementById('m-signal');
-  signalEl.textContent = totalRealEstateValue > 0 || totalRealEstateLoan > 0
-    ? `${Math.floor(totalRealEstateNet).toLocaleString()}원`
-    : '—';
-  signalEl.style.color = 'var(--text-primary)';
-  const signalSubEl = document.getElementById('m-signal-sub');
-  if (signalSubEl) {
-    signalSubEl.textContent = totalRealEstateValue > 0 || totalRealEstateLoan > 0
-      ? `시세 ${formatToEok(totalRealEstateValue)} / 잔여대출 ${formatToEok(totalRealEstateLoan)}`
-      : '부동산 자산 없음';
-  }
-
-  // 차트 렌더링
-  Toochangi.renderCharts();
+  // 현금 자산
+  setVal('m-available', s.cash > 0 ? `${Math.floor(s.cash).toLocaleString()}원` : '—');
 
   // 최근 분석 미리보기
   renderRecentAnalysis();
@@ -1502,22 +1483,31 @@ function initAssetMonthSelector() {
 }
 
 async function renderAssetsTab() {
-  const select = document.getElementById('asset-month-select');
-  if (!select) return;
-  
-  const selectedMonthKey = select.value;
-  if (!selectedMonthKey) return;
-  
-  const metrics = Toochangi.calcAssetMetrics(selectedMonthKey);
-  document.getElementById('asset-total-val').textContent = `${metrics.totalAssets.toLocaleString()}원`;
-  document.getElementById('asset-debt-val').textContent = `${metrics.totalDebt.toLocaleString()}원`;
-  document.getElementById('asset-net-val').textContent = `${metrics.netWorth.toLocaleString()}원`;
-  document.getElementById('asset-net-val').style.color = metrics.netWorth >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+  // ── 실시간 자산 요약 (주식+예적금+부동산 기준, 월 선택과 무관하게 항상 표시) ──
+  const summary = computeLiveAssetSummary();
+  document.getElementById('asset-total-val').textContent = `${Math.floor(summary.totalAssets).toLocaleString()}원`;
+  document.getElementById('asset-debt-val').textContent = `${Math.floor(summary.totalDebt).toLocaleString()}원`;
+  const netEl = document.getElementById('asset-net-val');
+  netEl.textContent = `${Math.floor(summary.netWorth).toLocaleString()}원`;
+  netEl.style.color = summary.netWorth >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
 
+  // 자산 구성 비중(실시간 도넛) + 순자산 변화 추이(스냅샷 기록)
+  Toochangi.renderLiveAssetAllocationChart(summary.stock, summary.cash, summary.realEstateNet);
+  Toochangi.renderNetWorthTrendChart();
+
+  // ── 월별 자산 세부 기록 (스냅샷) ──
+  const select = document.getElementById('asset-month-select');
+  const selectedMonthKey = select ? select.value : '';
   const tbody = document.getElementById('asset-tbody');
+  if (!tbody) return;
+  if (!selectedMonthKey) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">기록된 월별 자산 스냅샷이 없습니다.</td></tr>';
+    return;
+  }
+
   const history = Toochangi.getAssetHistory();
   const monthEntries = history.filter(a => a.date && a.date.startsWith(selectedMonthKey));
-  
+
   if (monthEntries.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" class="empty-state">해당 월에 등록된 자산 내역이 없습니다.</td></tr>';
   } else {
@@ -1543,8 +1533,6 @@ async function renderAssetsTab() {
       btn.addEventListener('click', () => deleteAssetItem(parseInt(btn.dataset.row)));
     });
   }
-
-  Toochangi.renderAssetCharts(selectedMonthKey);
 }
 
 function openAssetModal(rowIndex = null) {

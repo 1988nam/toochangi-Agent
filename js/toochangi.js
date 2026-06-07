@@ -643,6 +643,41 @@ ${youtubeFeedText}
     });
   }
 
+  // 실시간 자산 구성 비중 도넛 (주식/현금/부동산) — 자산현황 탭에서 사용
+  function renderLiveAssetAllocationChart(stock, cash, realEstateNet) {
+    const ctx = document.getElementById('chart-asset-allocation');
+    if (!ctx) return;
+    if (_chartAssetAllocation) _chartAssetAllocation.destroy();
+
+    const entries = [
+      { label: '주식 자산',   value: stock,         color: '#8b5cf6' },
+      { label: '현금 자산',   value: cash,          color: '#3b82f6' },
+      { label: '부동산 자산', value: realEstateNet, color: '#f59e0b' },
+    ].filter(e => e.value > 0);
+    const total = entries.reduce((s, e) => s + e.value, 0);
+
+    const labels = entries.length ? entries.map(e => e.label) : ['등록된 자산 없음'];
+    const data   = entries.length ? entries.map(e => e.value) : [1];
+    const colors = entries.length ? entries.map(e => e.color) : ['#374151'];
+
+    _chartAssetAllocation = new Chart(ctx, {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#111827' }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Outfit', size: 12 }, boxWidth: 12 } },
+          tooltip: { callbacks: { label: c => {
+            if (c.label === '등록된 자산 없음') return c.label;
+            const pct = total > 0 ? (c.raw / total * 100).toFixed(1) : '0.0';
+            return `${c.label}: ${Math.floor(c.raw).toLocaleString()}원 (${pct}%)`;
+          } } },
+        },
+        cutout: '60%',
+      },
+    });
+  }
+
   function renderNetWorthTrendChart() {
     const ctx = document.getElementById('chart-networth-trend');
     if (!ctx) return;
@@ -1029,7 +1064,7 @@ ${youtubeFeedText}
     addPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, addTrade, saveAnalysis, saveFilter, applyFormulasToPortfolio, restorePortfolioFromBackup,
     addSavings, updateSavings, deleteSavings, updateSavingsRows, deleteSavingsRows, restoreSavingsFromBackup,
     addRealEstate, updateRealEstate, deleteRealEstate, updateRealEstateRows, deleteRealEstateRows,
-    getAssetHistory, calcAssetMetrics, syncPortfolioAssets, renderAssetCharts,
+    getAssetHistory, calcAssetMetrics, syncPortfolioAssets, renderAssetCharts, renderLiveAssetAllocationChart, renderNetWorthTrendChart,
     parseHoldingScreenshot
   };
 })();
