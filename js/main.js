@@ -2599,6 +2599,12 @@ function bindSettingsEvents() {
   const importBtn = document.getElementById('btn-import-settings-token');
   const addChannelBtn = document.getElementById('btn-add-youtube-channel');
 
+  // OAuth 토글 변경 시: OAuth 전용 모델 활성/비활성 + 인증 배지 즉시 갱신
+  document.getElementById('setting-gemini-oauth')?.addEventListener('change', () => {
+    updateGeminiModelOptions();
+    renderGeminiAuthBadge();
+  });
+
   addChannelBtn?.addEventListener('click', async () => {
     const resolveInput = document.getElementById('youtube-channel-resolve-input');
     const urlOrHandle = resolveInput ? resolveInput.value.trim() : '';
@@ -2782,6 +2788,29 @@ function renderGeminiAuthBadge() {
   el.innerHTML = line1 + line2 + hint;
 }
 
+// OAuth 전용 모델(gemini-3-*-preview) 가드: OAuth 체크가 꺼져 있으면 선택 불가(비활성화),
+// 이미 선택돼 있으면 안전한 기본값으로 되돌림. 체크 토글/설정 열기 시 호출.
+function updateGeminiModelOptions() {
+  const oauthOn = !!document.getElementById('setting-gemini-oauth')?.checked;
+  const selects = [
+    { id: 'setting-gemini-model-analysis', def: 'gemini-2.5-pro' },
+    { id: 'setting-gemini-model-recommend', def: 'gemini-2.5-flash' },
+    { id: 'setting-gemini-model-vision', def: 'gemini-2.5-flash' },
+  ];
+  selects.forEach(({ id, def }) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    // OAuth 꺼짐 + 현재 선택이 OAuth 전용 → 기본값으로 되돌린 뒤 비활성화
+    if (!oauthOn) {
+      const cur = sel.options[sel.selectedIndex];
+      if (cur && cur.dataset && cur.dataset.oauthOnly === '1') sel.value = def;
+    }
+    Array.from(sel.options).forEach(o => {
+      if (o.dataset && o.dataset.oauthOnly === '1') o.disabled = !oauthOn;
+    });
+  });
+}
+
 function initSettingsFields() {
   const cfg = window.TOOCHANGI_CONFIG || {};
   const sheetLink = document.getElementById('btn-open-sheet');
@@ -2819,6 +2848,7 @@ function initSettingsFields() {
   }
   renderSettingsYouTubeChannels();
   renderGeminiAuthBadge();
+  updateGeminiModelOptions();
 
   // 설정 내보내기 토큰 생성 및 노출
   const overrides = {

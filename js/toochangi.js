@@ -214,11 +214,29 @@ const Toochangi = (() => {
     return { hasKey, hasToken, scopeConfigured, lastUsed: _lastGeminiAuthMode, expected };
   }
 
+  // OAuth(cloud-platform 토큰)에서만 호출 가능한 모델 → OAuth 미준비 시 대체할 안전 모델
+  const _OAUTH_ONLY_MODELS = {
+    'gemini-3-pro-preview': 'gemini-2.5-pro',
+    'gemini-3-flash-preview': 'gemini-2.5-flash',
+  };
+  // OAuth 전용 모델인데 OAuth(토큰+scope)가 준비 안 됐으면 안전 모델로 대체(404 방지)
+  function _safeGeminiModel(model) {
+    const fallback = _OAUTH_ONLY_MODELS[model];
+    if (!fallback) return model;
+    const st = getGeminiAuthStatus();
+    if (!(st.hasToken && st.scopeConfigured)) {
+      console.warn(`[Gemini] '${model}'은 OAuth 전용 — OAuth 미준비 상태라 '${fallback}'로 대체합니다.`);
+      return fallback;
+    }
+    return model;
+  }
+
   // Gemini generateContent 호출.
   //  1) 구글 OAuth 액세스 토큰이 있으면 Authorization: Bearer 로 먼저 시도(키를 브라우저에 안 둬도 됨)
   //  2) 토큰이 없거나 401/403(스코프 미설정·API 비활성화)·네트워크 예외면 ?key= API 키 방식으로 폴백
   // 반환: fetch Response (상위에서 res.ok/상태코드 처리)
   async function _geminiFetch(model, body) {
+    model = _safeGeminiModel(model);
     const base = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
     const apiKey = window.TOOCHANGI_CONFIG.GEMINI_API_KEY;
     const hasKey = apiKey && !apiKey.startsWith('YOUR_');
