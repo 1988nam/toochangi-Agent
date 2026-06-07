@@ -1696,15 +1696,16 @@ function assetSnapshotForMonth(monthKey) {
   const history = Toochangi.getAssetHistory() || [];
   const entries = history.filter(a => a.date && String(a.date).startsWith(monthKey));
   if (entries.length === 0) return null;
-  let total = 0, debt = 0, stock = 0, cash = 0;
+  let total = 0, debt = 0, stock = 0, cash = 0, realEstate = 0;
   entries.forEach(a => {
     const cat = a.category || '';
     const bal = a.balance || 0;
     if (cat === '대출(부채)') debt += bal; else total += bal;
     if (cat.includes('주식') || cat.includes('투자')) stock += bal;
     if (cat.includes('현금') || cat.includes('예적금')) cash += bal;
+    if (cat.includes('부동산')) realEstate += bal;
   });
-  return { total, debt, net: total - debt, stock, cash };
+  return { total, debt, net: total - debt, stock, cash, realEstate };
 }
 // 현재 월보다 이전인 가장 최근 스냅샷 월의 집계
 function previousAssetSnapshot() {
@@ -1744,6 +1745,8 @@ async function renderAssetsTab() {
   if (stockEl) stockEl.textContent = summary.stock > 0 ? `${Math.floor(summary.stock).toLocaleString()}원` : '—';
   const cashEl = document.getElementById('asset-cash-val');
   if (cashEl) cashEl.textContent = summary.cash > 0 ? `${Math.floor(summary.cash).toLocaleString()}원` : '—';
+  const reEl = document.getElementById('asset-realestate-val');
+  if (reEl) reEl.textContent = summary.realEstateValue > 0 ? `${Math.floor(summary.realEstateValue).toLocaleString()}원` : '—';
 
   // 부채비율(%) = 부채 / 총 자산
   const ratioEl = document.getElementById('asset-debt-ratio');
@@ -1763,6 +1766,7 @@ async function renderAssetsTab() {
   setAssetDelta('asset-net-delta',   summary.netWorth,    prevSnap ? prevSnap.net   : null);
   setAssetDelta('asset-stock-delta', summary.stock,       prevSnap ? prevSnap.stock : null);
   setAssetDelta('asset-cash-delta',  summary.cash,        prevSnap ? prevSnap.cash  : null);
+  setAssetDelta('asset-realestate-delta', summary.realEstateValue, prevSnap ? prevSnap.realEstate : null);
   setAssetDelta('asset-debt-delta',  summary.totalDebt,   prevSnap ? prevSnap.debt  : null, true);
 
   // 순자산 변화 추이(스냅샷 기록 기반)
