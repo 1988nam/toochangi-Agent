@@ -30,6 +30,21 @@ const Toochangi = (() => {
     } catch (e) {
       console.error('[Toochangi] 데이터 로드 실패:', e);
     }
+    // 최근 AI 추천(클라우드) 로드 — 실패해도 본 로드에 영향 없게 분리
+    try {
+      _lastRecommendation = (SheetsAPI.getLatestRecommendation ? await SheetsAPI.getLatestRecommendation() : null);
+    } catch (e) {
+      console.warn('[Toochangi] 추천기록 로드 실패:', e);
+    }
+  }
+
+  let _lastRecommendation = null;
+  function getLatestRecommendation() { return _lastRecommendation; }
+  async function saveRecommendation(items, text, generatedAt) {
+    const gen = generatedAt || new Date().toLocaleString('ko-KR');
+    await SheetsAPI.appendRecommendation(gen, items || [], text || '');
+    _lastRecommendation = { generatedAt: gen, items: Array.isArray(items) ? items : [], text: text || '' };
+    return _lastRecommendation;
   }
 
   // ── 포트폴리오 계산 ──────────────────────────────────────────────
@@ -1067,6 +1082,7 @@ ${youtubeFeedText}
     runGeminiAnalysis,
     runAutoRecommendation,
     runEconomyVideoSummary,
+    getLatestRecommendation, saveRecommendation,
     renderAllocationChart,
     renderMarketAllocationChart,
     getPortfolio, getTradeLog, getAnalysis, getGachangiData, getGachangiAccounts, getSavings, getRealEstate, calcSavingsBalance,

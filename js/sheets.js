@@ -951,6 +951,48 @@ const SheetsAPI = (() => {
     });
   }
 
+  // ── AI 추천 기록 (자동 투자 추천 결과를 클라우드에 영구 저장) ──────────
+  const REC_SHEET = 'AI추천기록';
+  async function ensureRecommendationSheet(id) {
+    const metaRes = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: id, fields: 'sheets.properties(title)' });
+    const titles = (metaRes.result.sheets || []).map(s => s.properties.title);
+    if (!titles.includes(REC_SHEET)) {
+      await gapi.client.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: id, resource: { requests: [{ addSheet: { properties: { title: REC_SHEET } } }] },
+      });
+      await gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId: id, range: `${REC_SHEET}!A1:C1`, valueInputOption: 'RAW',
+        resource: { values: [['생성시각', '추천JSON', '요약']] },
+      });
+    }
+  }
+  async function appendRecommendation(generatedAt, items, text) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (!id || id.startsWith('YOUR_')) return;
+    await ensureRecommendationSheet(id);
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: id, range: `${REC_SHEET}!A:C`, valueInputOption: 'RAW',
+      resource: { values: [[generatedAt || '', JSON.stringify(items || []), (text || '').slice(0, 45000)]] },
+    });
+  }
+  async function getLatestRecommendation() {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (!id || id.startsWith('YOUR_')) return null;
+    try {
+      await ensureRecommendationSheet(id);
+      const res = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: id, range: `${REC_SHEET}!A2:C` });
+      const rows = res.result.values || [];
+      if (rows.length === 0) return null;
+      const last = rows[rows.length - 1];
+      let items = [];
+      try { items = JSON.parse(last[1] || '[]'); } catch (_) {}
+      return { generatedAt: last[0] || '', items: Array.isArray(items) ? items : [], text: last[2] || '' };
+    } catch (e) {
+      console.warn('[Sheets] AI추천기록 로드 실패:', e);
+      return null;
+    }
+  }
+
   // ── 분석기록 ──────────────────────────────────────────────────
   async function getAnalysisHistory() {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
@@ -1301,6 +1343,8 @@ const SheetsAPI = (() => {
     updateAsset,
     deleteAsset,
     syncPortfolioToAssets,
+    appendRecommendation,
+    getLatestRecommendation,
   };
 
   // 모든 API 호출 전에 ensureGapiWrapped()가 먼저 실행되도록 랩핑

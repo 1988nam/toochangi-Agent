@@ -326,6 +326,10 @@ function saveLastRecommendations(items, generatedAt) {
   } catch (_) {}
 }
 function getLastRecommendations() {
+  // 1) 클라우드(시트 'AI추천기록') 최신본 우선 — 기기/브라우저 바뀌어도 유지
+  const cloud = Toochangi.getLatestRecommendation ? Toochangi.getLatestRecommendation() : null;
+  if (cloud) return { items: cloud.items || [], generatedAt: cloud.generatedAt || '' };
+  // 2) 로컬 캐시 폴백
   try {
     const s = localStorage.getItem('toochangi_last_recommendations');
     if (s) { const o = JSON.parse(s); if (o && Array.isArray(o.items)) return o; }
@@ -1413,8 +1417,13 @@ function bindAutoAnalysisEvents() {
         autoRecSourcesWrap?.classList.remove('hidden');
       }
 
-      // 구조화된 추천 종목 저장 → 대시보드/3단계 필터 카드 갱신
+      // 구조화된 추천 종목 저장(로컬 캐시 + 클라우드 시트) → 대시보드/3단계 필터 카드 갱신
       saveLastRecommendations(result.recommendations || [], result.generatedAt);
+      try {
+        await Toochangi.saveRecommendation(result.recommendations || [], result.text, result.generatedAt);
+      } catch (saveErr) {
+        console.warn('추천 클라우드 저장 실패(로컬만 유지):', saveErr);
+      }
       renderDashboardRecommendations();
       renderFilterPassedRecommendations();
 
