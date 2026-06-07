@@ -1290,6 +1290,16 @@ function bindModalEvents() {
 let _youtubeFeedCache = null;
 let _youtubeFeedLoading = false;
 
+// 경제 영상 요약 HTML 빌더(신규 요약/시트 복원 공용)
+function _videoFeedHtml(text, sources, metaLine) {
+  const safe = String(text == null ? '' : text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const srcHtml = (sources && sources.length)
+    ? `<div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:6px;">${sources.slice(0, 8).map(s => `<a href="${s.url}" target="_blank" class="source-link" title="${s.title}">🔗 <span>${s.title}</span></a>`).join('')}</div>`
+    : '';
+  const metaHtml = metaLine ? `<div style="margin-top:8px;font-size:11px;color:#64748b;">${metaLine}</div>` : '';
+  return `<div style="white-space:pre-wrap; line-height:1.6; font-size:13.5px; color:var(--text-secondary);">${safe}</div>${srcHtml}${metaHtml}`;
+}
+
 // AI(Gemini 실시간 검색)가 최근 경제·투자 유튜브를 찾아 요약. 자동 호출(force=false)에선 검색하지 않고 안내만(쿼터 절약)
 async function renderYouTubeFeed(force = false) {
   const listEl = document.getElementById('youtube-feed-list');
@@ -1299,6 +1309,16 @@ async function renderYouTubeFeed(force = false) {
 
   if (!force) {
     if (_youtubeFeedCache) { listEl.innerHTML = _youtubeFeedCache; return; }
+    // 메모리 캐시가 없으면 시트에 저장된 최신 요약을 복원(휘발 방지)
+    try {
+      const latest = (typeof Toochangi !== 'undefined' && Toochangi.getLatestVideoSummary)
+        ? await Toochangi.getLatestVideoSummary() : null;
+      if (latest && latest.text) {
+        _youtubeFeedCache = _videoFeedHtml(latest.text, latest.sources, `📅 ${latest.generatedAt} · 저장된 요약 (‘요약 받기’를 누르면 최신본)`);
+        listEl.innerHTML = _youtubeFeedCache;
+        return;
+      }
+    } catch (_) {}
     listEl.innerHTML = '<div class="empty-state">🔄 "요약 받기"를 누르면 AI가 최근 경제·투자 유튜브 핵심을 실시간 검색해 요약합니다.</div>';
     return;
   }
@@ -1308,14 +1328,7 @@ async function renderYouTubeFeed(force = false) {
   listEl.classList.add('hidden');
   try {
     const vres = await Toochangi.runEconomyVideoSummary();
-    const { text, sources } = vres;
-    const safe = String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const srcHtml = (sources && sources.length)
-      ? `<div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:6px;">${sources.slice(0, 8).map(s => `<a href="${s.url}" target="_blank" class="source-link" title="${s.title}">🔗 <span>${s.title}</span></a>`).join('')}</div>`
-      : '';
-    const mlV = aiModelLabel(vres);
-    const mlHtml = mlV ? `<div style="margin-top:8px;font-size:11px;color:#64748b;">${mlV}</div>` : '';
-    _youtubeFeedCache = `<div style="white-space:pre-wrap; line-height:1.6; font-size:13.5px; color:var(--text-secondary);">${safe}</div>${srcHtml}${mlHtml}`;
+    _youtubeFeedCache = _videoFeedHtml(vres.text, vres.sources, aiModelLabel(vres));
     listEl.innerHTML = _youtubeFeedCache;
   } catch (err) {
     console.error('[EconomyVideo] 요약 실패:', err);
@@ -1385,9 +1398,12 @@ function bindAutoAnalysisEvents() {
   }
   updateKisStatusBadge();
 
-  autoRecBtn?.addEventListener('click', async () => {
+  const kospiRecBtn = document.getElementById('btn-auto-recommend-kospi');
+
+  async function runAutoRec(mode) {
     // UI 상태: 로딩 시작
-    autoRecBtn.disabled = true;
+    if (autoRecBtn) autoRecBtn.disabled = true;
+    if (kospiRecBtn) kospiRecBtn.disabled = true;
     autoRecEmpty?.classList.add('hidden');
     autoRecResult?.classList.add('hidden');
     autoRecSourcesWrap?.classList.add('hidden');
@@ -1396,7 +1412,7 @@ function bindAutoAnalysisEvents() {
     updateKisStatusBadge();
 
     try {
-      const result = await Toochangi.runAutoRecommendation();
+      const result = await Toochangi.runAutoRecommendation(mode);
 
       // 결과 렌더링 (볼드 마크다운 **text** 처리)
       const formatted = result.text
@@ -1404,7 +1420,10 @@ function bindAutoAnalysisEvents() {
         .replace(/\n/g, '<br>');
 
       if (autoRecResult) {
-        autoRecResult.innerHTML = formatted;
+        const tag = mode === 'kospi'
+          ? '<div style="margin-bottom:8px;"><span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600;background:rgba(37,99,235,.18);color:#60a5fa;">🇰🇷 코스피 전용 분석</span></div>'
+          : '';
+        autoRecResult.innerHTML = tag + formatted;
         autoRecResult.classList.remove('hidden');
       }
 
@@ -1442,10 +1461,14 @@ function bindAutoAnalysisEvents() {
         autoRecResult.classList.remove('hidden');
       }
     } finally {
-      autoRecBtn.disabled = false;
+      if (autoRecBtn) autoRecBtn.disabled = false;
+      if (kospiRecBtn) kospiRecBtn.disabled = false;
       autoRecLoading?.classList.add('hidden');
     }
-  });
+  }
+
+  autoRecBtn?.addEventListener('click', () => runAutoRec('all'));
+  kospiRecBtn?.addEventListener('click', () => runAutoRec('kospi'));
 
   refreshYoutubeBtn?.addEventListener('click', () => {
     toast('🔄 유튜브 피드 갱신 중...', 'info');

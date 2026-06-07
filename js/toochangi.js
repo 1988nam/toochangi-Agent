@@ -392,7 +392,16 @@ const Toochangi = (() => {
     const text = (cand?.content?.parts || []).filter(p => p && p.text).map(p => p.text).join('').trim() || '요약을 받지 못했습니다.';
     const chunks = cand?.groundingMetadata?.groundingChunks || [];
     const sources = chunks.map(c => c.web ? { title: c.web.title, url: c.web.uri } : null).filter(Boolean);
-    return { text, sources, ..._answerModelInfo('gemini') };
+    const generatedAt = new Date().toLocaleString('ko-KR');
+    // 시트 '영상요약기록'에 저장(휘발 방지) + 오래된 것 자동 정리
+    try { if (SheetsAPI.appendVideoSummary) await SheetsAPI.appendVideoSummary(generatedAt, text, sources); }
+    catch (e) { console.warn('[Toochangi] 영상요약 저장 실패:', e); }
+    return { text, sources, generatedAt, ..._answerModelInfo('gemini') };
+  }
+
+  // 시트에 저장된 가장 최근 경제 영상 요약 조회
+  async function getLatestVideoSummary() {
+    return SheetsAPI.getLatestVideoSummary ? await SheetsAPI.getLatestVideoSummary() : null;
   }
 
   // ── Gemini AI 분석 ──────────────────────────────────────────────
@@ -492,7 +501,9 @@ ${gachangiContext}
   // ── 자동 투자 추천 ──────────────────────────────────────────────
   // KIS 거래량 데이터 + Google Search Grounding(뉴스/유튜브) + 포트폴리오 + 전략 Context를
   // 통합하여 흰챙이 가족 원칙에 맞는 종목을 자동 발굴·추천하는 함수
-  async function runAutoRecommendation() {
+  // mode: 'all'(기본 전체 시장) | 'kospi'(코스피 전용 — KIS 모의 연동·코스피 정보만으로 코스피 종목 추천)
+  async function runAutoRecommendation(mode = 'all') {
+    const isKospi = mode === 'kospi';
     const provider = _aiProvider();
     if (provider === 'gemini' && !_hasGeminiAuth()) {
       throw new Error('Gemini 인증이 없습니다. 구글 로그인(OAuth) 또는 API 키를 설정해주세요.');
@@ -561,14 +572,37 @@ ${rankLines}`;
       ? '실시간 인터넷 검색은 불가합니다. 제공된 데이터·운용 원칙·모델 지식만으로 발굴하고, 확인되지 않은 최신 정보는 단정하지 마세요.'
       : '실시간 인터넷 검색 기능(Google Search Grounding)이 활성화되어 있습니다.';
     const systemPrompt = `당신은 투챙이 - 흰챙이 가족의 AI 자동 투자 발굴 엔진입니다.
-${recSearchNote}
+${recSearchNote}${isKospi ? '\n[모드] 코스피(KOSPI) 전용 추천 — 코스피 상장 종목만, 코스피 지수·수급·뉴스 중심으로 분석합니다.' : ''}
 
 [흰챙이 커스텀 자산 운용 가이드라인]
 ${strategyContext}`;
 
-    const userPrompt = `오늘(${today}) 기준으로 투자 검토할 만한 종목을 자동 발굴·추천해주세요.
+    // 모드별 인트로/제약/검색 지시
+    const recIntro = isKospi
+      ? `오늘(${today}) 기준으로 **코스피(KOSPI, 유가증권시장) 상장 종목** 중에서만 투자 검토할 만한 종목을 발굴·추천해주세요.`
+      : `오늘(${today}) 기준으로 투자 검토할 만한 종목을 자동 발굴·추천해주세요.`;
+    const kospiConstraint = isKospi
+      ? `[⚠️ 코스피 전용 제약 — 반드시 준수]
+- 추천 종목은 모두 코스피(유가증권시장) 상장 종목이어야 합니다. 코스닥·해외·비상장 제외(코스피 추종 ETF는 허용).
+- 코스피 지수 흐름, 외국인·기관 수급, 코스피 대형주/업종 뉴스 중심으로 분석하세요.
+- 위 KIS(모의 연동) 데이터의 코스피 지수·거래량을 우선 반영하세요.
+`
+      : '';
+    const searchInstructions = isKospi
+      ? `1. 오늘 코스피(KOSPI) 지수 흐름과 외국인·기관 수급 동향 검색
+2. 코스피 거래량/등락 상위 종목과 급등락 원인(공시·실적·이슈) 검색
+3. 코스피 주요 업종(반도체·2차전지·자동차·금융·바이오 등) 오늘 테마·뉴스 검색
+4. 코스피 대형주(삼성전자·SK하이닉스 등) 최신 이슈 검색
+5. 위 구독 유튜브 채널의 코스피 관련 최신 영상·여론 검색`
+      : `1. 오늘 국내외 주요 증시 특징 및 거래량 급등 테마/섹터 뉴스 검색
+2. 위 구독 유튜브 채널의 실시간 피드에 기록된 최신 영상 주제들을 면밀히 파악하고, 최근 시장 여론과 주목받는 종목들을 추천 후보군에 적극 반영하십시오.
+3. 위 KIS 거래량 상위 종목들의 급등 원인(공시, 실적, 이슈) 검색
+4. 미국 시장(S&P500, 나스닥) 오늘 주요 이슈 및 ETF 자금 흐름 검색
+5. 현재 ISA 계좌에 담기 적합한 국내 ETF 트렌드 검색`;
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const userPrompt = `${recIntro}
+
+${kospiConstraint}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [현재 가구 전체 자산 현황]
   ${assetSummary}
 
@@ -581,11 +615,7 @@ ${youtubeFeedText}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 [필수 검색 지시 — 아래 항목을 Google Search로 반드시 검색하세요]
-1. 오늘 국내외 주요 증시 특징 및 거래량 급등 테마/섹터 뉴스 검색
-2. 위 구독 유튜브 채널의 실시간 피드에 기록된 최신 영상 주제들을 면밀히 파악하고, 최근 시장 여론과 주목받는 종목들을 추천 후보군에 적극 반영하십시오.
-3. 위 KIS 거래량 상위 종목들의 급등 원인(공시, 실적, 이슈) 검색
-4. 미국 시장(S&P500, 나스닥) 오늘 주요 이슈 및 ETF 자금 흐름 검색
-5. 현재 ISA 계좌에 담기 적합한 국내 ETF 트렌드 검색
+${searchInstructions}
 
 [추천 출력 형식]
 추천 종목 3~5개를 아래 형식으로 각각 작성하세요:
@@ -1240,7 +1270,7 @@ ${youtubeFeedText}
     evaluateFilter, updateFilterSignal, evaluateFinalVerdict,
     runGeminiAnalysis,
     runAutoRecommendation,
-    runEconomyVideoSummary,
+    runEconomyVideoSummary, getLatestVideoSummary,
     getGeminiAuthStatus, listAvailableModels,
     getLatestRecommendation, getRecommendationHistory, saveRecommendation,
     renderAllocationChart,

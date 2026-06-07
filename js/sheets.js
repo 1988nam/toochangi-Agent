@@ -1032,6 +1032,58 @@ const SheetsAPI = (() => {
     }
   }
 
+  // 임의의 탭을 최근 `keep`행만 남기고 오래된 행부터 삭제(공용)
+  async function _trimSheetByTitle(id, title, keep) {
+    try {
+      const res = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: id, range: `${title}!A2:A` });
+      const count = (res.result.values || []).length;
+      if (count <= keep) return;
+      const meta = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: id, fields: 'sheets.properties(title,sheetId)' });
+      const sheet = (meta.result.sheets || []).find(s => s.properties.title === title);
+      if (!sheet) return;
+      const removeCount = count - keep;
+      await gapi.client.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: id,
+        resource: { requests: [{ deleteDimension: { range: { sheetId: sheet.properties.sheetId, dimension: 'ROWS', startIndex: 1, endIndex: 1 + removeCount } } }] },
+      });
+    } catch (e) { console.warn(`[Sheets] ${title} 정리 실패:`, e); }
+  }
+
+  // ── 경제 영상 AI 요약 기록 ────────────────────────────────────
+  const VIDEO_SHEET = '영상요약기록';
+  async function ensureVideoSummarySheet(id) {
+    const metaRes = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: id, fields: 'sheets.properties(title)' });
+    const titles = (metaRes.result.sheets || []).map(s => s.properties.title);
+    if (!titles.includes(VIDEO_SHEET)) {
+      await gapi.client.sheets.spreadsheets.batchUpdate({ spreadsheetId: id, resource: { requests: [{ addSheet: { properties: { title: VIDEO_SHEET } } }] } });
+      await gapi.client.sheets.spreadsheets.values.update({ spreadsheetId: id, range: `${VIDEO_SHEET}!A1:C1`, valueInputOption: 'RAW', resource: { values: [['생성시각', '요약', '출처JSON']] } });
+    }
+  }
+  async function appendVideoSummary(generatedAt, text, sources) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (!id || id.startsWith('YOUR_')) return;
+    await ensureVideoSummarySheet(id);
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: id, range: `${VIDEO_SHEET}!A:C`, valueInputOption: 'RAW',
+      resource: { values: [[generatedAt || '', (text || '').slice(0, 45000), JSON.stringify(sources || [])]] },
+    });
+    await _trimSheetByTitle(id, VIDEO_SHEET, 20); // 최근 20건만 유지
+  }
+  async function getLatestVideoSummary() {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (!id || id.startsWith('YOUR_')) return null;
+    try {
+      await ensureVideoSummarySheet(id);
+      const res = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: id, range: `${VIDEO_SHEET}!A2:C` });
+      const rows = res.result.values || [];
+      if (rows.length === 0) return null;
+      const last = rows[rows.length - 1];
+      let sources = [];
+      try { sources = JSON.parse(last[2] || '[]'); } catch (_) {}
+      return { generatedAt: last[0] || '', text: last[1] || '', sources: Array.isArray(sources) ? sources : [] };
+    } catch (e) { console.warn('[Sheets] 영상요약기록 로드 실패:', e); return null; }
+  }
+
   // ── 분석기록 ──────────────────────────────────────────────────
   async function getAnalysisHistory() {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
@@ -1385,6 +1437,8 @@ const SheetsAPI = (() => {
     appendRecommendation,
     getLatestRecommendation,
     getRecommendationHistory,
+    appendVideoSummary,
+    getLatestVideoSummary,
   };
 
   // 모든 API 호출 전에 ensureGapiWrapped()가 먼저 실행되도록 랩핑
