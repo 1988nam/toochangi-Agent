@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260607_42" />
+  <link rel="stylesheet" href="style.css?v=20260607_43" />
 </head>
 <body>
 
@@ -981,6 +981,14 @@
               <label>Gemini API Key</label>
               <input type="password" id="setting-gemini-key" placeholder="AI Studio에서 발급받은 API 키" style="width: 100%; box-sizing: border-box;" />
               <div id="gemini-auth-badge" style="margin-top: 8px; font-size: 12px; line-height: 1.5;"></div>
+              <label style="display: flex; align-items: flex-start; gap: 8px; margin-top: 10px; font-weight: 400; cursor: pointer;">
+                <input type="checkbox" id="setting-gemini-oauth" style="margin-top: 3px;" />
+                <span style="font-size: 12px; color: #cbd5e1; line-height: 1.5;">
+                  <b>Gemini를 OAuth(구글 로그인)로 호출</b> — 키를 브라우저에 안 둬도 됨.<br/>
+                  <span style="color:#94a3b8;">체크 시 로그인 권한(SCOPES)에 <code>cloud-platform</code>이 추가됩니다. 이 기기뿐 아니라 <b>다른 기기에서도 이 설정을 불러오면 동일하게 적용</b>됩니다(config.js 불필요).<br/>
+                  ⚠️ 먼저 GCP에서 ① Generative Language API 활성화 ② 동의화면에 <code>cloud-platform</code> scope 등록을 끝내세요. 저장 후 <b>로그아웃→다시 로그인</b>해야 새 권한이 토큰에 반영됩니다. 준비 전이라도 켜두면 OAuth 시도 후 키로 자동 폴백되어 안전합니다.</span>
+                </span>
+              </label>
             </div>
             <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;">
               <div class="form-group">
@@ -1858,12 +1866,26 @@
   } catch (e) {
     console.error('설정 오버라이드 병합 실패:', e);
   }
+
+  // Gemini OAuth 옵션: 환경설정에서 켜져 있으면(localStorage 오버라이드) 로그인 SCOPES에 cloud-platform 추가.
+  // → 토큰이 generative-language 호출 권한을 갖게 됨. config.js 없이도 기기 간 동일 적용.
+  try {
+    if (window.TOOCHANGI_CONFIG && window.TOOCHANGI_CONFIG.GEMINI_USE_OAUTH) {
+      const CP = 'https://www.googleapis.com/auth/cloud-platform';
+      const cur = window.TOOCHANGI_CONFIG.SCOPES || '';
+      if (cur.indexOf(CP) === -1) {
+        window.TOOCHANGI_CONFIG.SCOPES = (cur + ' ' + CP).trim();
+      }
+    }
+  } catch (e) {
+    console.error('Gemini OAuth 스코프 적용 실패:', e);
+  }
 </script>
-<script src="js/auth.js?v=20260607_42"></script>
-<script src="js/sheets.js?v=20260607_42"></script>
-<script src="js/toochangi.js?v=20260607_42"></script>
-<script src="js/broker.js?v=20260607_42"></script>
-<script src="js/main.js?v=20260607_42"></script>
+<script src="js/auth.js?v=20260607_43"></script>
+<script src="js/sheets.js?v=20260607_43"></script>
+<script src="js/toochangi.js?v=20260607_43"></script>
+<script src="js/broker.js?v=20260607_43"></script>
+<script src="js/main.js?v=20260607_43"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 

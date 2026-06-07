@@ -2659,6 +2659,7 @@ function bindSettingsEvents() {
       OPENAI_API_KEY: document.getElementById('setting-openai-key')?.value.trim() || '',
       OPENAI_MODEL: document.getElementById('setting-openai-model')?.value.trim() || 'gpt-4o',
       STRATEGY_CONTEXT: document.getElementById('setting-strategy-context')?.value || '',
+      GEMINI_USE_OAUTH: !!document.getElementById('setting-gemini-oauth')?.checked,
     };
 
     localStorage.setItem('toochangi_config_overrides', JSON.stringify(overrides));
@@ -2773,7 +2774,9 @@ function renderGeminiAuthBadge() {
   // scope 미설정 + 토큰 있음 → 켜는 방법 안내
   let hint = '';
   if (s.hasToken && !s.scopeConfigured) {
-    hint = `<div style="margin-top:6px;color:#64748b;">키 없이 OAuth로 쓰려면: GCP에서 Generative Language API 활성화 + 동의화면에 <code>cloud-platform</code> scope 추가 → index.html(또는 config.js)의 SCOPES에 같은 줄 추가 → 재로그인</div>`;
+    hint = `<div style="margin-top:6px;color:#64748b;">키 없이 OAuth로 쓰려면: GCP에서 Generative Language API 활성화 + 동의화면에 <code>cloud-platform</code> scope 등록 → 아래 <b>‘Gemini를 OAuth로 호출’ 체크 후 저장</b> → 로그아웃·재로그인</div>`;
+  } else if (s.hasToken && s.scopeConfigured && s.lastUsed !== 'oauth') {
+    hint = `<div style="margin-top:6px;color:#64748b;">scope가 설정됐습니다. 아직 OAuth로 호출된 적이 없다면 <b>로그아웃→다시 로그인</b>으로 새 권한을 토큰에 반영한 뒤, AI 분석/추천을 한 번 실행해 확인하세요.</div>`;
   }
 
   el.innerHTML = line1 + line2 + hint;
@@ -2800,6 +2803,7 @@ function initSettingsFields() {
   if (document.getElementById('setting-openai-key')) document.getElementById('setting-openai-key').value = cfg.OPENAI_API_KEY || '';
   if (document.getElementById('setting-openai-model')) document.getElementById('setting-openai-model').value = cfg.OPENAI_MODEL || 'gpt-4o';
   if (document.getElementById('setting-strategy-context')) document.getElementById('setting-strategy-context').value = cfg.STRATEGY_CONTEXT || '';
+  if (document.getElementById('setting-gemini-oauth')) document.getElementById('setting-gemini-oauth').checked = !!cfg.GEMINI_USE_OAUTH;
 
   // 유튜브 채널 초기화
   try {
@@ -2832,6 +2836,7 @@ function initSettingsFields() {
     OPENAI_API_KEY: cfg.OPENAI_API_KEY || '',
     OPENAI_MODEL: cfg.OPENAI_MODEL || 'gpt-4o',
     STRATEGY_CONTEXT: cfg.STRATEGY_CONTEXT || '',
+    GEMINI_USE_OAUTH: !!cfg.GEMINI_USE_OAUTH,
     youtubeChannels: _tempYouTubeChannels,
   };
   try {
