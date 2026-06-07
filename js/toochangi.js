@@ -168,7 +168,8 @@ ${gachangiContext}
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: [{ parts: [{ text: query }] }],
       tools: [{ googleSearch: {} }], // Enables Google Search Grounding for real-time news/YouTube search
-      generationConfig: { temperature: 0.7, maxOutputTokens: 1500 },
+      // 2.5-pro는 thinking 토큰을 소비(끌 수 없음) → 출력 한도를 넉넉히 잡아 중간 잘림 방지
+      generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
     };
 
     const res = await fetch(url, {
@@ -180,7 +181,9 @@ ${gachangiContext}
     if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
     const data = await res.json();
     const candidate = data.candidates?.[0];
-    const text = candidate?.content?.parts?.[0]?.text || '분석 결과를 받지 못했습니다.';
+    // 응답 파트 전체를 합쳐 텍스트 추출 (thinking/멀티파트 대비)
+    const text = (candidate?.content?.parts || []).filter(p => p && p.text).map(p => p.text).join('').trim()
+      || '분석 결과를 받지 못했습니다.';
     const chunks = candidate?.groundingMetadata?.groundingChunks || [];
     const sources = chunks.map(c => {
       if (c.web) {
@@ -358,7 +361,8 @@ ${youtubeFeedText}
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: [{ parts: [{ text: userPrompt }] }],
       tools: [{ googleSearch: {} }],
-      generationConfig: { temperature: 0.6, maxOutputTokens: 3000 },
+      // 2.5-flash는 thinking 토큰을 소비 → 비활성화하고 출력 한도를 넉넉히(중간 잘림 방지)
+      generationConfig: { temperature: 0.6, maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } },
     };
 
     const res = await fetch(url, {
@@ -370,7 +374,9 @@ ${youtubeFeedText}
     if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
     const data = await res.json();
     const candidate = data.candidates?.[0];
-    const text = candidate?.content?.parts?.[0]?.text || '추천 결과를 받지 못했습니다.';
+    // 응답 파트 전체를 합쳐 텍스트 추출 (thinking/멀티파트 대비)
+    const text = (candidate?.content?.parts || []).filter(p => p && p.text).map(p => p.text).join('').trim()
+      || '추천 결과를 받지 못했습니다.';
     const chunks = candidate?.groundingMetadata?.groundingChunks || [];
     const sources = chunks.map(c => c.web ? { title: c.web.title, url: c.web.uri } : null).filter(Boolean);
 
