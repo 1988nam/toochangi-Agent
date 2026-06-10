@@ -21,17 +21,40 @@ const KIS = {
   mock: 'https://openapivts.koreainvestment.com:29443',
 };
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Max-Age': '86400',
-};
+// 허용 출처(Origin) 화이트리스트. 브라우저가 보내는 Origin 헤더가 이 목록에 있을 때만
+// CORS를 허용한다(과거엔 '*'로 모든 출처 허용 → 오픈 릴레이). 배포 환경변수
+// ALLOWED_ORIGINS(쉼표 구분)로 추가/덮어쓸 수 있다.
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://1988nam.github.io',   // GitHub Pages (실제 앱 호스트)
+  'http://localhost:3000',       // 로컬 개발(server.js)
+  'http://127.0.0.1:3000',
+  'http://localhost:8080',
+];
 
-function json(obj, status = 200) {
+function allowedOrigins(env) {
+  const raw = env && env.ALLOWED_ORIGINS ? String(env.ALLOWED_ORIGINS) : '';
+  const extra = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  return new Set([...DEFAULT_ALLOWED_ORIGINS, ...extra]);
+}
+
+// 요청 Origin이 화이트리스트에 있을 때만 Access-Control-Allow-Origin을 반영한다.
+function corsHeaders(origin, env) {
+  const h = {
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Proxy-Token',
+    'Access-Control-Max-Age': '86400',
+    'Vary': 'Origin',
+  };
+  if (origin && allowedOrigins(env).has(origin)) {
+    h['Access-Control-Allow-Origin'] = origin;
+  }
+  return h;
+}
+
+function json(obj, status = 200, extra = {}) {
   return new Response(JSON.stringify(obj), {
     status,
-    headers: { 'Content-Type': 'application/json', ...CORS },
+    headers: { 'Content-Type': 'application/json', ...extra },
   });
 }
 
@@ -47,32 +70,49 @@ function kisHeaders(b, tr) {
 }
 
 export default {
-  async fetch(request) {
-    // CORS preflight
-    if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
-    if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
+  async fetch(request, env) {
+    const origin = request.headers.get('Origin') || '';
+    const cors = corsHeaders(origin, env);
+
+    // CORS preflight — 허용되지 않은 출처는 ACAO 헤더가 없어 브라우저가 차단한다.
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+    if (request.method !== 'POST') return json({ error: 'POST only' }, 405, cors);
+
+    // 선택적 공유 토큰 인증: 배포 환경변수 PROXY_TOKEN이 설정된 경우에만 동작한다.
+    // 설정 시 앱은 X-Proxy-Token 헤더(localStorage: toochangi_kis_proxy_token)를 함께 보내야 한다.
+    // (미설정 시 기존 배포와 100% 호환 — 통과)
+    if (env && env.PROXY_TOKEN) {
+      if (request.headers.get('X-Proxy-Token') !== env.PROXY_TOKEN) {
+        return json({ error: 'unauthorized' }, 401, cors);
+      }
+    }
 
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '').split('/').pop(); // 마지막 경로 세그먼트
 
     let b;
-    try { b = await request.json(); } catch (_) { return json({ error: 'invalid json body' }, 400); }
+    try { b = await request.json(); } catch (_) { return json({ error: 'invalid json body' }, 400, cors); }
 
     const host = b.isMock ? KIS.mock : KIS.real;
 
     try {
+      let resp;
       switch (path) {
-        case 'token': return await issueToken(host, b);
-        case 'balance': return await inquireBalance(host, b);
-        case 'order': return await placeOrder(host, b);
-        case 'market-rank': return await volumeRank(host, b);
-        case 'market-index': return await marketIndex(host, b);
-        case 'price': return await inquirePrice(host, b);
-        case 'reserved-orders': return await reservedOrders(host, b);
-        default: return json({ error: 'unknown endpoint: ' + path }, 404);
+        case 'token': resp = await issueToken(host, b); break;
+        case 'balance': resp = await inquireBalance(host, b); break;
+        case 'order': resp = await placeOrder(host, b); break;
+        case 'market-rank': resp = await volumeRank(host, b); break;
+        case 'market-index': resp = await marketIndex(host, b); break;
+        case 'price': resp = await inquirePrice(host, b); break;
+        case 'reserved-orders': resp = await reservedOrders(host, b); break;
+        default: return json({ error: 'unknown endpoint: ' + path }, 404, cors);
       }
+      // 핸들러 응답에 CORS 헤더 주입(핸들러는 CORS를 모름).
+      const merged = new Headers(resp.headers);
+      for (const [k, v] of Object.entries(cors)) merged.set(k, v);
+      return new Response(resp.body, { status: resp.status, headers: merged });
     } catch (e) {
-      return json({ error: String((e && e.message) || e) }, 502);
+      return json({ error: String((e && e.message) || e) }, 502, cors);
     }
   },
 };

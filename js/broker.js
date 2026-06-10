@@ -38,6 +38,15 @@ const Broker = (() => {
     return `${base}/${path}`;
   }
 
+  // 프록시 요청 공통 헤더. Worker에 PROXY_TOKEN을 설정해 잠근 경우,
+  // localStorage('toochangi_kis_proxy_token')에 같은 값을 넣어두면 자동으로 전송된다.
+  function _proxyHeaders() {
+    const h = { 'Content-Type': 'application/json' };
+    const t = (localStorage.getItem('toochangi_kis_proxy_token') || '').trim();
+    if (t) h['X-Proxy-Token'] = t;
+    return h;
+  }
+
   // 오류 응답 메시지를 안전하게 추출. 응답이 JSON이 아닌 HTML(프록시/게이트웨이 오류 등)이어도
   // 'Unexpected token <' 로 깨지지 않고 상태코드+원문 일부를 돌려준다.
   async function _errMsg(res, fallback) {
@@ -82,7 +91,7 @@ const Broker = (() => {
 
     const res = await fetch(_proxyUrl('token'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: _proxyHeaders(),
       body: JSON.stringify({
         appkey: settings.appkey,
         appsecret: settings.secret,
@@ -94,7 +103,13 @@ const Broker = (() => {
 
     const data = await res.json();
     const token = data.access_token;
-    
+
+    // KIS가 HTTP 200으로 오류(레이트리밋 EGW00201 등)를 돌려주는 경우가 있어
+    // 토큰/만료시간 존재를 명시적으로 검증한다. 검증 실패 시 캐시하지 않고 즉시 오류.
+    if (!token || !data.expires_in) {
+      throw new Error(data.error_description || data.error || data.msg1 || data.msg_cd || '토큰 발급 응답이 올바르지 않습니다.');
+    }
+
     // 만료 시간 설정 (초 단위 만료 시간에서 2시간을 빼고 로컬 시간에 결합하여 세이브)
     const tokenExpiry = Date.now() + (data.expires_in - 7200) * 1000;
 
@@ -128,7 +143,7 @@ const Broker = (() => {
 
     const res = await fetch(_proxyUrl('balance'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: _proxyHeaders(),
       body: JSON.stringify({
         appkey: settings.appkey,
         appsecret: settings.secret,
@@ -142,7 +157,14 @@ const Broker = (() => {
     if (!res.ok) throw new Error(await _errMsg(res, '잔고 조회 실패'));
 
     const data = await res.json();
-    
+
+    // KIS rt_cd 검증: '0'이 아니면 실패(레이트리밋 EGW00201, 토큰만료 등).
+    // 검증 없이 빈 output을 '성공'으로 받아 60초 캐시하면 잔고가 0으로 둔갑하므로 반드시 throw.
+    // (캐시는 갱신하지 않아 직전 정상 잔고가 유지된다.)
+    if (data.rt_cd !== undefined && data.rt_cd !== '0') {
+      throw new Error(`잔고 조회 실패 [${data.msg_cd || data.rt_cd}] ${data.msg1 || ''}`.trim());
+    }
+
     // API 출력 데이터 해석
     const output1 = data.output1 || []; // 보유 주식 목록
     const output2 = data.output2 || [{}]; // 잔고 합계 요약
@@ -192,7 +214,7 @@ const Broker = (() => {
     if (!settings.appkey || !settings.secret) throw new Error('KIS 설정이 필요합니다.');
     const token = await getAccessToken(settings);
     const res = await fetch(_proxyUrl('price'), {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: _proxyHeaders(),
       body: JSON.stringify({ appkey: settings.appkey, appsecret: settings.secret, token, ticker, isMock: settings.isMock }),
     });
     if (!res.ok) throw new Error(await _errMsg(res, '시세 조회 실패'));
@@ -215,7 +237,7 @@ const Broker = (() => {
     const cano = cleanAccount.substring(0, 8);
     const acntPrdtCd = cleanAccount.substring(8, 10);
     const res = await fetch(_proxyUrl('reserved-orders'), {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: _proxyHeaders(),
       body: JSON.stringify({ appkey: settings.appkey, appsecret: settings.secret, token, cano, acntPrdtCd, isMock: settings.isMock }),
     });
     if (!res.ok) throw new Error(await _errMsg(res, '예약주문 조회 실패'));
@@ -247,7 +269,7 @@ const Broker = (() => {
 
     const res = await fetch(_proxyUrl('order'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: _proxyHeaders(),
       body: JSON.stringify({
         appkey: settings.appkey,
         appsecret: settings.secret,
@@ -298,17 +320,34 @@ const Broker = (() => {
       ticker = ticker.trim();
     }
 
-    // 포트폴리오에서 현재가 가져와 자동 수량 계산 시도
-    let defaultQty = 10;
+    // 설정 금액(autoTradeAmount) 기준으로 자동 수량 계산.
+    // 현재가는 ① 포트폴리오 캐시 → ② KIS 실시간 시세 순으로 확보한다.
+    // 현재가를 끝내 알 수 없으면 수량을 임의(과거 10주 하드코딩)로 보내지 않고 주문을 중단한다.
+    // (고가주에서 10주 하드코딩은 설정금액을 무시한 거액 시장가 주문으로 이어질 수 있음)
+    let curPrice = 0;
     try {
       const portfolio = typeof Toochangi !== 'undefined' ? Toochangi.getPortfolio() : [];
       const stock = portfolio.find(p => p.ticker === ticker);
-      const curPrice = stock ? stock.curPrice : 0;
-      if (curPrice > 0) {
-        defaultQty = Math.floor(settings.autoTradeAmount / curPrice) || 1;
-      }
+      curPrice = stock && stock.curPrice > 0 ? stock.curPrice : 0;
     } catch (err) {
       console.warn('포트폴리오 단가 분석 실패:', err);
+    }
+    if (curPrice <= 0) {
+      try {
+        const quote = await getCurrentPrice(ticker);
+        curPrice = quote && quote.price > 0 ? quote.price : 0;
+      } catch (err) {
+        console.warn('실시간 시세 조회 실패:', err);
+      }
+    }
+    if (curPrice <= 0) {
+      alert('현재가를 확인할 수 없어 자동 매수 주문을 중단했습니다. (설정 금액 기준 수량 계산 불가)');
+      return;
+    }
+    const defaultQty = Math.floor(settings.autoTradeAmount / curPrice);
+    if (defaultQty < 1) {
+      alert(`설정 자동매수 금액(${settings.autoTradeAmount.toLocaleString()}원)이 현재가(${curPrice.toLocaleString()}원) 1주에도 미치지 못해 주문을 중단했습니다.`);
+      return;
     }
 
     // 커스텀 최종 승인 모달 호출
@@ -371,12 +410,12 @@ const Broker = (() => {
       const [rankRes, indexRes] = await Promise.all([
         fetch(_proxyUrl('market-rank'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: _proxyHeaders(),
           body: JSON.stringify(basePayload)
         }),
         fetch(_proxyUrl('market-index'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: _proxyHeaders(),
           body: JSON.stringify(basePayload)
         })
       ]);

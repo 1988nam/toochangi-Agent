@@ -365,6 +365,82 @@ const Toochangi = (() => {
     });
   }
 
+  // 429 응답 본문에서 '어떤 쿼터를 넘겼는지(quotaMetric)'와 '재시도 지연(retryDelay)'을 추출.
+  // Gemini 429 본문 예: { error: { message, details: [
+  //   { '@type': '...QuotaFailure', violations: [{ quotaMetric, quotaId, quotaDimensions }] },
+  //   { '@type': '...RetryInfo', retryDelay: '17s' } ] } }
+  function _parse429(bodyText) {
+    let quota = '', quotaId = '', retrySec = 0, message = '', dims = '';
+    try {
+      const j = JSON.parse(bodyText);
+      message = j.error?.message || '';
+      for (const d of (j.error?.details || [])) {
+        const t = String(d['@type'] || '');
+        if (t.indexOf('QuotaFailure') !== -1) {
+          const v = (d.violations || [])[0] || {};
+          quota = v.quotaMetric || quota;
+          quotaId = v.quotaId || quotaId;
+          if (v.quotaDimensions) dims = JSON.stringify(v.quotaDimensions);
+        }
+        if (t.indexOf('RetryInfo') !== -1 && d.retryDelay) {
+          const m = String(d.retryDelay).match(/([\d.]+)s/);
+          if (m) retrySec = Math.ceil(parseFloat(m[1]));
+        }
+      }
+    } catch (_) { /* 본문이 JSON이 아니면 message만 비움 */ }
+    return { quota, quotaId, retrySec, message, dims };
+  }
+
+  // generateContent 호출 래퍼.
+  //  - 429 발생 시 본문의 retryDelay(없으면 Retry-After 헤더, 그래도 없으면 7초) 만큼 대기 후 1회 재시도
+  //  - 최종 실패 시 '버려지던 응답 본문'을 파싱해 어떤 쿼터/사유였는지 에러 메시지·콘솔에 그대로 노출
+  // label: 로그·에러에 표시할 기능명(예: 'AI 분석')
+  async function _geminiGenerate(model, body, label) {
+    label = label || 'Gemini';
+    let res = await _geminiFetch(model, body);
+
+    if (res.status === 429) {
+      const text = await res.text().catch(() => '');
+      const info = _parse429(text);
+      const headerSec = parseInt(res.headers.get('retry-after') || '', 10);
+      const waitSec = (Number.isFinite(headerSec) && headerSec > 0) ? headerSec
+        : (info.retrySec > 0 ? info.retrySec : 7);
+      console.warn(`[${label}] 429 쿼터 초과 — ${waitSec}초 후 1회 재시도`
+        + ` | 인증경로: ${_lastGeminiAuthMode || '?'} | 모델: ${_lastGeminiModel || model}`
+        + (info.quota ? `\n  초과 쿼터(metric): ${info.quota}` : '')
+        + (info.quotaId ? `\n  quotaId: ${info.quotaId}` : '')
+        + (info.dims ? `\n  dimensions: ${info.dims}` : '')
+        + (info.message ? `\n  사유: ${info.message}` : '')
+        + (text ? `\n  raw: ${text.replace(/\s+/g, ' ').slice(0, 500)}` : ''));
+      await new Promise(r => setTimeout(r, waitSec * 1000));
+      res = await _geminiFetch(model, body);
+    }
+
+    if (!res.ok) {
+      let text = '';
+      try { text = await res.text(); } catch (_) {}
+      if (res.status === 429) {
+        const info = _parse429(text);
+        console.warn(`[${label}] 429 재시도 후에도 실패`
+          + (info.quota ? `\n  초과 쿼터(metric): ${info.quota}` : '')
+          + (info.quotaId ? `\n  quotaId: ${info.quotaId}` : '')
+          + (info.dims ? `\n  dimensions: ${info.dims}` : '')
+          + `\n  인증경로: ${_lastGeminiAuthMode || '?'} | 모델: ${_lastGeminiModel || model}`
+          + (text ? `\n  raw: ${text.replace(/\s+/g, ' ').slice(0, 800)}` : ''));
+        const e = new Error(`${label} 사용량 한도(429) 초과`
+          + (info.quota ? ` — 초과 쿼터: ${info.quota}` : '')
+          + (info.retrySec ? `, 약 ${info.retrySec}초 후 재시도 가능` : '')
+          + (info.message ? `\n사유: ${info.message}` : '')
+          + `\n(자세한 쿼터·원문은 개발자도구 콘솔 참고)`);
+        e.status = 429; e.quota = info.quota; e.quotaId = info.quotaId; e.retrySec = info.retrySec; e.raw = text;
+        throw e;
+      }
+      const detail = text.replace(/\s+/g, ' ').slice(0, 300);
+      throw new Error(`${label} Gemini API 오류: ${res.status}${detail ? ` — ${detail}` : ''}`);
+    }
+    return res;
+  }
+
   // AI가 실시간 검색으로 최근 경제·투자 유튜브 영상을 직접 찾아 요약 (Gemini 그라운딩 필요)
   async function runEconomyVideoSummary() {
     if (!_hasGeminiAuth()) {
@@ -389,8 +465,7 @@ URL : (검색으로 찾은 실제 유튜브 영상 링크. 정확한 영상 링�
       tools: [{ googleSearch: {} }],
       generationConfig: { temperature: 0.6, maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } },
     };
-    const res = await _geminiFetch(window.TOOCHANGI_CONFIG.GEMINI_MODEL_RECOMMEND, body);
-    if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
+    const res = await _geminiGenerate(window.TOOCHANGI_CONFIG.GEMINI_MODEL_RECOMMEND, body, 'AI 영상요약');
     const data = await res.json();
     const cand = data.candidates?.[0];
     const text = (cand?.content?.parts || []).filter(p => p && p.text).map(p => p.text).join('').trim() || '요약을 받지 못했습니다.';
@@ -488,9 +563,7 @@ ${gachangiContext}
       generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
     };
 
-    const res = await _geminiFetch(window.TOOCHANGI_CONFIG.GEMINI_MODEL_ANALYSIS, body);
-
-    if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
+    const res = await _geminiGenerate(window.TOOCHANGI_CONFIG.GEMINI_MODEL_ANALYSIS, body, 'AI 분석');
     const data = await res.json();
     const candidate = data.candidates?.[0];
     // 응답 파트 전체를 합쳐 텍스트 추출 (thinking/멀티파트 대비)
@@ -669,9 +742,7 @@ ${searchInstructions}
       generationConfig: { temperature: 0.6, maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } },
     };
 
-    const res = await _geminiFetch(window.TOOCHANGI_CONFIG.GEMINI_MODEL_RECOMMEND, body);
-
-    if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
+    const res = await _geminiGenerate(window.TOOCHANGI_CONFIG.GEMINI_MODEL_RECOMMEND, body, 'AI 추천');
     const data = await res.json();
     const candidate = data.candidates?.[0];
     // 응답 파트 전체를 합쳐 텍스트 추출 (thinking/멀티파트 대비)
@@ -1122,11 +1193,14 @@ ${searchInstructions}
     if (qty <= 0) return 'skipped';
 
     const portfolio = await SheetsAPI.getPortfolio();
-    // 종목명 + 명의로 매칭 (명의가 비어 있으면 와일드카드 취급)
-    const match = portfolio.find(p =>
-      p.name === trade.name &&
-      (!trade.owner || !p.owner || p.owner === trade.owner)
-    );
+    // 매칭 우선순위: ① 티커(종목코드)가 양쪽에 있으면 티커로 정확 매칭
+    //              ② 티커가 없으면 종목명 + 명의(명의 비면 와일드카드)
+    // 과거엔 종목명만으로 매칭해 동명이종목(예: 같은 이름의 국내/해외)이 잘못 합쳐졌다.
+    const wantTicker = (trade.ticker || '').trim();
+    const ownerMatches = (p) => (!trade.owner || !p.owner || p.owner === trade.owner);
+    const match =
+      (wantTicker && portfolio.find(p => (p.ticker || '').trim() === wantTicker && ownerMatches(p))) ||
+      portfolio.find(p => p.name === trade.name && ownerMatches(p));
 
     if (trade.type === '매도') {
       if (!match) return 'skipped'; // 보유하지 않은 종목 → 반영 생략
@@ -1250,16 +1324,8 @@ ${searchInstructions}
     };
 
     const visionModel = window.TOOCHANGI_CONFIG.GEMINI_MODEL_VISION;
-    let res = await _geminiFetch(visionModel, body);
-
-    // 429 (Rate Limit) 에러 발생 시 7초 대기 후 1회 자동 재시도
-    if (res.status === 429) {
-      console.warn('[Gemini API] 429 사용량 초과 감지. 7초 대기 후 재시도합니다...');
-      await new Promise(resolve => setTimeout(resolve, 7000));
-      res = await _geminiFetch(visionModel, body);
-    }
-
-    if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
+    // 429 시 retryDelay/Retry-After 존중 재시도 + 실패 본문(쿼터 상세) 노출
+    const res = await _geminiGenerate(visionModel, body, '화면판독');
     const data = await res.json();
     const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!resultText) throw new Error('판독된 데이터를 받지 못했습니다.');

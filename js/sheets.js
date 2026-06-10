@@ -1139,13 +1139,17 @@ const SheetsAPI = (() => {
         range: `${sheetName}!A:H`,
       });
       const rows = res.result.values || [];
+      // 가챙이 월 시트 실제 열 배치: A날짜 B내용 C수입 D지출 (E) F분류 G결제수단 (START_ROW=4)
+      // 과거 버그: 분류를 D(r[3]=지출금액), 금액을 F(r[5]=분류문자열)로 잘못 읽어
+      //            AI 투자 프롬프트에 전부 틀린 재무 컨텍스트가 들어갔다.
       let income = 0, expense = 0, savings = 0;
       rows.slice(3).forEach(r => {
-        const cat = r[3] || '';
-        const amt = parseFloat((r[5] || '0').toString().replace(/,/g, '')) || 0;
-        if (cat === '수입') income += amt;
-        else if (cat !== '투자/저축') expense += amt;
-        else savings += amt;
+        const inc = parseFloat((r[2] || '0').toString().replace(/,/g, '')) || 0; // C 수입
+        const exp = parseFloat((r[3] || '0').toString().replace(/,/g, '')) || 0; // D 지출
+        const cat = (r[5] || '').toString().trim();                              // F 분류
+        income += inc;
+        if (cat === '투자/저축') savings += exp;   // 저축은 지출열에 기록되며 분류로 구분
+        else expense += exp;
       });
       return { income, expense, savings, available: income - expense };
     } catch (e) {

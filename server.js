@@ -8,7 +8,7 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 // KIS API Base URLs
-const KIS_HOST_REAL = 'https://openapi.koreainvestment.com:29443';
+const KIS_HOST_REAL = 'https://openapi.koreainvestment.com:9443';
 const KIS_HOST_MOCK = 'https://openapivts.koreainvestment.com:29443';
 
 /**

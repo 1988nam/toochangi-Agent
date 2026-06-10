@@ -3,6 +3,20 @@
  * UI 이벤트 바인딩, 탭 라우팅, 데이터 렌더링
  */
 
+// ── XSS 방지: 전역 HTML 이스케이프 ───────────────────────────────
+// innerHTML로 렌더링하는 모든 동적/원격 데이터(종목명·뉴스·AI 분석 텍스트·메모·
+// 오류 메시지·시트 셀 등)는 반드시 이 함수를 거쳐야 한다. 속성값(title="...") 안전을
+// 위해 따옴표(" ')까지 이스케이프한다.
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+window.escapeHtml = escapeHtml;
+
 // ── Google API 콜백 ─────────────────────────────────────────────
 window.gapiLoaded = () => Auth.initGapi();
 window.gisLoaded  = () => Auth.initGis();
@@ -86,13 +100,13 @@ function renderGachangiAccountsTable() {
 
   tbody.innerHTML = accounts.map((acc) => `
     <tr>
-      <td>${acc.type || '—'}</td>
+      <td>${escapeHtml(acc.type || '—')}</td>
       <td>
-        <strong>${acc.accountName || '계좌명 없음'}</strong>
-        <div style="font-size:12px; color: var(--text-muted); margin-top: 2px;">${acc.purpose || ''}</div>
+        <strong>${escapeHtml(acc.accountName || '계좌명 없음')}</strong>
+        <div style="font-size:12px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(acc.purpose || '')}</div>
       </td>
-      <td>${acc.accountNumber || '계좌번호 없음'}</td>
-      <td>${acc.ownerName || '미지정'}</td>
+      <td>${escapeHtml(acc.accountNumber || '계좌번호 없음')}</td>
+      <td>${escapeHtml(acc.ownerName || '미지정')}</td>
     </tr>
   `).join('');
 }
@@ -316,11 +330,11 @@ function renderRecentAnalysis() {
   list.innerHTML = history.map(a => `
     <div class="analysis-item">
       <div class="analysis-item-header">
-        <span class="analysis-item-date">${a.date}</span>
-        ${a.opinion ? `<span class="badge-${a.opinion === '매수' ? 'buy' : 'sell'}">${a.opinion}</span>` : ''}
+        <span class="analysis-item-date">${escapeHtml(a.date)}</span>
+        ${a.opinion ? `<span class="badge-${a.opinion === '매수' ? 'buy' : 'sell'}">${escapeHtml(a.opinion)}</span>` : ''}
       </div>
-      <div class="analysis-item-query">${a.query}</div>
-      <div class="analysis-item-preview">${a.result}</div>
+      <div class="analysis-item-query">${escapeHtml(a.query)}</div>
+      <div class="analysis-item-preview">${escapeHtml(a.result)}</div>
     </div>
   `).join('');
 }
@@ -350,7 +364,7 @@ function _filterDot(state) {
   return `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${green ? 'var(--accent-green)' : 'var(--accent-red)'}; margin-right:4px;"></span>`;
 }
 function recommendationCardHtml(item) {
-  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const esc = escapeHtml;
   const verdict = item.verdict || '—';
   const buy = verdict === '매수';
   const vColor = buy ? 'var(--accent-green)' : 'var(--accent-orange)';
@@ -568,11 +582,11 @@ function renderPortfolioTab() {
       <td style="text-align: center;">
         <input type="checkbox" class="chk-portfolio-row" data-rowindex="${p.rowIndex}" style="cursor:pointer;" />
       </td>
-      <td>${p.name}</td>
-      <td style="color:var(--text-muted)">${formatStockTicker(p.ticker)}</td>
-      <td><span class="market-pill" data-market="${p.market || '기타'}">${p.market}</span></td>
-      <td>${p.owner || '-'}</td>
-      <td>${p.memo || '-'}</td>
+      <td>${escapeHtml(p.name)}</td>
+      <td style="color:var(--text-muted)">${escapeHtml(formatStockTicker(p.ticker))}</td>
+      <td><span class="market-pill" data-market="${escapeHtml(p.market || '기타')}">${escapeHtml(p.market)}</span></td>
+      <td>${escapeHtml(p.owner || '-')}</td>
+      <td>${escapeHtml(p.memo || '-')}</td>
       <td>${p.qty.toLocaleString()}</td>
       <td>${Math.floor(p.avgPrice).toLocaleString()}원</td>
       <td>${Math.floor(p.curPrice || p.avgPrice).toLocaleString()}원</td>
@@ -667,13 +681,13 @@ function renderTradelogTab() {
     return;
   }
   tbody.innerHTML = tradelog.map(t => `<tr>
-    <td>${t.date}</td>
-    <td>${t.name}</td>
-    <td><span class="${t.type === '매수' ? 'badge-buy' : 'badge-sell'}">${t.type}</span></td>
+    <td>${escapeHtml(t.date)}</td>
+    <td>${escapeHtml(t.name)}</td>
+    <td><span class="${t.type === '매수' ? 'badge-buy' : 'badge-sell'}">${escapeHtml(t.type)}</span></td>
     <td>${t.qty.toLocaleString()}</td>
     <td>${t.price.toLocaleString()}원</td>
     <td>${t.amount.toLocaleString()}원</td>
-    <td style="color:var(--text-muted)">${t.memo || '—'}</td>
+    <td style="color:var(--text-muted)">${escapeHtml(t.memo || '—')}</td>
   </tr>`).join('');
 }
 
@@ -690,11 +704,11 @@ function renderManualAnalysisTab() {
   historyList.innerHTML = history.map(a => `
     <div class="analysis-item">
       <div class="analysis-item-header">
-        <span class="analysis-item-date">${a.date}</span>
-        ${a.opinion ? `<span class="badge-${a.opinion === '매수' ? 'buy' : 'sell'}">${a.opinion}</span>` : ''}
+        <span class="analysis-item-date">${escapeHtml(a.date)}</span>
+        ${a.opinion ? `<span class="badge-${a.opinion === '매수' ? 'buy' : 'sell'}">${escapeHtml(a.opinion)}</span>` : ''}
       </div>
-      <div class="analysis-item-query">${a.query}</div>
-      <div class="analysis-item-preview">${a.result}</div>
+      <div class="analysis-item-query">${escapeHtml(a.query)}</div>
+      <div class="analysis-item-preview">${escapeHtml(a.result)}</div>
     </div>
   `).join('');
 }
@@ -1097,7 +1111,7 @@ function _linkifyUrls(s) {
 }
 // 요약 텍스트 가공: 이스케이프 → **볼드** → URL 링크화
 function _formatSummaryText(text) {
-  const esc = String(text == null ? '' : text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const esc = escapeHtml(text);
   return _linkifyUrls(esc.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'));
 }
 
@@ -1105,7 +1119,7 @@ function _formatSummaryText(text) {
 function _videoFeedHtml(text, sources, metaLine) {
   const safe = _formatSummaryText(text);
   const srcHtml = (sources && sources.length)
-    ? `<div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:6px;">${sources.slice(0, 8).map(s => `<a href="${s.url}" target="_blank" class="source-link" title="${s.title}">🔗 <span>${s.title}</span></a>`).join('')}</div>`
+    ? `<div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:6px;">${sources.slice(0, 8).map(s => `<a href="${escapeHtml(s.url)}" target="_blank" class="source-link" title="${escapeHtml(s.title)}">🔗 <span>${escapeHtml(s.title)}</span></a>`).join('')}</div>`
     : '';
   const metaHtml = metaLine ? `<div style="margin-top:8px;font-size:11px;color:#64748b;">${metaLine}</div>` : '';
   return `<div style="white-space:pre-wrap; line-height:1.6; font-size:13.5px; color:var(--text-secondary);">${safe}</div>${srcHtml}${metaHtml}`;
@@ -1144,7 +1158,7 @@ async function renderYouTubeFeed(force = false) {
     renderNewsHistory(); // 새 요약이 시트에 쌓였으니 히스토리 갱신
   } catch (err) {
     console.error('[EconomyVideo] 요약 실패:', err);
-    listEl.innerHTML = `<div class="empty-state" style="color:var(--accent-red)">⚠️ ${err.message}</div>`;
+    listEl.innerHTML = `<div class="empty-state" style="color:var(--accent-red)">⚠️ ${escapeHtml(err.message)}</div>`;
   } finally {
     _youtubeFeedLoading = false;
     spinnerEl?.classList.add('hidden');
@@ -1220,8 +1234,8 @@ function bindAutoAnalysisEvents() {
       // 출처 칩 렌더링
       if (autoRecChips && result.sources && result.sources.length > 0) {
         autoRecChips.innerHTML = result.sources.map(s =>
-          `<a href="${s.url}" target="_blank" class="source-chip" title="${s.title}">
-            🔗 ${s.title}
+          `<a href="${escapeHtml(s.url)}" target="_blank" class="source-chip" title="${escapeHtml(s.title)}">
+            🔗 ${escapeHtml(s.title)}
           </a>`
         ).join('');
         autoRecSourcesWrap?.classList.remove('hidden');
@@ -1240,7 +1254,7 @@ function bindAutoAnalysisEvents() {
 
     } catch (e) {
       if (autoRecResult) {
-        autoRecResult.innerHTML = `<span style="color:var(--accent-red)">❌ 추천 실패: ${e.message}</span>`;
+        autoRecResult.innerHTML = `<span style="color:var(--accent-red)">❌ 추천 실패: ${escapeHtml(e.message)}</span>`;
         autoRecResult.classList.remove('hidden');
       }
     } finally {
@@ -1282,7 +1296,7 @@ function bindAutoAnalysisEvents() {
 async function renderAutoRecHistory() {
   const listEl = document.getElementById('rec-history-list');
   if (!listEl) return;
-  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const esc = escapeHtml;
   listEl.innerHTML = '<div class="empty-state">⏳ 추천 기록을 불러오는 중...</div>';
 
   let history = [];
@@ -1330,7 +1344,7 @@ async function renderAutoRecHistory() {
 async function renderNewsHistory() {
   const listEl = document.getElementById('news-history-list');
   if (!listEl) return;
-  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const esc = escapeHtml;
   listEl.innerHTML = '<div class="empty-state">⏳ 요약 기록을 불러오는 중...</div>';
 
   let history = [];
@@ -1349,7 +1363,7 @@ async function renderNewsHistory() {
   listEl.innerHTML = history.map(rec => {
     const sources = Array.isArray(rec.sources) ? rec.sources : [];
     const srcHtml = sources.length
-      ? `<div style="display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;">${sources.slice(0, 8).map(s => `<a href="${s.url}" target="_blank" class="source-link" title="${esc(s.title)}" onclick="event.stopPropagation()">🔗 <span>${esc(s.title)}</span></a>`).join('')}</div>`
+      ? `<div style="display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;">${sources.slice(0, 8).map(s => `<a href="${esc(s.url)}" target="_blank" class="source-link" title="${esc(s.title)}" onclick="event.stopPropagation()">🔗 <span>${esc(s.title)}</span></a>`).join('')}</div>`
       : '';
     const txt = esc(rec.text || '');
     const preview = txt.slice(0, 280);
@@ -1412,8 +1426,8 @@ function bindManualAnalysisEvents() {
       if (sourcesContainer && sourcesDiv && sources && sources.length > 0) {
         sourcesContainer.classList.remove('hidden');
         sourcesDiv.innerHTML = sources.map(s => {
-          return `<a href="${s.url}" target="_blank" class="source-link" title="${s.title}">
-            🔗 <span>${s.title}</span>
+          return `<a href="${escapeHtml(s.url)}" target="_blank" class="source-link" title="${escapeHtml(s.title)}">
+            🔗 <span>${escapeHtml(s.title)}</span>
           </a>`;
         }).join('');
       }
@@ -1561,7 +1575,7 @@ function initAssetMonthSelector() {
   
   select.innerHTML = months.map(m => {
     const parts = m.split('-');
-    return `<option value="${m}">${parts[0]}년 ${parts[1]}월</option>`;
+    return `<option value="${escapeHtml(m)}">${escapeHtml(parts[0])}년 ${escapeHtml(parts[1])}월</option>`;
   }).join('');
 }
 
@@ -1847,12 +1861,12 @@ async function renderAssetsTab() {
       const inactive = !activeSet.has(a.rowIndex); // 추이/집계에 미반영(스냅샷이 같은 버킷을 대체)
       return `
       <tr style="${inactive ? 'opacity:0.5;' : ''}">
-        <td>${a.date}</td>
-        <td><span class="badge" style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${a.category}</span>${inactive ? ' <span style="color: var(--text-muted); font-size: 10px;">추이 미반영</span>' : ''}</td>
-        <td><strong>${a.name}</strong></td>
+        <td>${escapeHtml(a.date)}</td>
+        <td><span class="badge" style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${escapeHtml(a.category)}</span>${inactive ? ' <span style="color: var(--text-muted); font-size: 10px;">추이 미반영</span>' : ''}</td>
+        <td><strong>${escapeHtml(a.name)}</strong></td>
         <td style="color: ${a.category === '대출(부채)' ? 'var(--accent-red)' : 'var(--text-normal)'}">${a.balance.toLocaleString()}원</td>
-        <td style="color: var(--text-muted)">${a.memo || '—'}</td>
-        <td style="color: var(--text-muted); font-size: 12px;">${a.lastUpdated || '—'}</td>
+        <td style="color: var(--text-muted)">${escapeHtml(a.memo || '—')}</td>
+        <td style="color: var(--text-muted); font-size: 12px;">${escapeHtml(a.lastUpdated || '—')}</td>
         <td>
           <button class="btn-text-sm edit-asset-btn" data-row="${a.rowIndex}">수정</button>
           <button class="btn-text-sm delete-asset-btn" data-row="${a.rowIndex}" style="color: var(--accent-red); margin-left: 6px;">삭제</button>
@@ -1875,7 +1889,7 @@ function openAssetModal(rowIndex = null) {
   const title = document.getElementById('asset-modal-title');
   const catSelect = document.getElementById('input-asset-category');
   
-  catSelect.innerHTML = window.TOOCHANGI_CONFIG.ASSET_CATEGORIES.map(c => `<option>${c}</option>`).join('');
+  catSelect.innerHTML = window.TOOCHANGI_CONFIG.ASSET_CATEGORIES.map(c => `<option>${escapeHtml(c)}</option>`).join('');
   
   const inputRowIndex = document.getElementById('input-asset-row-index');
   const inputDate = document.getElementById('input-asset-date');
@@ -2388,8 +2402,8 @@ async function renderBrokerTab(force = false) {
 
             return `
               <tr>
-                <td style="font-weight: 600;">${h.name}</td>
-                <td><code style="background:var(--bg-elevated); padding:2px 6px; border-radius:4px;">${h.ticker}</code></td>
+                <td style="font-weight: 600;">${escapeHtml(h.name)}</td>
+                <td><code style="background:var(--bg-elevated); padding:2px 6px; border-radius:4px;">${escapeHtml(h.ticker)}</code></td>
                 <td>${h.qty.toLocaleString()}주</td>
                 <td>${Math.floor(h.avgPrice).toLocaleString()}원</td>
                 <td>${Math.floor(h.curPrice).toLocaleString()}원</td>
@@ -2398,8 +2412,8 @@ async function renderBrokerTab(force = false) {
                 <td style="color: ${yieldColor}; font-weight: 500;">${yieldText}</td>
                 <td>
                   <div style="display: flex; gap: 4px;">
-                    <button class="btn-primary-sm" style="padding: 2px 8px; font-size:11px; background:#ef4444; border-color:#ef4444;" onclick="quickOrder('${h.ticker}', 'buy')">매수</button>
-                    <button class="btn-primary-sm" style="padding: 2px 8px; font-size:11px; background:#3b82f6; border-color:#3b82f6;" onclick="quickOrder('${h.ticker}', 'sell')">매도</button>
+                    <button class="btn-primary-sm" style="padding: 2px 8px; font-size:11px; background:#ef4444; border-color:#ef4444;" onclick="quickOrder('${escapeHtml(h.ticker)}', 'buy')">매수</button>
+                    <button class="btn-primary-sm" style="padding: 2px 8px; font-size:11px; background:#3b82f6; border-color:#3b82f6;" onclick="quickOrder('${escapeHtml(h.ticker)}', 'sell')">매도</button>
                   </div>
                 </td>
               </tr>
@@ -2423,7 +2437,7 @@ async function renderBrokerTab(force = false) {
 async function renderWatchlist() {
   const tbody = document.getElementById('watchlist-tbody');
   if (!tbody || typeof Broker === 'undefined') return;
-  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const esc = escapeHtml;
   const list = Broker.getWatchlist();
   if (!list.length) {
     tbody.innerHTML = `<tr><td colspan="6" class="empty-state">관심 종목을 추가하세요. (현재가는 KIS 실시간 시세 — 모의투자는 미지원일 수 있음)</td></tr>`;
@@ -2469,7 +2483,7 @@ async function renderWatchlist() {
 async function renderReservedOrders() {
   const tbody = document.getElementById('reserved-orders-tbody');
   if (!tbody || typeof Broker === 'undefined') return;
-  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const esc = escapeHtml;
   const settings = Broker.getSettings();
   if (!settings.appkey || !settings.secret || !settings.account) {
     tbody.innerHTML = `<tr><td colspan="7" class="empty-state">KIS 설정 후 이용할 수 있습니다.</td></tr>`;
@@ -2596,8 +2610,8 @@ function renderSettingsYouTubeChannels() {
   container.innerHTML = _tempYouTubeChannels.map((ch, idx) => `
     <div class="youtube-config-item">
       <div class="youtube-config-item-info">
-        <span class="youtube-config-name">${ch.name}</span>
-        <span class="youtube-config-id">${ch.id}</span>
+        <span class="youtube-config-name">${escapeHtml(ch.name)}</span>
+        <span class="youtube-config-id">${escapeHtml(ch.id)}</span>
       </div>
       <button class="btn-delete-channel" data-index="${idx}">❌ 삭제</button>
     </div>
@@ -2991,11 +3005,11 @@ function openBulkEditModal() {
     if (!item) return '';
 
     return `<tr data-rowindex="${rIdx}">
-      <td style="font-weight: 600;">${item.name}</td>
-      <td><code style="background:var(--bg-elevated); padding:2px 6px; border-radius:4px;">${item.ticker}</code></td>
+      <td style="font-weight: 600;">${escapeHtml(item.name)}</td>
+      <td><code style="background:var(--bg-elevated); padding:2px 6px; border-radius:4px;">${escapeHtml(item.ticker)}</code></td>
       <td><input type="number" step="any" class="bulk-qty" value="${item.qty || 0}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px; text-align: right;" /></td>
       <td><input type="number" step="any" class="bulk-avg" value="${item.avgPrice || 0}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px; text-align: right;" /></td>
-      <td><input type="text" class="bulk-memo" value="${item.memo || ''}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px;" /></td>
+      <td><input type="text" class="bulk-memo" value="${escapeHtml(item.memo || '')}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px;" /></td>
     </tr>`;
   }).join('');
 
@@ -3132,20 +3146,20 @@ function renderSavingsTab() {
       <td style="text-align: center;">
         <input type="checkbox" class="chk-savings-row" data-rowindex="${s.rowIndex}" style="cursor:pointer;" />
       </td>
-      <td><strong>${s.name}</strong></td>
-      <td>${s.bank}</td>
-      <td>${s.owner || '—'}</td>
-      <td>${s.accountNumber || '—'}</td>
-      <td><span class="badge" style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${s.type}</span></td>
+      <td><strong>${escapeHtml(s.name)}</strong></td>
+      <td>${escapeHtml(s.bank)}</td>
+      <td>${escapeHtml(s.owner || '—')}</td>
+      <td>${escapeHtml(s.accountNumber || '—')}</td>
+      <td><span class="badge" style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${escapeHtml(s.type)}</span></td>
       <td>${s.rate}%</td>
       <td>${Toochangi.calcSavingsBalance(s).toLocaleString()}원</td>
       <td>${(parseFloat(s.monthlyDeposit) || 0) > 0
-        ? `<span style="color: var(--accent-green); font-weight: 500;">+${(parseFloat(s.monthlyDeposit) || 0).toLocaleString()}원</span><br><span style="color: var(--text-muted); font-size: 11px;">매월 ${s.depositDay || 5}일</span>`
+        ? `<span style="color: var(--accent-green); font-weight: 500;">+${(parseFloat(s.monthlyDeposit) || 0).toLocaleString()}원</span><br><span style="color: var(--text-muted); font-size: 11px;">매월 ${escapeHtml(s.depositDay || 5)}일</span>`
         : '—'}</td>
-      <td>${s.maturity || '—'}</td>
-      <td><span style="color: var(--accent-orange); font-weight: 500;">${s.purpose || '—'}</span></td>
-      <td style="color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${s.memo}">${s.memo || '—'}</td>
-      <td>${s.date || '—'}</td>
+      <td>${escapeHtml(s.maturity || '—')}</td>
+      <td><span style="color: var(--accent-orange); font-weight: 500;">${escapeHtml(s.purpose || '—')}</span></td>
+      <td style="color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(s.memo)}">${escapeHtml(s.memo || '—')}</td>
+      <td>${escapeHtml(s.date || '—')}</td>
       <td style="text-align: center;">
         <div style="display:flex; gap:4px; justify-content:center;">
           <button class="btn-primary-sm edit-savings-btn" data-rowindex="${s.rowIndex}" style="padding: 2px 8px; font-size: 11px;">수정</button>
@@ -3262,12 +3276,12 @@ function openSavingsBulkEditModal() {
     if (!item) return '';
 
     return `<tr data-rowindex="${rIdx}">
-      <td style="font-weight: 600;">${item.name}</td>
-      <td>${item.bank}</td>
+      <td style="font-weight: 600;">${escapeHtml(item.name)}</td>
+      <td>${escapeHtml(item.bank)}</td>
       <td><input type="number" step="0.01" class="bulk-savings-rate" value="${item.rate || 0}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px; text-align: right;" /></td>
       <td><input type="number" class="bulk-savings-balance" value="${item.balance || 0}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px; text-align: right;" /></td>
-      <td><input type="text" class="bulk-savings-purpose" value="${item.purpose || ''}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px;" /></td>
-      <td><input type="text" class="bulk-savings-memo" value="${item.memo || ''}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px;" /></td>
+      <td><input type="text" class="bulk-savings-purpose" value="${escapeHtml(item.purpose || '')}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px;" /></td>
+      <td><input type="text" class="bulk-savings-memo" value="${escapeHtml(item.memo || '')}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px;" /></td>
     </tr>`;
   }).join('');
 
@@ -3509,20 +3523,20 @@ function renderRealestateTab() {
   tbody.innerHTML = realEstate.map(r => {
     const loanProgress = calculateLoanProgress(r);
     return `<tr data-rowindex="${r.rowIndex}">
-      <td><strong>${r.name}</strong></td>
+      <td><strong>${escapeHtml(r.name)}</strong></td>
       <td>${r.purchasePrice.toLocaleString()}원</td>
       <td>${r.currentValue.toLocaleString()}원</td>
       <td style="color: var(--accent-red);">${r.loanAmount > 0 ? formatRealEstateCurrency(r.loanAmount) : '—'}</td>
       <td>${r.loanRate > 0 ? r.loanRate + '%' : '—'}</td>
-      <td>${r.loanStartDate || '—'}</td>
+      <td>${escapeHtml(r.loanStartDate || '—')}</td>
       <td>${r.loanTermYears ? `${r.loanTermYears}년` : '—'}</td>
       <td>${loanProgress ? formatRealEstateCurrency(loanProgress.paidPrincipal) : '—'}</td>
       <td>${loanProgress ? formatRealEstateCurrency(loanProgress.paidInterest) : '—'}</td>
       <td style="color: var(--accent-yellow);">${loanProgress ? formatRealEstateCurrency(loanProgress.remainingBalance) : '—'}</td>
       <td style="color: var(--accent-green); font-weight: 500;">${calcAnnualLoanRepayment(r) != null ? formatRealEstateCurrency(calcAnnualLoanRepayment(r)) : '—'}</td>
-      <td><span style="color: var(--accent-orange); font-weight: 500;">${r.purpose || '—'}</span></td>
-      <td style="color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${r.memo}">${r.memo || '—'}</td>
-      <td>${r.date || '—'}</td>
+      <td><span style="color: var(--accent-orange); font-weight: 500;">${escapeHtml(r.purpose || '—')}</span></td>
+      <td style="color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(r.memo)}">${escapeHtml(r.memo || '—')}</td>
+      <td>${escapeHtml(r.date || '—')}</td>
       <td style="text-align: center;">
         <div style="display:flex; gap:4px; justify-content:center;">
           <button class="btn-primary-sm edit-realestate-btn" data-rowindex="${r.rowIndex}" style="padding: 2px 8px; font-size: 11px;">수정</button>
