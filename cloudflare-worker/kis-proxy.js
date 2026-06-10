@@ -25,7 +25,8 @@ const KIS = {
 // CORS를 허용한다(과거엔 '*'로 모든 출처 허용 → 오픈 릴레이). 배포 환경변수
 // ALLOWED_ORIGINS(쉼표 구분)로 추가/덮어쓸 수 있다.
 const DEFAULT_ALLOWED_ORIGINS = [
-  'https://1988nam.github.io',   // GitHub Pages (실제 앱 호스트)
+  'https://toochangi.pages.dev', // Cloudflare Pages (실제 앱 호스트)
+  'https://1988nam.github.io',   // GitHub Pages (대체 호스트)
   'http://localhost:3000',       // 로컬 개발(server.js)
   'http://127.0.0.1:3000',
   'http://localhost:8080',

@@ -1,0 +1,16 @@
+.git
+node_modules
+server.js
+cloudflare-worker
+docs
+.github
+.claude
+*.md
+package.json
+package-lock.json
+.gitignore
+.assetsignore
+.clinerules
+.cursorrules
+js/config.js
+js/config.example.js
