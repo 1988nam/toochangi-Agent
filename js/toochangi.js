@@ -365,32 +365,116 @@ const Toochangi = (() => {
     });
   }
 
+  // 429 응답 본문에서 '어떤 쿼터를 넘겼는지(quotaMetric)'와 '재시도 지연(retryDelay)'을 추출.
+  // Gemini 429 본문 예: { error: { message, details: [
+  //   { '@type': '...QuotaFailure', violations: [{ quotaMetric, quotaId, quotaDimensions }] },
+  //   { '@type': '...RetryInfo', retryDelay: '17s' } ] } }
+  function _parse429(bodyText) {
+    let quota = '', quotaId = '', retrySec = 0, message = '', dims = '';
+    try {
+      const j = JSON.parse(bodyText);
+      message = j.error?.message || '';
+      for (const d of (j.error?.details || [])) {
+        const t = String(d['@type'] || '');
+        if (t.indexOf('QuotaFailure') !== -1) {
+          const v = (d.violations || [])[0] || {};
+          quota = v.quotaMetric || quota;
+          quotaId = v.quotaId || quotaId;
+          if (v.quotaDimensions) dims = JSON.stringify(v.quotaDimensions);
+        }
+        if (t.indexOf('RetryInfo') !== -1 && d.retryDelay) {
+          const m = String(d.retryDelay).match(/([\d.]+)s/);
+          if (m) retrySec = Math.ceil(parseFloat(m[1]));
+        }
+      }
+    } catch (_) { /* 본문이 JSON이 아니면 message만 비움 */ }
+    return { quota, quotaId, retrySec, message, dims };
+  }
+
+  // generateContent 호출 래퍼.
+  //  - 429 발생 시 본문의 retryDelay(없으면 Retry-After 헤더, 그래도 없으면 7초) 만큼 대기 후 1회 재시도
+  //  - 최종 실패 시 '버려지던 응답 본문'을 파싱해 어떤 쿼터/사유였는지 에러 메시지·콘솔에 그대로 노출
+  // label: 로그·에러에 표시할 기능명(예: 'AI 분석')
+  async function _geminiGenerate(model, body, label) {
+    label = label || 'Gemini';
+    let res = await _geminiFetch(model, body);
+
+    if (res.status === 429) {
+      const text = await res.text().catch(() => '');
+      const info = _parse429(text);
+      const headerSec = parseInt(res.headers.get('retry-after') || '', 10);
+      const waitSec = (Number.isFinite(headerSec) && headerSec > 0) ? headerSec
+        : (info.retrySec > 0 ? info.retrySec : 7);
+      console.warn(`[${label}] 429 쿼터 초과 — ${waitSec}초 후 1회 재시도`
+        + ` | 인증경로: ${_lastGeminiAuthMode || '?'} | 모델: ${_lastGeminiModel || model}`
+        + (info.quota ? `\n  초과 쿼터(metric): ${info.quota}` : '')
+        + (info.quotaId ? `\n  quotaId: ${info.quotaId}` : '')
+        + (info.dims ? `\n  dimensions: ${info.dims}` : '')
+        + (info.message ? `\n  사유: ${info.message}` : '')
+        + (text ? `\n  raw: ${text.replace(/\s+/g, ' ').slice(0, 500)}` : ''));
+      await new Promise(r => setTimeout(r, waitSec * 1000));
+      res = await _geminiFetch(model, body);
+    }
+
+    if (!res.ok) {
+      let text = '';
+      try { text = await res.text(); } catch (_) {}
+      if (res.status === 429) {
+        const info = _parse429(text);
+        console.warn(`[${label}] 429 재시도 후에도 실패`
+          + (info.quota ? `\n  초과 쿼터(metric): ${info.quota}` : '')
+          + (info.quotaId ? `\n  quotaId: ${info.quotaId}` : '')
+          + (info.dims ? `\n  dimensions: ${info.dims}` : '')
+          + `\n  인증경로: ${_lastGeminiAuthMode || '?'} | 모델: ${_lastGeminiModel || model}`
+          + (text ? `\n  raw: ${text.replace(/\s+/g, ' ').slice(0, 800)}` : ''));
+        const e = new Error(`${label} 사용량 한도(429) 초과`
+          + (info.quota ? ` — 초과 쿼터: ${info.quota}` : '')
+          + (info.retrySec ? `, 약 ${info.retrySec}초 후 재시도 가능` : '')
+          + (info.message ? `\n사유: ${info.message}` : '')
+          + `\n(자세한 쿼터·원문은 개발자도구 콘솔 참고)`);
+        e.status = 429; e.quota = info.quota; e.quotaId = info.quotaId; e.retrySec = info.retrySec; e.raw = text;
+        throw e;
+      }
+      const detail = text.replace(/\s+/g, ' ').slice(0, 300);
+      throw new Error(`${label} Gemini API 오류: ${res.status}${detail ? ` — ${detail}` : ''}`);
+    }
+    return res;
+  }
+
   // AI가 실시간 검색으로 최근 경제·투자 유튜브 영상을 직접 찾아 요약 (Gemini 그라운딩 필요)
   async function runEconomyVideoSummary() {
     if (!_hasGeminiAuth()) {
       throw new Error('실시간 검색 요약은 Gemini 인증이 필요합니다. 구글 로그인(OAuth) 또는 API 키를 설정해주세요.');
     }
+    // KST 기준시각을 ISO로 주입 → 모델이 24시간/7일을 직접 산술 계산(기존 'today'만으론 시각 정보 부족, 오래된 뉴스 혼입 원인)
+    const nowKst = new Date(Date.now() + 9 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 16) + ' (KST)';
     const today = new Date().toLocaleDateString('ko-KR');
-    const systemPrompt = `당신은 한국 경제·투자 유튜브 큐레이터입니다. 실시간 인터넷/유튜브 검색이 가능합니다.
-최근 1~2주 내 화제가 된 경제·투자 관련 유튜브 영상(예: 삼프로TV, 슈카월드, 박곰희TV, 김작가TV 등)과 시장 이슈를 검색하여,
-가장 중요한 5~7개를 골라 각각 아래 형식으로 한국어로 정리하세요. 추측하지 말고 검색 결과에 근거하세요.
+    const systemPrompt = `당신은 한국 경제·투자 뉴스/유튜브 큐레이터입니다. 실시간 인터넷/유튜브 검색이 가능합니다.
+현재 시각: ${nowKst}. 이 시각을 기준으로 "24시간 이내", "7일 이내"를 직접 산술 계산하세요.
 
-각 항목은 반드시 아래 3줄 형식을 지키세요. 제목 다음 줄에 핵심 요약, 그 다음 줄에 실제 영상 링크(URL)를 넣습니다.
+[수집 규칙]
+1. 최근 7일 이내에 화제가 된 경제·투자 유튜브 영상(삼프로TV, 슈카월드, 박곰희TV, 김작가TV 등)과 시장 이슈를 검색하세요.
+2. 24시간 이내 항목을 최우선으로 찾고, 부족하면 7일 이내로 보강하세요. 추측하지 말고 검색 결과에만 근거하세요. 7일보다 오래된 항목은 넣지 마세요.
 
+[게재일 규칙 — 매우 중요]
+- 각 항목에 게재일을 반드시 'YYYY-MM-DD' 절대일자로 표기하세요.
+- 검색 결과에 게재일이 없거나 확신할 수 없으면 절대 추정하지 말고 정확히 '미상'으로 표기하세요. 날짜를 지어내지 마세요.
+
+[출력 형식] 5~7개를 선정하고, 각 항목은 반드시 아래 4줄을 지키세요.
 ### N. [제목] — 채널명
 * **핵심 요약:** 1~2줄 (무엇을, 왜 중요한지)
-URL : (검색으로 찾은 실제 유튜브 영상 링크. 정확한 영상 링크를 못 찾으면 관련 뉴스/채널 링크라도 반드시 표기. 임의로 지어내지 말 것)
+URL : (검색으로 찾은 실제 링크. 못 찾으면 관련 뉴스/채널 링크라도 표기. 임의 생성 금지)
+게재일 : YYYY-MM-DD  (불명확하면 '미상')
 
-마지막에 전체 시장 흐름을 2~3문장으로 요약하는 총평을 덧붙이세요.`;
-    const userPrompt = `오늘(${today}) 기준, 최근 경제·투자 유튜브에서 꼭 봐야 할 핵심 영상들을 검색해 요약해줘.`;
+마지막에 '### 총평' 줄로 시작하는 2~3문장 전체 시장 흐름 요약을 덧붙이세요.`;
+    const userPrompt = `지금(${today}) 기준으로 최근 경제·투자 유튜브·뉴스에서 꼭 봐야 할 핵심을 검색해 요약해줘. 24시간 이내 신선한 것을 우선으로.`;
     const body = {
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: [{ parts: [{ text: userPrompt }] }],
       tools: [{ googleSearch: {} }],
-      generationConfig: { temperature: 0.6, maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } },
+      generationConfig: { temperature: 0.35, maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } },
     };
-    const res = await _geminiFetch(window.TOOCHANGI_CONFIG.GEMINI_MODEL_RECOMMEND, body);
-    if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
+    const res = await _geminiGenerate(window.TOOCHANGI_CONFIG.GEMINI_MODEL_RECOMMEND, body, 'AI 영상요약');
     const data = await res.json();
     const cand = data.candidates?.[0];
     const text = (cand?.content?.parts || []).filter(p => p && p.text).map(p => p.text).join('').trim() || '요약을 받지 못했습니다.';
@@ -488,9 +572,7 @@ ${gachangiContext}
       generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
     };
 
-    const res = await _geminiFetch(window.TOOCHANGI_CONFIG.GEMINI_MODEL_ANALYSIS, body);
-
-    if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
+    const res = await _geminiGenerate(window.TOOCHANGI_CONFIG.GEMINI_MODEL_ANALYSIS, body, 'AI 분석');
     const data = await res.json();
     const candidate = data.candidates?.[0];
     // 응답 파트 전체를 합쳐 텍스트 추출 (thinking/멀티파트 대비)
@@ -669,9 +751,7 @@ ${searchInstructions}
       generationConfig: { temperature: 0.6, maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } },
     };
 
-    const res = await _geminiFetch(window.TOOCHANGI_CONFIG.GEMINI_MODEL_RECOMMEND, body);
-
-    if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
+    const res = await _geminiGenerate(window.TOOCHANGI_CONFIG.GEMINI_MODEL_RECOMMEND, body, 'AI 추천');
     const data = await res.json();
     const candidate = data.candidates?.[0];
     // 응답 파트 전체를 합쳐 텍스트 추출 (thinking/멀티파트 대비)
@@ -1199,7 +1279,7 @@ ${searchInstructions}
   {
     "name": "종목명",
     "ticker": "6자리 종목코드 (알 수 없는 해외 주식의 경우 AAPL/TSLA 등 알파벳 티커, 확인 불가능시 빈 문자열)",
-    "market": "코스피, 코스닥, 나스닥, NYSE 중 판별하여 작성. 모호하거나 모를 시 '기타'",
+    "market": "코스피, 코스닥, 나스닥, NYSE 중 판별하여 작성. 단, KRX에 원화로 상장된 ETF라도 미국 지수(S&P500·나스닥·미국 시장)를 추종하는 상품(예: TIGER 미국S&P500, KODEX 미국나스닥100 등)은 '나스닥'으로 분류. 모호하거나 모를 시 '기타'",
     "qty": 보유 수량 (실수형 숫자, 소수점 이하 자리수가 있다면 반드시 소수로 추출하세요. 예: 1.886, 91.127),
     "avgPrice": 평균 단가 (숫자, 소수점 이하가 있다면 반드시 소수로 추출하세요. 아래의 역산 지침 참고),
     "curPrice": 현재가 (숫자, 소수점 이하가 있다면 소수로 추출하세요. 아래의 역산 지침 참고),
@@ -1250,16 +1330,8 @@ ${searchInstructions}
     };
 
     const visionModel = window.TOOCHANGI_CONFIG.GEMINI_MODEL_VISION;
-    let res = await _geminiFetch(visionModel, body);
-
-    // 429 (Rate Limit) 에러 발생 시 7초 대기 후 1회 자동 재시도
-    if (res.status === 429) {
-      console.warn('[Gemini API] 429 사용량 초과 감지. 7초 대기 후 재시도합니다...');
-      await new Promise(resolve => setTimeout(resolve, 7000));
-      res = await _geminiFetch(visionModel, body);
-    }
-
-    if (!res.ok) throw new Error(`Gemini API 오류: ${res.status}`);
+    // 429 시 retryDelay/Retry-After 존중 재시도 + 실패 본문(쿼터 상세) 노출
+    const res = await _geminiGenerate(visionModel, body, '화면판독');
     const data = await res.json();
     const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!resultText) throw new Error('판독된 데이터를 받지 못했습니다.');

@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260607_62" />
+  <link rel="stylesheet" href="style.css?v=20260607_69" />
 </head>
 <body>
 
@@ -874,10 +874,10 @@
             </div>
 
             <div class="form-group">
-              <label>KIS 프록시 URL * <span style="color: var(--text-muted); font-weight: 400; font-size: 12px;">(Cloudflare Worker 주소)</span></label>
-              <input type="text" id="input-kis-proxy" placeholder="예: https://toochangi-kis.계정.workers.dev" class="input-dark" />
+              <label>KIS 프록시 URL <span style="color: var(--text-muted); font-weight: 400; font-size: 12px;">(선택 — 비우면 동일 출처 /api/broker)</span></label>
+              <input type="text" id="input-kis-proxy" placeholder="비워두면 같은 도메인의 /api/broker 사용 (Cloudflare 통합 배포)" class="input-dark" />
               <div style="margin-top: 6px; font-size: 12px; color: var(--text-muted); line-height: 1.5;">
-                KIS는 브라우저 직접 호출이 막혀(CORS) 중계 프록시가 필요합니다. 저장소의 <code>cloudflare-worker/</code> 폴더 안내대로 무료 Worker를 배포한 뒤 그 주소를 입력하세요. 비워두면 KIS 연동만 꺼지고 나머지 기능은 정상입니다.
+                이 앱은 Cloudflare Pages + Functions 통합 배포라 KIS 중계가 <code>/api/broker/*</code>(동일 출처)로 동작합니다 → 이 칸은 <b>비워두면 됩니다</b>. 외부 별도 Worker를 쓰고 싶을 때만 그 주소를 입력하세요.
               </div>
             </div>
 
@@ -1966,11 +1966,11 @@
     console.error('Gemini OAuth 스코프 적용 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260607_62"></script>
-<script src="js/sheets.js?v=20260607_62"></script>
-<script src="js/toochangi.js?v=20260607_62"></script>
-<script src="js/broker.js?v=20260607_62"></script>
-<script src="js/main.js?v=20260607_62"></script>
+<script src="js/auth.js?v=20260607_69"></script>
+<script src="js/sheets.js?v=20260607_69"></script>
+<script src="js/toochangi.js?v=20260607_69"></script>
+<script src="js/broker.js?v=20260607_69"></script>
+<script src="js/main.js?v=20260607_69"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 

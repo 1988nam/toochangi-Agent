@@ -20,22 +20,19 @@ const Broker = (() => {
     };
   }
 
-  // KIS 중계 프록시(Cloudflare Worker 등) 베이스 URL. 미설정 시 빈 문자열.
-  // 우선순위: localStorage → config(KIS_PROXY_URL). 끝의 슬래시 제거.
+  // KIS 중계 베이스 URL.
+  // 우선순위: localStorage → config(KIS_PROXY_URL) → 미설정 시 동일 출처 Pages Functions '/api/broker'.
+  // (Cloudflare Pages 통합 배포: FE와 같은 도메인에서 /api/broker/* 동작 → CORS·외부 URL 불필요)
   function getProxyBase() {
     const raw = (localStorage.getItem('toochangi_kis_proxy')
       || (window.TOOCHANGI_CONFIG && window.TOOCHANGI_CONFIG.KIS_PROXY_URL)
       || '').trim();
-    return raw.replace(/\/+$/, '');
+    return raw ? raw.replace(/\/+$/, '') : '/api/broker';
   }
 
-  // 프록시 엔드포인트 URL 구성. 미설정이면 명확한 오류로 안내.
+  // 프록시 엔드포인트 URL 구성. (미설정 시 동일 출처 /api/broker 사용)
   function _proxyUrl(path) {
-    const base = getProxyBase();
-    if (!base) {
-      throw new Error('KIS 프록시 URL이 설정되지 않았습니다. 환경설정(KIS 연동)에서 Cloudflare Worker 주소를 입력하세요.');
-    }
-    return `${base}/${path}`;
+    return `${getProxyBase()}/${path}`;
   }
 
   // 오류 응답 메시지를 안전하게 추출. 응답이 JSON이 아닌 HTML(프록시/게이트웨이 오류 등)이어도
