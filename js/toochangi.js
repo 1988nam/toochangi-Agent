@@ -446,24 +446,33 @@ const Toochangi = (() => {
     if (!_hasGeminiAuth()) {
       throw new Error('실시간 검색 요약은 Gemini 인증이 필요합니다. 구글 로그인(OAuth) 또는 API 키를 설정해주세요.');
     }
+    // KST 기준시각을 ISO로 주입 → 모델이 24시간/7일을 직접 산술 계산(기존 'today'만으론 시각 정보 부족, 오래된 뉴스 혼입 원인)
+    const nowKst = new Date(Date.now() + 9 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 16) + ' (KST)';
     const today = new Date().toLocaleDateString('ko-KR');
-    const systemPrompt = `당신은 한국 경제·투자 유튜브 큐레이터입니다. 실시간 인터넷/유튜브 검색이 가능합니다.
-최근 1~2주 내 화제가 된 경제·투자 관련 유튜브 영상(예: 삼프로TV, 슈카월드, 박곰희TV, 김작가TV 등)과 시장 이슈를 검색하여,
-가장 중요한 5~7개를 골라 각각 아래 형식으로 한국어로 정리하세요. 추측하지 말고 검색 결과에 근거하세요.
+    const systemPrompt = `당신은 한국 경제·투자 뉴스/유튜브 큐레이터입니다. 실시간 인터넷/유튜브 검색이 가능합니다.
+현재 시각: ${nowKst}. 이 시각을 기준으로 "24시간 이내", "7일 이내"를 직접 산술 계산하세요.
 
-각 항목은 반드시 아래 3줄 형식을 지키세요. 제목 다음 줄에 핵심 요약, 그 다음 줄에 실제 영상 링크(URL)를 넣습니다.
+[수집 규칙]
+1. 최근 7일 이내에 화제가 된 경제·투자 유튜브 영상(삼프로TV, 슈카월드, 박곰희TV, 김작가TV 등)과 시장 이슈를 검색하세요.
+2. 24시간 이내 항목을 최우선으로 찾고, 부족하면 7일 이내로 보강하세요. 추측하지 말고 검색 결과에만 근거하세요. 7일보다 오래된 항목은 넣지 마세요.
 
+[게재일 규칙 — 매우 중요]
+- 각 항목에 게재일을 반드시 'YYYY-MM-DD' 절대일자로 표기하세요.
+- 검색 결과에 게재일이 없거나 확신할 수 없으면 절대 추정하지 말고 정확히 '미상'으로 표기하세요. 날짜를 지어내지 마세요.
+
+[출력 형식] 5~7개를 선정하고, 각 항목은 반드시 아래 4줄을 지키세요.
 ### N. [제목] — 채널명
 * **핵심 요약:** 1~2줄 (무엇을, 왜 중요한지)
-URL : (검색으로 찾은 실제 유튜브 영상 링크. 정확한 영상 링크를 못 찾으면 관련 뉴스/채널 링크라도 반드시 표기. 임의로 지어내지 말 것)
+URL : (검색으로 찾은 실제 링크. 못 찾으면 관련 뉴스/채널 링크라도 표기. 임의 생성 금지)
+게재일 : YYYY-MM-DD  (불명확하면 '미상')
 
-마지막에 전체 시장 흐름을 2~3문장으로 요약하는 총평을 덧붙이세요.`;
-    const userPrompt = `오늘(${today}) 기준, 최근 경제·투자 유튜브에서 꼭 봐야 할 핵심 영상들을 검색해 요약해줘.`;
+마지막에 '### 총평' 줄로 시작하는 2~3문장 전체 시장 흐름 요약을 덧붙이세요.`;
+    const userPrompt = `지금(${today}) 기준으로 최근 경제·투자 유튜브·뉴스에서 꼭 봐야 할 핵심을 검색해 요약해줘. 24시간 이내 신선한 것을 우선으로.`;
     const body = {
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: [{ parts: [{ text: userPrompt }] }],
       tools: [{ googleSearch: {} }],
-      generationConfig: { temperature: 0.6, maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } },
+      generationConfig: { temperature: 0.35, maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } },
     };
     const res = await _geminiGenerate(window.TOOCHANGI_CONFIG.GEMINI_MODEL_RECOMMEND, body, 'AI 영상요약');
     const data = await res.json();
@@ -1273,7 +1282,7 @@ ${searchInstructions}
   {
     "name": "종목명",
     "ticker": "6자리 종목코드 (알 수 없는 해외 주식의 경우 AAPL/TSLA 등 알파벳 티커, 확인 불가능시 빈 문자열)",
-    "market": "코스피, 코스닥, 나스닥, NYSE 중 판별하여 작성. 모호하거나 모를 시 '기타'",
+    "market": "코스피, 코스닥, 나스닥, NYSE 중 판별하여 작성. 단, KRX에 원화로 상장된 ETF라도 미국 지수(S&P500·나스닥·미국 시장)를 추종하는 상품(예: TIGER 미국S&P500, KODEX 미국나스닥100 등)은 '나스닥'으로 분류. 모호하거나 모를 시 '기타'",
     "qty": 보유 수량 (실수형 숫자, 소수점 이하 자리수가 있다면 반드시 소수로 추출하세요. 예: 1.886, 91.127),
     "avgPrice": 평균 단가 (숫자, 소수점 이하가 있다면 반드시 소수로 추출하세요. 아래의 역산 지침 참고),
     "curPrice": 현재가 (숫자, 소수점 이하가 있다면 소수로 추출하세요. 아래의 역산 지침 참고),

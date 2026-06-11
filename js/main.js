@@ -33,9 +33,30 @@ document.addEventListener('DOMContentLoaded', () => {
   bindAssetEvents();
   bindBrokerEvents();
   bindSettingsEvents();
+  bindAccordions();
 
   Auth.onLogin(user => onLoginSuccess(user));
 });
+
+// 아코디언 토글(이벤트 위임): .rec-hist-item 클릭 시 .rec-hist-full 펼침/접힘 (재렌더돼도 유지)
+function _accordionToggle(e) {
+  if (e.target.closest('a')) return;            // 링크 클릭은 토글 안 함
+  if (e.target.closest('.btn-watch-remove')) return;
+  const item = e.target.closest('.rec-hist-item');
+  if (!item) return;
+  const expanded = item.getAttribute('data-expanded') === '1';
+  item.setAttribute('data-expanded', expanded ? '0' : '1');
+  const prev = item.querySelector('.rec-hist-preview');
+  const full = item.querySelector('.rec-hist-full');
+  const arrow = item.querySelector('.rec-hist-arrow');
+  if (prev) prev.style.display = expanded ? '' : 'none';
+  if (full) full.style.display = expanded ? 'none' : '';
+  if (arrow) arrow.textContent = expanded ? '▼' : '▲';
+}
+function bindAccordions() {
+  ['recent-analysis-list', 'rec-history-list', 'news-history-list', 'dash-rec-cards', 'filter-passed-cards']
+    .forEach(id => document.getElementById(id)?.addEventListener('click', _accordionToggle));
+}
 
 function bindLoginEvents() {
   document.getElementById('login-btn').addEventListener('click', () => Auth.login());
@@ -322,87 +343,131 @@ function renderDashboard() {
 
 function renderRecentAnalysis() {
   const list = document.getElementById('recent-analysis-list');
+  if (!list) return;
   const history = Toochangi.getAnalysis().slice(-3).reverse();
   if (history.length === 0) {
     list.innerHTML = '<div class="empty-state">분석 기록이 없습니다</div>';
     return;
   }
-  list.innerHTML = history.map(a => `
-    <div class="analysis-item">
-      <div class="analysis-item-header">
-        <span class="analysis-item-date">${escapeHtml(a.date)}</span>
-        ${a.opinion ? `<span class="badge-${a.opinion === '매수' ? 'buy' : 'sell'}">${escapeHtml(a.opinion)}</span>` : ''}
-      </div>
-      <div class="analysis-item-query">${escapeHtml(a.query)}</div>
-      <div class="analysis-item-preview">${escapeHtml(a.result)}</div>
-    </div>
-  `).join('');
+  list.innerHTML = history.map(a => {
+    const r = escapeHtml(a.result);
+    const preview = r.slice(0, 160);
+    const trunc = (a.result || '').length > 160;
+    const full = _linkifyUrls(r.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')).replace(/\n/g, '<br>');
+    return `
+      <div class="analysis-item rec-hist-item" data-expanded="0" style="cursor:pointer;" title="클릭하면 전체 분석을 펼치거나 접습니다">
+        <div class="analysis-item-header">
+          <span class="analysis-item-date">${escapeHtml(a.date)}</span>
+          <span style="display:flex; align-items:center; gap:8px;">
+            ${a.opinion ? `<span class="badge-${a.opinion === '매수' ? 'buy' : 'sell'}">${escapeHtml(a.opinion)}</span>` : ''}
+            <span class="rec-hist-arrow" style="font-size:11px; color:var(--text-muted);">▼</span>
+          </span>
+        </div>
+        <div class="analysis-item-query">${escapeHtml(a.query)}</div>
+        <div class="rec-hist-preview analysis-item-preview">${preview}${trunc ? '…' : ''}</div>
+        <div class="rec-hist-full" style="display:none; white-space:pre-wrap; line-height:1.6; font-size:13px; color:var(--text-secondary); margin-top:4px;">${full || '(내용 없음)'}</div>
+      </div>`;
+  }).join('');
 }
 
 // ── AI 추천 종목 카드 (자동 투자 추천 결과를 구조화해 카드로) ──
-function saveLastRecommendations(items, generatedAt) {
+function saveLastRecommendations(items, generatedAt, text) {
   try {
     localStorage.setItem('toochangi_last_recommendations', JSON.stringify({
       items: Array.isArray(items) ? items : [],
       generatedAt: generatedAt || new Date().toLocaleString('ko-KR'),
+      text: text || '',
     }));
   } catch (_) {}
 }
 function getLastRecommendations() {
   // 1) 클라우드(시트 'AI추천기록') 최신본 우선 — 기기/브라우저 바뀌어도 유지
   const cloud = Toochangi.getLatestRecommendation ? Toochangi.getLatestRecommendation() : null;
-  if (cloud) return { items: cloud.items || [], generatedAt: cloud.generatedAt || '' };
+  if (cloud) return { items: cloud.items || [], generatedAt: cloud.generatedAt || '', text: cloud.text || '' };
   // 2) 로컬 캐시 폴백
   try {
     const s = localStorage.getItem('toochangi_last_recommendations');
-    if (s) { const o = JSON.parse(s); if (o && Array.isArray(o.items)) return o; }
+    if (s) { const o = JSON.parse(s); if (o && Array.isArray(o.items)) return { items: o.items, generatedAt: o.generatedAt || '', text: o.text || '' }; }
   } catch (_) {}
-  return { items: [], generatedAt: '' };
+  return { items: [], generatedAt: '', text: '' };
+}
+// 전체 추천 텍스트에서 특정 종목의 분석 블록(추천 이유)을 best-effort 추출
+function _extractStockReason(fullText, name) {
+  if (!fullText || !name) return '';
+  const idx = fullText.indexOf(name);
+  if (idx === -1) return '';
+  let start = fullText.lastIndexOf('\n', idx);
+  start = start === -1 ? 0 : start + 1;
+  // 다음 종목 헤더(**[ 또는 ### ) 전까지 잘라냄
+  let next = fullText.length;
+  const n1 = fullText.indexOf('**[', idx + name.length);
+  const n2 = fullText.indexOf('\n### ', idx + name.length);
+  if (n1 !== -1) next = Math.min(next, n1);
+  if (n2 !== -1) next = Math.min(next, n2);
+  let block = fullText.slice(start, next).trim();
+  if (block.length > 1500) block = block.slice(0, 1500) + '…';
+  return block;
 }
 function _filterDot(state) {
   const green = String(state).toUpperCase() === 'GREEN';
   return `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${green ? 'var(--accent-green)' : 'var(--accent-red)'}; margin-right:4px;"></span>`;
 }
-function recommendationCardHtml(item) {
+function _filterWord(state) {
+  const g = String(state).toUpperCase() === 'GREEN';
+  return `<span style="color:${g ? 'var(--accent-green)' : 'var(--accent-red)'}; font-weight:600;">${g ? 'GREEN' : 'RED'}</span>`;
+}
+function recommendationCardHtml(item, fullText) {
   const esc = escapeHtml;
   const verdict = item.verdict || '—';
   const buy = verdict === '매수';
   const vColor = buy ? 'var(--accent-green)' : 'var(--accent-orange)';
   const ticker = item.ticker ? `<span style="color:var(--text-muted); font-size:12px; margin-left:4px;">${esc(item.ticker)}</span>` : '';
+  // 전체 추천 텍스트에서 이 종목 분석 블록 추출(있으면)
+  const reasonBlock = _extractStockReason(fullText, item.name);
+  const reasonHtml = reasonBlock
+    ? _linkifyUrls(esc(reasonBlock).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')).replace(/\n/g, '<br>')
+    : '';
   return `
-    <div style="background:var(--bg-surface); border:1px solid var(--border); border-radius:10px; padding:14px;">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
+    <div class="rec-hist-item" data-expanded="0" style="background:var(--bg-surface); border:1px solid var(--border); border-radius:10px; padding:14px; cursor:pointer;" title="클릭하면 추천 이유가 펼쳐집니다">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
         <div><strong>${esc(item.name) || '종목'}</strong>${ticker}</div>
-        <span style="font-size:11px; font-weight:700; color:${vColor}; border:1px solid ${vColor}; border-radius:6px; padding:2px 8px; white-space:nowrap;">${esc(verdict)}</span>
+        <span style="display:flex; align-items:center; gap:8px; white-space:nowrap;">
+          <span style="font-size:11px; font-weight:700; color:${vColor}; border:1px solid ${vColor}; border-radius:6px; padding:2px 8px;">${esc(verdict)}</span>
+          <span class="rec-hist-arrow" style="font-size:11px; color:var(--text-muted);">▼</span>
+        </span>
       </div>
-      <div style="font-size:13px; color:var(--text-secondary); line-height:1.5; margin-bottom:10px;">${esc(item.issue)}</div>
       <div style="display:flex; gap:14px; font-size:11px; color:var(--text-muted);">
         <span>${_filterDot(item.market)}시장</span>
         <span>${_filterDot(item.sector)}섹터</span>
         <span>${_filterDot(item.stock)}종목</span>
       </div>
+      <div class="rec-hist-full" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--border);">
+        <div style="font-size:13px; color:var(--text-secondary); line-height:1.6;">📊 <b>추천 이유:</b> ${esc(item.issue) || '—'}</div>
+        <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">🎯 3단계 필터 — 시장 ${_filterWord(item.market)} · 섹터 ${_filterWord(item.sector)} · 종목 ${_filterWord(item.stock)} → 판정 <b>${esc(verdict)}</b></div>
+        ${reasonHtml ? `<div style="font-size:12.5px; color:var(--text-secondary); line-height:1.6; margin-top:8px; white-space:pre-wrap;">${reasonHtml}</div>` : ''}
+      </div>
     </div>`;
 }
-function renderRecommendationCards(containerId, items, emptyMsg) {
+function renderRecommendationCards(containerId, items, emptyMsg, fullText) {
   const el = document.getElementById(containerId);
   if (!el) return;
   if (!items || items.length === 0) {
     el.innerHTML = `<div class="empty-state">${emptyMsg || '아직 추천 데이터가 없습니다.'}</div>`;
     return;
   }
-  el.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px;">${items.map(recommendationCardHtml).join('')}</div>`;
+  el.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px; align-items:start;">${items.map(it => recommendationCardHtml(it, fullText)).join('')}</div>`;
 }
 function renderDashboardRecommendations() {
-  const { items, generatedAt } = getLastRecommendations();
-  renderRecommendationCards('dash-rec-cards', items, '🤖 "자동 투자 추천 → 지금 시장 분석하기"를 실행하면 추천 종목·이슈·3단계 필터가 여기 카드로 표시됩니다.');
+  const { items, generatedAt, text } = getLastRecommendations();
+  renderRecommendationCards('dash-rec-cards', items, '🤖 "자동 투자 추천 → 지금 시장 분석하기"를 실행하면 추천 종목·이슈·3단계 필터가 여기 카드로 표시됩니다.', text);
   const ts = document.getElementById('dash-rec-time');
   if (ts) ts.textContent = generatedAt ? `📅 ${generatedAt}` : '';
 }
 function renderFilterPassedRecommendations() {
-  const { items } = getLastRecommendations();
+  const { items, text } = getLastRecommendations();
   const isGreen = (s) => String(s).toUpperCase() === 'GREEN';
   const passed = (items || []).filter(it => isGreen(it.market) && isGreen(it.sector) && isGreen(it.stock));
-  renderRecommendationCards('filter-passed-cards', passed, 'AI 추천 종목 중 3단계(시장·섹터·종목)를 모두 통과(GREEN)한 종목이 아직 없습니다.');
+  renderRecommendationCards('filter-passed-cards', passed, 'AI 추천 종목 중 3단계(시장·섹터·종목)를 모두 통과(GREEN)한 종목이 아직 없습니다.', text);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1111,18 +1176,63 @@ function _linkifyUrls(s) {
 }
 // 요약 텍스트 가공: 이스케이프 → **볼드** → URL 링크화
 function _formatSummaryText(text) {
-  const esc = escapeHtml(text);
-  return _linkifyUrls(esc.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'));
+  let esc = escapeHtml(text);
+  // 마크다운 헤딩(### …)을 볼드 줄로 변환해 '###'가 화면에 그대로 노출되는 것 방지
+  esc = esc.replace(/^\s*###\s*(.+?)\s*$/gm, '<strong>$1</strong>');
+  esc = esc.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  return _linkifyUrls(esc);
 }
 
-// 경제 영상 요약 HTML 빌더(신규 요약/시트 복원 공용)
+// 요약 텍스트를 항목 단위로 쪼개 '게재일' 기준 신선도 버킷으로 분류.
+//  baseTs(ms): 신선도 계산 기준 시각(보통 now). 각 항목의 '게재일 : YYYY-MM-DD'를 절대일자로 파싱해 판정(모델 라벨 불신).
+//  반환: { buckets:{within24h, within7d, other}, tail }  (tail = 인트로/### 총평 등 항목 아닌 부분)
+function parseNewsItems(text, baseTs) {
+  const blocks = String(text == null ? '' : text).split(/(?=^###\s)/m);
+  const buckets = { within24h: [], within7d: [], other: [] };
+  let tail = '';
+  for (const raw of blocks) {
+    const b = raw.trim();
+    if (!b) continue;
+    if (!/^###\s*\d+\./.test(b)) { tail += (tail ? '\n\n' : '') + b; continue; } // 번호 없는 블록(총평/인트로)
+    const m = b.match(/게재일\s*[:：]\s*(\d{4}-\d{2}-\d{2})/);
+    const t = m ? Date.parse(m[1] + 'T00:00:00+09:00') : NaN;
+    if (isNaN(t)) { buckets.other.push(b); continue; }          // 날짜 미상/미파싱 → 격리
+    const diffH = (baseTs - t) / 3600000;
+    if (diffH > 7 * 24 || diffH < -24) buckets.other.push(b);   // 7일 초과 또는 비정상 미래 → 격리
+    else if (diffH <= 24) buckets.within24h.push(b);
+    else buckets.within7d.push(b);
+  }
+  return { buckets, tail };
+}
+
+// 경제 뉴스/영상 요약 HTML 빌더(신규 요약/시트 복원 공용). 신선도 버킷(24h/7일/그외)으로 섹션 분리.
 function _videoFeedHtml(text, sources, metaLine) {
-  const safe = _formatSummaryText(text);
+  const { buckets, tail } = parseNewsItems(text, Date.now());
+  const total = buckets.within24h.length + buckets.within7d.length + buckets.other.length;
+  const wrap = (inner) => `<div style="white-space:pre-wrap; line-height:1.6; font-size:13.5px; color:var(--text-secondary);">${inner}</div>`;
+  const hdr = (t) => `<div style="margin:14px 0 6px; font-weight:700; font-size:14px; color:var(--text-primary, #e8eaed);">${t}</div>`;
+  const items = (arr) => arr.map(b => _formatSummaryText(b)).join('\n');
+
+  let body;
+  if (!total) {
+    // 항목 파싱 실패 → 기존처럼 통짜 렌더(graceful degradation)
+    body = wrap(_formatSummaryText(text));
+  } else {
+    let inner = hdr('🔥 24시간 이내' + (buckets.within24h.length ? ` (${buckets.within24h.length})` : ''));
+    inner += buckets.within24h.length
+      ? wrap(items(buckets.within24h))
+      : `<div style="font-size:12.5px; color:var(--text-muted); margin-bottom:4px;">최근 24시간 내 확인된 신규 항목이 없습니다 — 아래 “최근 7일”을 확인하세요.</div>`;
+    if (buckets.within7d.length) inner += hdr(`🗓️ 최근 7일 (${buckets.within7d.length})`) + wrap(items(buckets.within7d));
+    if (buckets.other.length) inner += hdr(`📁 그 외 · 오래됨/날짜 미상 (${buckets.other.length})`) + wrap(items(buckets.other));
+    if (tail.trim()) inner += `<div style="white-space:pre-wrap; line-height:1.6; font-size:13px; color:var(--text-muted); margin-top:12px; padding-top:8px; border-top:1px solid rgba(255,255,255,.08);">${_formatSummaryText(tail)}</div>`;
+    body = inner;
+  }
+
   const srcHtml = (sources && sources.length)
     ? `<div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:6px;">${sources.slice(0, 8).map(s => `<a href="${escapeHtml(s.url)}" target="_blank" class="source-link" title="${escapeHtml(s.title)}">🔗 <span>${escapeHtml(s.title)}</span></a>`).join('')}</div>`
     : '';
   const metaHtml = metaLine ? `<div style="margin-top:8px;font-size:11px;color:#64748b;">${metaLine}</div>` : '';
-  return `<div style="white-space:pre-wrap; line-height:1.6; font-size:13.5px; color:var(--text-secondary);">${safe}</div>${srcHtml}${metaHtml}`;
+  return `${body}${srcHtml}${metaHtml}`;
 }
 
 // AI(Gemini 실시간 검색)가 최근 경제·투자 유튜브를 찾아 요약. 자동 호출(force=false)에선 검색하지 않고 안내만(쿼터 절약)
@@ -1242,7 +1352,7 @@ function bindAutoAnalysisEvents() {
       }
 
       // 구조화된 추천 종목 저장(로컬 캐시 + 클라우드 시트) → 대시보드/3단계 필터 카드 갱신
-      saveLastRecommendations(result.recommendations || [], result.generatedAt);
+      saveLastRecommendations(result.recommendations || [], result.generatedAt, result.text);
       try {
         await Toochangi.saveRecommendation(result.recommendations || [], result.text, result.generatedAt);
         renderAutoRecHistory(); // 새 추천이 시트에 쌓였으니 히스토리 갱신
@@ -1274,22 +1384,7 @@ function bindAutoAnalysisEvents() {
 
   document.getElementById('btn-refresh-rec-history')?.addEventListener('click', () => renderAutoRecHistory());
   document.getElementById('btn-refresh-news-history')?.addEventListener('click', () => renderNewsHistory());
-
-  // 히스토리 항목 클릭 → 펼치기/접기(아코디언). 이벤트 위임(재렌더돼도 유지). 추천·뉴스 공용.
-  const _histToggle = (e) => {
-    const item = e.target.closest('.rec-hist-item');
-    if (!item) return;
-    const expanded = item.getAttribute('data-expanded') === '1';
-    item.setAttribute('data-expanded', expanded ? '0' : '1');
-    const prev = item.querySelector('.rec-hist-preview');
-    const full = item.querySelector('.rec-hist-full');
-    const arrow = item.querySelector('.rec-hist-arrow');
-    if (prev) prev.style.display = expanded ? '' : 'none';
-    if (full) full.style.display = expanded ? 'none' : '';
-    if (arrow) arrow.textContent = expanded ? '▼' : '▲';
-  };
-  document.getElementById('rec-history-list')?.addEventListener('click', _histToggle);
-  document.getElementById('news-history-list')?.addEventListener('click', _histToggle);
+  // 히스토리 아코디언 토글은 전역 bindAccordions()에서 위임 처리(rec-history-list/news-history-list 포함)
 }
 
 // 자동 추천 히스토리 렌더 (구글 시트 'AI추천기록' 전체 이력, 최신순)
@@ -2302,14 +2397,14 @@ function bindBrokerEvents() {
     if (!/^[0-9A-Za-z]{4,6}$/.test(ticker)) { toast('종목코드(6자리)를 입력하세요.', 'error'); return; }
     Broker.addWatchlist(ticker, n?.value || '');
     if (t) t.value = ''; if (n) n.value = '';
-    renderWatchlist();
+    renderWatchlist(true);
   });
-  document.getElementById('btn-refresh-watch')?.addEventListener('click', () => renderWatchlist());
+  document.getElementById('btn-refresh-watch')?.addEventListener('click', () => renderWatchlist(true));
   document.getElementById('watchlist-tbody')?.addEventListener('click', (e) => {
     const btn = e.target.closest('.btn-watch-remove');
     if (!btn) return;
     Broker.removeWatchlist(btn.dataset.ticker);
-    renderWatchlist();
+    renderWatchlist(false);
   });
 
   // 예약 주문 새로고침
@@ -2345,9 +2440,9 @@ async function renderBrokerTab(force = false) {
     document.getElementById('broker-dashboard').classList.remove('hidden');
     showEmpty(false);
 
-    // 관심 주식 + 예약 주문도 함께 갱신(잔고와 별개 섹션)
-    renderWatchlist();
-    renderReservedOrders();
+    // 관심 주식은 '목록만' 즉시 표시. 시세·예약주문은 각 섹션의 🔄 버튼으로만 조회
+    // (탭 열 때마다 KIS를 호출해 모의 미지원 시 콘솔 500이 반복되는 문제 방지)
+    renderWatchlist(false);
 
     try {
       const data = await Broker.loadBalanceAndHoldings(force);
@@ -2433,26 +2528,30 @@ async function renderBrokerTab(force = false) {
   }
 }
 
-// ⭐ 관심 주식: localStorage 목록 즉시 표시 + KIS 실시간 시세 비동기 채움
-async function renderWatchlist() {
+// ⭐ 관심 주식: localStorage 목록 즉시 표시 (+ fetchPrices=true 일 때만 KIS 실시간 시세 조회)
+// 탭 자동 진입에서는 fetchPrices=false 로 목록만 표시 → 불필요한 KIS 호출/콘솔 500 방지. 🔄 버튼이 true.
+async function renderWatchlist(fetchPrices = false) {
   const tbody = document.getElementById('watchlist-tbody');
   if (!tbody || typeof Broker === 'undefined') return;
   const esc = escapeHtml;
   const list = Broker.getWatchlist();
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">관심 종목을 추가하세요. (현재가는 KIS 실시간 시세 — 모의투자는 미지원일 수 있음)</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">관심 종목을 추가하세요. 추가 후 🔄를 누르면 현재가를 조회합니다. (모의투자는 시세 미지원일 수 있음)</td></tr>`;
     return;
   }
-  // 1) 즉시 목록 렌더(시세는 로딩 표시)
+  const ph = fetchPrices ? '…' : '–';
+  // 1) 즉시 목록 렌더
   tbody.innerHTML = list.map(w => `
     <tr data-ticker="${esc(w.ticker)}">
       <td style="font-weight:600;">${esc(w.name || '-')}</td>
       <td><code style="background:var(--bg-elevated); padding:2px 6px; border-radius:4px;">${esc(w.ticker)}</code></td>
-      <td class="wl-price" style="text-align:right;">…</td>
-      <td class="wl-change" style="text-align:right;">…</td>
-      <td class="wl-rate" style="text-align:right;">…</td>
+      <td class="wl-price" style="text-align:right;">${ph}</td>
+      <td class="wl-change" style="text-align:right;">${ph}</td>
+      <td class="wl-rate" style="text-align:right;">${ph}</td>
       <td><button class="btn-watch-remove btn-primary-sm" data-ticker="${esc(w.ticker)}" style="padding:2px 8px; font-size:11px; background:var(--accent-red); border-color:var(--accent-red);">삭제</button></td>
     </tr>`).join('');
+
+  if (!fetchPrices) return; // 목록만 표시(자동 진입). 시세는 🔄로 조회
 
   // 2) 종목별 시세 비동기 채움(서구식 3색)
   const settings = Broker.getSettings();

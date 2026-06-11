@@ -9,6 +9,20 @@ const Auth = (() => {
   let accessToken = null;
   let grantedScopes = '';   // 현재 토큰이 실제로 부여받은 scope(공백 구분 문자열)
   let onLoginCallback = null;
+  let _refreshTimer = null;  // 만료 전 자동 갱신 타이머
+  let _silentRefresh = false; // 무음 갱신 중 표시(재렌더 트리거 방지)
+
+  // 액세스 토큰을 만료 5분 전 무음으로 재발급 예약 → 1시간 만료로 인한 401 방지
+  function _scheduleTokenRefresh(expiryMs) {
+    if (_refreshTimer) clearTimeout(_refreshTimer);
+    const delay = Math.max(expiryMs - Date.now() - 5 * 60 * 1000, 20 * 1000);
+    _refreshTimer = setTimeout(() => {
+      if (!tokenClient) return;
+      _silentRefresh = true;
+      try { tokenClient.requestAccessToken({ prompt: '' }); }
+      catch (e) { _silentRefresh = false; console.warn('[Auth] 토큰 자동 갱신 실패:', e); }
+    }, delay);
+  }
 
   /** GAPI 초기화 */
   function initGapi() {
@@ -46,16 +60,26 @@ const Auth = (() => {
         client_id: cfg.CLIENT_ID,
         scope: cfg.SCOPES,
         callback: (tokenResponse) => {
-          if (tokenResponse.error !== undefined) throw tokenResponse;
+          if (tokenResponse.error !== undefined) {
+            _silentRefresh = false;
+            console.warn('[Auth] 토큰 요청 오류:', tokenResponse.error);
+            return;
+          }
           accessToken = tokenResponse.access_token;
-          grantedScopes = tokenResponse.scope || '';
-          const expiry = Date.now() + tokenResponse.expires_in * 1000;
+          grantedScopes = tokenResponse.scope || grantedScopes;
+          const expiry = Date.now() + (tokenResponse.expires_in || 3600) * 1000;
           localStorage.setItem('toochangi_access_token', accessToken);
           localStorage.setItem('toochangi_token_expiry', expiry);
           localStorage.setItem('toochangi_token_scope', grantedScopes);
           gapi.client.setToken({ access_token: accessToken });
-          console.log('✅ 구글 로그인 완료.');
-          if (onLoginCallback) onLoginCallback({ name: '흰챙이' });
+          _scheduleTokenRefresh(expiry);
+          if (_silentRefresh) {
+            _silentRefresh = false;
+            console.log('🔄 액세스 토큰 자동 갱신 완료.');
+          } else {
+            console.log('✅ 구글 로그인 완료.');
+            if (onLoginCallback) onLoginCallback({ name: '흰챙이' });
+          }
         },
       });
       gisInited = true;
@@ -74,6 +98,7 @@ const Auth = (() => {
       accessToken = storedToken;
       grantedScopes = localStorage.getItem('toochangi_token_scope') || '';
       gapi.client.setToken({ access_token: accessToken });
+      _scheduleTokenRefresh(parseInt(expiry, 10));
       console.log('✅ 캐시 토큰으로 자동 로그인.');
       if (onLoginCallback) onLoginCallback({ name: '흰챙이' });
     } else {
@@ -102,6 +127,7 @@ const Auth = (() => {
   }
 
   function logout() {
+    if (_refreshTimer) { clearTimeout(_refreshTimer); _refreshTimer = null; }
     if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {});
     accessToken = null;
     grantedScopes = '';

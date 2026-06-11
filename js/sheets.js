@@ -747,7 +747,7 @@ const SheetsAPI = (() => {
     const portfolio = await getPortfolio();
     const nextRow = portfolio.length + 2;
 
-    const fFormula = `=IF(ISBLANK(B${nextRow}), 0, IF(OR(C${nextRow}="나스닥", C${nextRow}="NYSE"), INT(GOOGLEFINANCE(B${nextRow}) * GOOGLEFINANCE("USDKRW")), INT(GOOGLEFINANCE("KRX:" & IF(ISNUMBER(B${nextRow}), TEXT(B${nextRow},"000000"), TO_TEXT(B${nextRow}))))))`;
+    const fFormula = `=IF(ISBLANK(B${nextRow}), 0, IF(OR(ISNUMBER(B${nextRow}), REGEXMATCH(TO_TEXT(B${nextRow}), "[0-9]")), INT(GOOGLEFINANCE("KRX:" & IF(ISNUMBER(B${nextRow}), TEXT(B${nextRow},"000000"), TO_TEXT(B${nextRow})))), INT(GOOGLEFINANCE(B${nextRow}) * GOOGLEFINANCE("CURRENCY:USDKRW"))))`;
     const gFormula = `=D${nextRow}*F${nextRow}`;
     const hFormula = `=IF(E${nextRow}>0, (F${nextRow}-E${nextRow})/E${nextRow}, 0)`;
     const iFormula = `=IF(SUM(G$2:G$100)>0, G${nextRow}/SUM(G$2:G$100), 0)`;
@@ -772,7 +772,7 @@ const SheetsAPI = (() => {
 
     await backupPortfolio();
 
-    const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("USDKRW")), INT(GOOGLEFINANCE("KRX:" & IF(ISNUMBER(B${rowIndex}), TEXT(B${rowIndex},"000000"), TO_TEXT(B${rowIndex}))))))`;
+    const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(ISNUMBER(B${rowIndex}), REGEXMATCH(TO_TEXT(B${rowIndex}), "[0-9]")), INT(GOOGLEFINANCE("KRX:" & IF(ISNUMBER(B${rowIndex}), TEXT(B${rowIndex},"000000"), TO_TEXT(B${rowIndex})))), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("CURRENCY:USDKRW"))))`;
     const gFormula = `=D${rowIndex}*F${rowIndex}`;
     const hFormula = `=IF(E${rowIndex}>0, (F${rowIndex}-E${rowIndex})/E${rowIndex}, 0)`;
     const iFormula = `=IF(SUM(G$2:G$100)>0, G${rowIndex}/SUM(G$2:G$100), 0)`;
@@ -826,7 +826,7 @@ const SheetsAPI = (() => {
     await backupPortfolio();
 
     const data = updates.map(({ rowIndex, row }) => {
-      const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("USDKRW")), INT(GOOGLEFINANCE("KRX:" & IF(ISNUMBER(B${rowIndex}), TEXT(B${rowIndex},"000000"), TO_TEXT(B${rowIndex}))))))`;
+      const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(ISNUMBER(B${rowIndex}), REGEXMATCH(TO_TEXT(B${rowIndex}), "[0-9]")), INT(GOOGLEFINANCE("KRX:" & IF(ISNUMBER(B${rowIndex}), TEXT(B${rowIndex},"000000"), TO_TEXT(B${rowIndex})))), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("CURRENCY:USDKRW"))))`;
       const gFormula = `=D${rowIndex}*F${rowIndex}`;
       const hFormula = `=IF(E${rowIndex}>0, (F${rowIndex}-E${rowIndex})/E${rowIndex}, 0)`;
       const iFormula = `=IF(SUM(G$2:G$100)>0, G${rowIndex}/SUM(G$2:G$100), 0)`;
@@ -898,7 +898,7 @@ const SheetsAPI = (() => {
     rows.forEach((r, index) => {
       const rowIndex = index + 2; // 2행부터 시작
       const range = `포트폴리오!F${rowIndex}:I${rowIndex}`;
-      const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(C${rowIndex}="나스닥", C${rowIndex}="NYSE"), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("USDKRW")), INT(GOOGLEFINANCE("KRX:" & IF(ISNUMBER(B${rowIndex}), TEXT(B${rowIndex},"000000"), TO_TEXT(B${rowIndex}))))))`;
+      const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(ISNUMBER(B${rowIndex}), REGEXMATCH(TO_TEXT(B${rowIndex}), "[0-9]")), INT(GOOGLEFINANCE("KRX:" & IF(ISNUMBER(B${rowIndex}), TEXT(B${rowIndex},"000000"), TO_TEXT(B${rowIndex})))), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("CURRENCY:USDKRW"))))`;
       const gFormula = `=D${rowIndex}*F${rowIndex}`;
       const hFormula = `=IF(E${rowIndex}>0, (F${rowIndex}-E${rowIndex})/E${rowIndex}, 0)`;
       const iFormula = `=IF(SUM(G$2:G$100)>0, G${rowIndex}/SUM(G$2:G$100), 0)`;
