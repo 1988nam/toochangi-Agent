@@ -626,17 +626,6 @@ html, body {
   font-size: 11px; color: var(--text-muted);
   display: flex; align-items: center; gap: 10px;
 }
-.auto-rec-kis-badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 10px; font-weight: 600; padding: 2px 7px;
-  border-radius: 10px;
-  background: rgba(16,185,129,0.15); color: #10b981;
-  border: 1px solid rgba(16,185,129,0.3);
-}
-.auto-rec-kis-badge.offline {
-  background: rgba(107,114,128,0.15); color: #6b7280;
-  border-color: rgba(107,114,128,0.3);
-}
 .btn-auto-recommend {
   display: flex; align-items: center; gap: 8px;
   background: linear-gradient(135deg, #7c3aed, #2563eb);
@@ -695,30 +684,6 @@ html, body {
   font-size: 13px; color: var(--text-muted);
   text-align: center; line-height: 1.6;
 }
-
-/* ══════════════════════════ 증권사 연동 ══════════════════════════ */
-.broker-coming-soon {
-  display: flex; flex-direction: column; align-items: center;
-  text-align: center; padding: 60px 40px; gap: 16px;
-}
-.coming-soon-icon { font-size: 64px; margin-bottom: 8px; }
-.broker-coming-soon h2 { font-size: 24px; font-weight: 700; }
-.broker-coming-soon p { color: var(--text-secondary); max-width: 440px; line-height: 1.6; }
-.broker-features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 380px; width: 100%; }
-.broker-feature {
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  border-radius: 8px; padding: 10px 14px;
-  font-size: 13px; color: var(--text-secondary);
-  display: flex; align-items: center; gap: 8px;
-}
-.broker-options { display: flex; gap: 16px; }
-.broker-option {
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 20px;
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  font-size: 13px; color: var(--text-secondary);
-}
-.broker-logo { font-size: 32px; }
 
 /* ══════════════════════════ MODAL ══════════════════════════ */
 .modal-overlay {
@@ -839,15 +804,8 @@ html, body {
   transform: translateY(-1px);
 }
 
-/* ── KIS Broker Styles ── */
 .metric-card.accent-red    { border-color: rgba(239, 68, 68, 0.3); box-shadow: 0 0 20px rgba(239, 68, 68, 0.2); }
 .metric-card.accent-red::before    { background: var(--accent-red); }
-
-@media (max-width: 1024px) {
-  .broker-cols {
-    grid-template-columns: 1fr !important;
-  }
-}
 
 /* ── AI Grounding Sources Styles ── */
 .source-link {
@@ -1206,11 +1164,6 @@ html, body {
     font-size: 13px;
   }
 
-  /* 증권사 연동 모바일 레이아웃 패딩 최적화 */
-  .broker-cols {
-    grid-template-columns: 1fr !important;
-    gap: 16px;
-  }
 }
 
 

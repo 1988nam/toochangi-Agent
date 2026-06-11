@@ -1,7 +1,5 @@
 .git
 node_modules
-server.js
-cloudflare-worker
 docs
 .github
 .claude

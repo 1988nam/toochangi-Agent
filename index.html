@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260611_64" />
+  <link rel="stylesheet" href="style.css?v=20260611_65" />
 </head>
 <body>
 
@@ -25,7 +25,6 @@
       <div class="feature-item">📊 포트폴리오 실시간 현황</div>
       <div class="feature-item">🚦 3단계 매수/매도 필터</div>
       <div class="feature-item">🤖 Gemini AI 투자 분석</div>
-      <div class="feature-item">🏦 국내 증권사 API 연동 (예정)</div>
     </div>
     <button id="login-btn" class="btn-login">
       <svg width="20" height="20" viewBox="0 0 24 24">
@@ -79,10 +78,6 @@
       <button class="nav-item" data-tab="filter" id="nav-filter">
         <span class="nav-icon">🚦</span><span>3단계 필터</span>
       </button>
-      <button class="nav-item" data-tab="mocktrade" id="nav-mocktrade">
-        <span class="nav-icon">🏦</span><span>모의투자</span>
-      </button>
-
       <div class="nav-section">AI 분석</div>
       <button class="nav-item" data-tab="auto-analysis" id="nav-auto-analysis">
         <span class="nav-icon">🤖</span><span>자동 투자 추천</span>
@@ -95,9 +90,6 @@
       </button>
 
       <div class="nav-section">시스템</div>
-      <button class="nav-item" data-tab="broker" id="nav-broker">
-        <span class="nav-icon">🔗</span><span>증권사 연동</span>
-      </button>
       <button class="nav-item" data-tab="settings" id="nav-settings">
         <span class="nav-icon">⚙️</span><span>환경 설정</span>
       </button>
@@ -548,7 +540,6 @@
             </div>
             <div style="display:flex; align-items:center; gap:12px;">
               <div class="auto-rec-meta">
-                <span id="auto-rec-kis-status" class="auto-rec-kis-badge offline">📡 KIS 미연동</span>
                 <span id="auto-rec-generated-at" style="display:none;"></span>
               </div>
               <button id="btn-auto-recommend" class="btn-auto-recommend">
@@ -565,7 +556,7 @@
               <div class="empty-icon">🔮</div>
               <div><strong>버튼을 누르면 Gemini가 지금 시장을 자동 분석합니다</strong></div>
               <div style="margin-top:8px; font-size:13px; line-height:1.7;">
-                📰 최신 뉴스 · 📺 유튜브 구독 채널 여론 · 📊 KIS 거래량을 통합하여<br>
+                📰 최신 뉴스 · 📺 유튜브 구독 채널 여론을 통합하여<br>
                 흰챙이 가족 3단계 필터에 맞는 종목을 자동 발굴합니다
               </div>
             </div>
@@ -574,7 +565,7 @@
               <div class="spinner-ring"></div>
               <div class="auto-rec-spinner-text">
                 <strong>Gemini AI 분석 중...</strong><br>
-                뉴스 · 유튜브 · KIS 데이터를 실시간으로 분석하고 있습니다<br>
+                뉴스 · 유튜브 데이터를 실시간으로 분석하고 있습니다<br>
                 <span style="font-size:11px; opacity:0.7;">약 15~30초 소요됩니다</span>
               </div>
             </div>
@@ -683,232 +674,6 @@
       </div>
     </div>
 
-    <!-- ── 모의투자 탭 (KIS 예수금·보유종목·수동주문 대시보드) ── -->
-    <div id="tab-mocktrade" class="tab-panel hidden">
-      <div style="display: flex; flex-direction: column; gap: 20px;">
-
-        <!-- 미설정 안내 (KIS 키/프록시 미설정 시 표시) -->
-        <div id="mocktrade-empty" class="card" style="max-width: 800px; margin: 0 auto; width: 100%;">
-          <div class="empty-state" style="padding: 30px 16px; line-height: 1.7;">
-            🏦 모의투자 계좌가 아직 연동되지 않았습니다.<br/>
-            좌측 <b>시스템 → 증권사 연동</b>에서 KIS API 키와 프록시 URL을 저장하면<br/>
-            이곳에 <b>예수금·보유 종목·수동 주문</b>이 표시됩니다.
-          </div>
-        </div>
-
-        <!-- 상단 요약 대시보드 (연동되었을 때 표시) -->
-        <div id="broker-dashboard" class="hidden" style="display: flex; flex-direction: column; gap: 20px;">
-          <!-- 핵심 지표 카드 -->
-          <div class="metrics-grid">
-            <div class="metric-card accent-blue">
-              <div class="metric-label">예수금 (현금)</div>
-              <div class="metric-value" id="broker-cash">—</div>
-              <div class="metric-sub">주문 가능 현금 잔고</div>
-            </div>
-            <div class="metric-card accent-purple">
-              <div class="metric-label">총 평가금액</div>
-              <div class="metric-value" id="broker-eval-amt">—</div>
-              <div class="metric-sub">주식 평가금액 + 예수금</div>
-            </div>
-            <div class="metric-card" id="broker-pnl-card">
-              <div class="metric-label">총 평가손익</div>
-              <div class="metric-value" id="broker-pnl">—</div>
-              <div class="metric-sub">보유 주식 전체 손익</div>
-            </div>
-            <div class="metric-card" id="broker-yield-card">
-              <div class="metric-label">총 수익률</div>
-              <div class="metric-value" id="broker-yield">—</div>
-              <div class="metric-sub">평가 대비 수익비율</div>
-            </div>
-          </div>
-
-          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; align-items: start;" class="broker-cols">
-            <!-- 보유 주식 리스트 -->
-            <div class="card" style="margin-bottom: 0;">
-              <div class="card-header">
-                <span class="card-title">📈 보유 종목 현황</span>
-                <button id="refresh-broker-btn" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 실시간 동기화</button>
-              </div>
-              <div class="table-wrap">
-                <table class="data-table" id="broker-holdings-table">
-                  <thead>
-                    <tr>
-                      <th>종목명</th>
-                      <th>종목코드</th>
-                      <th>수량</th>
-                      <th>평균단가</th>
-                      <th>현재가</th>
-                      <th>평가금액</th>
-                      <th>평가손익</th>
-                      <th>수익률</th>
-                      <th>액션</th>
-                    </tr>
-                  </thead>
-                  <tbody id="broker-holdings-tbody">
-                    <tr><td colspan="9" class="empty-state">조회된 보유 종목이 없습니다.</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- 수동 주문 카드 -->
-            <div class="card" style="margin-bottom: 0;">
-              <div class="card-header">
-                <span class="card-title">⚡️ KIS 수동 주문</span>
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 15px; padding: 15px 0 0 0;">
-                <div class="form-group">
-                  <label>거래 구분</label>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <button type="button" id="order-side-buy" class="btn-side active-buy" style="padding: 10px; border-radius: 8px; font-weight: bold; background: #ef4444; color: white; border: none; cursor: pointer;">매수</button>
-                    <button type="button" id="order-side-sell" class="btn-side" style="padding: 10px; border-radius: 6px; font-weight: bold; background: #374151; color: #9ca3af; border: none; cursor: pointer;">매도</button>
-                  </div>
-                </div>
-                
-                <div class="form-group">
-                  <label>종목코드 (6자리)</label>
-                  <input type="text" id="input-order-ticker" placeholder="예: 005930" class="input-dark" maxlength="6" style="width: 100%;" />
-                </div>
-
-                <div class="form-group">
-                  <label>호가 구분</label>
-                  <select id="input-order-type" class="input-dark" style="width: 100%;">
-                    <option value="01">시장가 (Market)</option>
-                    <option value="00">지정가 (Limit)</option>
-                  </select>
-                </div>
-
-                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                  <div class="form-group">
-                    <label>주문수량 (주)</label>
-                    <input type="number" id="input-order-qty" placeholder="수량" class="input-dark" min="1" style="width: 100%;" />
-                  </div>
-                  <div class="form-group">
-                    <label>주문단가 (원)</label>
-                    <input type="number" id="input-order-price" placeholder="단가" class="input-dark" min="0" disabled style="width: 100%;" />
-                  </div>
-                </div>
-
-                <button id="btn-submit-order" class="btn-primary" style="background: #ef4444; width: 100%; font-size: 15px; font-weight: bold; padding: 12px; margin-top: 10px;">즉시 매수 주문 전송</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- ⭐ 관심 주식 (워치리스트) -->
-          <div class="card" style="margin-bottom: 0;">
-            <div class="card-header">
-              <span class="card-title">⭐ 관심 주식</span>
-              <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                <input type="text" id="input-watch-ticker" placeholder="종목코드(6자리)" maxlength="6" class="input-dark" style="width:120px; padding:6px 10px;" />
-                <input type="text" id="input-watch-name" placeholder="종목명(선택)" class="input-dark" style="width:120px; padding:6px 10px;" />
-                <button id="btn-add-watch" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">➕ 추가</button>
-                <button id="btn-refresh-watch" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄</button>
-              </div>
-            </div>
-            <div class="table-wrap">
-              <table class="data-table" id="watchlist-table">
-                <thead>
-                  <tr><th>종목명</th><th>종목코드</th><th>현재가</th><th>전일대비</th><th>등락률</th><th>액션</th></tr>
-                </thead>
-                <tbody id="watchlist-tbody">
-                  <tr><td colspan="6" class="empty-state">관심 종목을 추가하세요. (현재가는 KIS 실시간 시세 — 모의투자는 미지원일 수 있음)</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- ⏰ 예약 주문 -->
-          <div class="card" style="margin-bottom: 0;">
-            <div class="card-header">
-              <span class="card-title">⏰ 예약 주문</span>
-              <button id="btn-refresh-reserved" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 새로고침</button>
-            </div>
-            <div class="table-wrap">
-              <table class="data-table" id="reserved-orders-table">
-                <thead>
-                  <tr><th>종목명</th><th>종목코드</th><th>구분</th><th>수량</th><th>주문가</th><th>접수일</th><th>상태</th></tr>
-                </thead>
-                <tbody id="reserved-orders-tbody">
-                  <tr><td colspan="7" class="empty-state">"새로고침"을 누르면 예약 주문을 불러옵니다. (모의투자는 미지원일 수 있음)</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── 증권사 연동 탭 (KIS 키 설정만) ── -->
-    <div id="tab-broker" class="tab-panel hidden">
-      <div style="display: flex; flex-direction: column; gap: 20px;">
-
-        <!-- API 설정 카드 -->
-        <div class="card" style="max-width: 800px; margin: 0 auto; width: 100%;">
-          <div class="card-header">
-            <span class="card-title">🔑 한국투자증권 KIS API 연동 설정</span>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 15px; padding-top: 15px;">
-            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-              <div class="form-group">
-                <label>App Key *</label>
-                <input type="password" id="input-kis-appkey" placeholder="한국투자증권 App Key" class="input-dark" />
-              </div>
-              <div class="form-group">
-                <label>App Secret *</label>
-                <input type="password" id="input-kis-secret" placeholder="한국투자증권 App Secret" class="input-dark" />
-              </div>
-            </div>
-            
-            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-              <div class="form-group">
-                <label>계좌번호 * (지점코드 포함 10자리 숫자만)</label>
-                <input type="text" id="input-kis-account" placeholder="예: 50023456-01 -> 5002345601" class="input-dark" maxlength="11" />
-              </div>
-              <div class="form-group">
-                <label>거래 환경</label>
-                <select id="input-kis-mock" class="input-dark">
-                  <option value="true">모의투자 (Mock Trading)</option>
-                  <option value="false">실전투자 (Real Trading)</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label>KIS 프록시 URL * <span style="color: var(--text-muted); font-weight: 400; font-size: 12px;">(Cloudflare Worker 주소)</span></label>
-              <input type="text" id="input-kis-proxy" placeholder="예: https://toochangi-kis.계정.workers.dev" class="input-dark" />
-              <div style="margin-top: 6px; font-size: 12px; color: var(--text-muted); line-height: 1.5;">
-                KIS는 브라우저 직접 호출이 막혀(CORS) 중계 프록시가 필요합니다. 저장소의 <code>cloudflare-worker/</code> 폴더 안내대로 무료 Worker를 배포한 뒤 그 주소를 입력하세요. 비워두면 KIS 연동만 꺼지고 나머지 기능은 정상입니다.
-              </div>
-            </div>
-
-            <hr style="border: 0; border-top: 1px solid #374151; margin: 10px 0;" />
-
-            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; align-items: center;">
-              <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
-                  <input type="checkbox" id="input-kis-autotrade" style="width: 18px; height: 18px; cursor: pointer;" />
-                  <strong>AI 3단계 매수 신호 시 자동매매 활성화</strong>
-                </label>
-              </div>
-              <div class="form-group">
-                <label>자동매매 예산 한도 (원/회)</label>
-                <input type="number" id="input-kis-autotrade-amount" placeholder="예: 500000" class="input-dark" value="500000" />
-              </div>
-            </div>
-
-            <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; padding: 12px; border-radius: 4px; font-size: 13px; color: #9ca3af; line-height: 1.5;">
-              💡 <strong>안내:</strong> API Key 정보는 서버나 데이터베이스에 절대 저장되지 않으며, 사용자 브라우저의 <code>localStorage</code>에 암호화되지 않은 상태로 보관됩니다. 개인 PC가 아닌 공용 환경에서는 사용을 자제하고 완료 후 설정을 초기화하십시오. KIS API는 CORS 제한을 우회하기 위해 위에 입력한 <strong>KIS 프록시(Cloudflare Worker)</strong>를 거쳐 동작합니다. 연동 후 예수금·보유 종목·수동 주문은 좌측 <strong>주식 매매 → 모의투자</strong> 메뉴에서 확인합니다.
-            </div>
-
-            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
-              <button id="btn-clear-broker-settings" class="btn-cancel" style="background:#374151; color:#f3f4f6;">설정 초기화</button>
-              <button id="btn-save-broker-settings" class="btn-primary">연동 설정 저장 & 불러오기</button>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
 
     <!-- ── 자산현황 탭 ── -->
     <div id="tab-assets" class="tab-panel hidden">
@@ -1513,49 +1278,6 @@
   </div>
 </div>
 
-<!-- ════════════ KIS 자동매매 최종 확인 모달 ════════════ -->
-<div id="modal-kis-order" class="modal-overlay hidden">
-  <div class="modal" style="max-width: 450px;">
-    <div class="modal-header" style="border-bottom: 1px solid var(--border);">
-      <h3 style="color: var(--accent-orange); display: flex; align-items: center; gap: 8px;">🔮 KIS 자동매매 최종 승인</h3>
-      <button class="modal-close" data-modal="modal-kis-order">✕</button>
-    </div>
-    <div class="modal-body" style="padding: 20px 24px; gap: 16px;">
-      <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid var(--accent-orange); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px;">
-        ⚠️ <strong>경고:</strong> 본 주문은 한국투자증권 API를 통해 실제 시장으로 전송됩니다. 주문 명세를 다시 한번 면밀히 확인해주십시오.
-      </div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-        <tr style="border-bottom: 1px solid var(--border);">
-          <td style="padding: 10px 0; color: var(--text-muted); font-weight: 500;">거래 종류</td>
-          <td style="padding: 10px 0; text-align: right; font-weight: 600; color: var(--accent-red);" id="kis-modal-side">매수</td>
-        </tr>
-        <tr style="border-bottom: 1px solid var(--border);">
-          <td style="padding: 10px 0; color: var(--text-muted); font-weight: 500;">주문 종목</td>
-          <td style="padding: 10px 0; text-align: right; font-weight: 600;" id="kis-modal-stock">삼성전자 (005930)</td>
-        </tr>
-        <tr style="border-bottom: 1px solid var(--border);">
-          <td style="padding: 10px 0; color: var(--text-muted); font-weight: 500; vertical-align: middle;">주문 수량</td>
-          <td style="padding: 10px 0; text-align: right;">
-            <input type="number" id="kis-modal-qty-input" value="10" min="1" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; color: var(--text-primary); text-align: right; outline: none; font-size: 14px; width: 100px; font-weight: 600;" />
-            <span style="font-weight: 600; margin-left: 4px;">주</span>
-          </td>
-        </tr>
-        <tr style="border-bottom: 1px solid var(--border);">
-          <td style="padding: 10px 0; color: var(--text-muted); font-weight: 500;">주문 가격</td>
-          <td style="padding: 10px 0; text-align: right; font-weight: 600;" id="kis-modal-price">시장가 (Market)</td>
-        </tr>
-        <tr style="border-bottom: 1px solid var(--border);">
-          <td style="padding: 10px 0; color: var(--text-muted); font-weight: 500;">실행 계좌</td>
-          <td style="padding: 10px 0; text-align: right; font-weight: 600; color: var(--accent-purple);" id="kis-modal-account">50012345-01 (모의)</td>
-        </tr>
-      </table>
-    </div>
-    <div class="modal-footer" style="border-top: 1px solid var(--border);">
-      <button class="btn-cancel" data-modal="modal-kis-order">주문 취소</button>
-      <button id="btn-kis-order-confirm" class="btn-primary" style="background: var(--accent-orange); border-color: var(--accent-orange);">주문 전송 승인</button>
-    </div>
-  </div>
-</div>
 
 <!-- ════════════ 포트폴리오 다중 수정 모달 ════════════ -->
 <div id="modal-bulk-edit-portfolio" class="modal-overlay hidden">
@@ -1966,11 +1688,10 @@
     console.error('Gemini OAuth 스코프 적용 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260611_64"></script>
-<script src="js/sheets.js?v=20260611_64"></script>
-<script src="js/toochangi.js?v=20260611_64"></script>
-<script src="js/broker.js?v=20260611_64"></script>
-<script src="js/main.js?v=20260611_64"></script>
+<script src="js/auth.js?v=20260611_65"></script>
+<script src="js/sheets.js?v=20260611_65"></script>
+<script src="js/toochangi.js?v=20260611_65"></script>
+<script src="js/main.js?v=20260611_65"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 

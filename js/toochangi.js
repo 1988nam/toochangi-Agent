@@ -589,24 +589,14 @@ ${gachangiContext}
   }
 
   // ── 자동 투자 추천 ──────────────────────────────────────────────
-  // KIS 거래량 데이터 + Google Search Grounding(뉴스/유튜브) + 포트폴리오 + 전략 Context를
+  // Google Search Grounding(뉴스/유튜브) + 포트폴리오 + 전략 Context를
   // 통합하여 흰챙이 가족 원칙에 맞는 종목을 자동 발굴·추천하는 함수
-  // mode: 'all'(기본 전체 시장) | 'kospi'(코스피 전용 — KIS 모의 연동·코스피 정보만으로 코스피 종목 추천)
+  // mode: 'all'(기본 전체 시장) | 'kospi'(코스피 전용 — 코스피 정보만으로 코스피 종목 추천)
   async function runAutoRecommendation(mode = 'all') {
     const isKospi = mode === 'kospi';
     const provider = _aiProvider();
     if (provider === 'gemini' && !_hasGeminiAuth()) {
       throw new Error('Gemini 인증이 없습니다. 구글 로그인(OAuth) 또는 API 키를 설정해주세요.');
-    }
-
-    // ── 데이터 수집 (KIS + 포트폴리오 + 전략 + 유튜브 RSS) ──────────────────
-    let marketData = null;
-    if (typeof Broker !== 'undefined') {
-      try {
-        marketData = await Broker.fetchMarketData();
-      } catch (e) {
-        console.warn('[AutoRec] KIS 시장 데이터 수집 실패 (Gemini 검색 전용으로 계속):', e.message);
-      }
     }
 
     // 유튜브: 채널 RSS 직접 조회(정적 호스팅에서 CORS로 실패) 대신, 실시간 검색으로 AI가 직접 경제 유튜브를 찾아 요약하도록 지시
@@ -636,25 +626,6 @@ ${gachangiContext}
 
     const strategyContext = window.TOOCHANGI_CONFIG.STRATEGY_CONTEXT || '';
 
-    // ── KIS 데이터 요약 텍스트 생성 ──────────────────────────────
-    let kisSection = '';
-    if (marketData && marketData.volumeRank && marketData.volumeRank.length > 0) {
-      const rankLines = marketData.volumeRank
-        .map(r => `  ${r.rank}위 ${r.name}(${r.ticker}): ${r.price}, 등락 ${r.change}, 거래량 ${r.volume} ${r.volChange}`)
-        .join('\n');
-      kisSection = `[KIS 실시간 거래량 순위 TOP ${marketData.volumeRank.length}]
-${rankLines}`;
-      if (marketData.indices && typeof marketData.indices === 'object' && !Array.isArray(marketData.indices)) {
-        const idxLines = Object.entries(marketData.indices)
-          .filter(([, v]) => v && v.current != null)
-          .map(([k, v]) => `  ${k}: ${v.current} (${v.rate != null ? v.rate : '-'}%)`)
-          .join('\n');
-        if (idxLines) kisSection += `\n\n[코스피/코스닥 지수]\n${idxLines}`;
-      }
-    } else {
-      kisSection = '[KIS 거래량 데이터] KIS 미연동 또는 모의환경 — 아래 검색 지시에 따라 직접 검색하세요.';
-    }
-
     // ── Gemini 프롬프트 구성 ──────────────────────────────────────
     const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
 
@@ -675,7 +646,6 @@ ${strategyContext}`;
       ? `[⚠️ 코스피 전용 제약 — 반드시 준수]
 - 추천 종목은 모두 코스피(유가증권시장) 상장 종목이어야 합니다. 코스닥·해외·비상장 제외(코스피 추종 ETF는 허용).
 - 코스피 지수 흐름, 외국인·기관 수급, 코스피 대형주/업종 뉴스 중심으로 분석하세요.
-- 위 KIS(모의 연동) 데이터의 코스피 지수·거래량을 우선 반영하세요.
 `
       : '';
     const searchInstructions = isKospi
@@ -686,7 +656,7 @@ ${strategyContext}`;
 5. 위 구독 유튜브 채널의 코스피 관련 최신 영상·여론 검색`
       : `1. 오늘 국내외 주요 증시 특징 및 거래량 급등 테마/섹터 뉴스 검색
 2. 위 구독 유튜브 채널의 실시간 피드에 기록된 최신 영상 주제들을 면밀히 파악하고, 최근 시장 여론과 주목받는 종목들을 추천 후보군에 적극 반영하십시오.
-3. 위 KIS 거래량 상위 종목들의 급등 원인(공시, 실적, 이슈) 검색
+3. 오늘 거래량 상위 종목들의 급등 원인(공시, 실적, 이슈) 검색
 4. 미국 시장(S&P500, 나스닥) 오늘 주요 이슈 및 ETF 자금 흐름 검색
 5. 현재 ISA 계좌에 담기 적합한 국내 ETF 트렌드 검색`;
 
@@ -698,8 +668,6 @@ ${kospiConstraint}━━━━━━━━━━━━━━━━━━━━�
 
 [가계부 현황]
   ${gachangiContext}
-
-${kisSection}
 
 ${youtubeFeedText}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

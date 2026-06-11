@@ -31,7 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
   bindManualAnalysisEvents();
   bindTopbarEvents();
   bindAssetEvents();
-  bindBrokerEvents();
   bindSettingsEvents();
   bindAccordions();
 
@@ -154,13 +153,6 @@ async function refreshAll() {
       renderAssetsTab();
     }
 
-    const brokerPanel = document.getElementById('tab-broker');
-    const mockPanel = document.getElementById('tab-mocktrade');
-    if ((brokerPanel && !brokerPanel.classList.contains('hidden')) ||
-        (mockPanel && !mockPanel.classList.contains('hidden'))) {
-      renderBrokerTab();
-    }
-
     document.getElementById('last-updated').textContent =
       `최종 업데이트: ${new Date().toLocaleTimeString('ko-KR')}`;
     toast('✅ 데이터 업데이트 완료', 'success');
@@ -243,8 +235,6 @@ function switchTab(tab) {
     'auto-analysis': '자동 투자 추천',
     'ai-news': 'AI 뉴스',
     'manual-analysis': '수동 AI 분석',
-    mocktrade: '모의투자',
-    broker: '증권사 연동',
     settings: '환경 설정',
   };
   document.getElementById('page-title').textContent = titles[tab] || tab;
@@ -259,9 +249,6 @@ function switchTab(tab) {
   if (tab === 'assets') {
     initAssetMonthSelector();
     renderAssetsTab();
-  }
-  if (tab === 'broker' || tab === 'mocktrade') {
-    renderBrokerTab();
   }
   if (tab === 'settings') {
     initSettingsFields();
@@ -808,13 +795,6 @@ function bindFilterEvents() {
           memo: name && ticker ? `종목: ${name}(${ticker})` : '',
         });
         toast('✅ 3단계 필터 결과 저장 완료', 'success');
-        
-        // KIS 자동매매 체크 및 실행 (종목 정보 전달)
-        await Broker.checkAndTriggerAutoTrade({
-          ...result,
-          ticker: ticker,
-          name: name
-        });
       } catch (e) {
         toast('⚠️ 저장 실패: ' + e.message, 'error');
       }
@@ -1283,26 +1263,8 @@ function bindAutoAnalysisEvents() {
   const autoRecResult    = document.getElementById('auto-rec-result');
   const autoRecSourcesWrap = document.getElementById('auto-rec-sources-wrap');
   const autoRecChips     = document.getElementById('auto-rec-source-chips');
-  const autoRecKisStatus = document.getElementById('auto-rec-kis-status');
   const autoRecGenAt     = document.getElementById('auto-rec-generated-at');
   const refreshYoutubeBtn = document.getElementById('btn-refresh-youtube');
-
-  // KIS 연동 상태 배지 업데이트
-  function updateKisStatusBadge() {
-    if (!autoRecKisStatus) return;
-    const kisSettings = typeof Broker !== 'undefined' ? Broker.getSettings() : null;
-    if (kisSettings && kisSettings.appkey && kisSettings.secret && !kisSettings.isMock) {
-      autoRecKisStatus.className = 'auto-rec-kis-badge';
-      autoRecKisStatus.textContent = '📊 KIS 실거래 연동';
-    } else if (kisSettings && kisSettings.appkey && kisSettings.isMock) {
-      autoRecKisStatus.className = 'auto-rec-kis-badge offline';
-      autoRecKisStatus.textContent = '🔸 KIS 모의 연동';
-    } else {
-      autoRecKisStatus.className = 'auto-rec-kis-badge offline';
-      autoRecKisStatus.textContent = '📡 KIS 미연동';
-    }
-  }
-  updateKisStatusBadge();
 
   const kospiRecBtn = document.getElementById('btn-auto-recommend-kospi');
 
@@ -1314,8 +1276,6 @@ function bindAutoAnalysisEvents() {
     autoRecResult?.classList.add('hidden');
     autoRecSourcesWrap?.classList.add('hidden');
     autoRecLoading?.classList.remove('hidden');
-
-    updateKisStatusBadge();
 
     try {
       const result = await Toochangi.runAutoRecommendation(mode);
@@ -2212,486 +2172,6 @@ async function syncPortfolioAssets() {
     toast('⚠️ 동기화 실패: ' + e.message, 'error');
   }
 }
-
-// ══════════════════════════════════════════════════════════════
-// ── 증권사 연동 이벤트 및 렌더링 ──────────────────────────────────
-// ══════════════════════════════════════════════════════════════
-function bindBrokerEvents() {
-  // 거래 구분 선택 (매수 / 매도)
-  const buyBtn = document.getElementById('order-side-buy');
-  const sellBtn = document.getElementById('order-side-sell');
-  const submitBtn = document.getElementById('btn-submit-order');
-  let isBuy = true;
-
-  if (buyBtn && sellBtn && submitBtn) {
-    buyBtn.addEventListener('click', () => {
-      isBuy = true;
-      buyBtn.style.background = '#ef4444';
-      buyBtn.style.color = 'white';
-      sellBtn.style.background = '#374151';
-      sellBtn.style.color = '#9ca3af';
-      submitBtn.textContent = '즉시 매수 주문 전송';
-      submitBtn.style.background = '#ef4444';
-    });
-
-    sellBtn.addEventListener('click', () => {
-      isBuy = false;
-      sellBtn.style.background = '#3b82f6';
-      sellBtn.style.color = 'white';
-      buyBtn.style.background = '#374151';
-      buyBtn.style.color = '#9ca3af';
-      submitBtn.textContent = '즉시 매도 주문 전송';
-      submitBtn.style.background = '#3b82f6';
-    });
-  }
-
-  // 호가 구분 선택 시 단가 인풋 제어
-  const orderTypeSelect = document.getElementById('input-order-type');
-  const orderPriceInput = document.getElementById('input-order-price');
-  if (orderTypeSelect && orderPriceInput) {
-    orderTypeSelect.addEventListener('change', () => {
-      if (orderTypeSelect.value === '01') { // 시장가
-        orderPriceInput.disabled = true;
-        orderPriceInput.value = '';
-      } else { // 지정가
-        orderPriceInput.disabled = false;
-      }
-    });
-  }
-
-  // 주문 전송 버튼
-  submitBtn?.addEventListener('click', async () => {
-    const tickerInput = document.getElementById('input-order-ticker');
-    const qtyInput = document.getElementById('input-order-qty');
-    const priceInput = document.getElementById('input-order-price');
-
-    const ticker = tickerInput.value.trim();
-    const qty = parseInt(qtyInput.value, 10);
-    const price = parseFloat(priceInput.value);
-
-    if (!ticker || ticker.length !== 6) {
-      toast('⚠️ 올바른 종목코드 6자리를 입력해주세요.', 'error');
-      return;
-    }
-    if (isNaN(qty) || qty <= 0) {
-      toast('⚠️ 올바른 수량을 입력해주세요.', 'error');
-      return;
-    }
-    if (orderTypeSelect.value === '00' && (isNaN(price) || price <= 0)) {
-      toast('⚠️ 지정가 주문 시 단가를 입력해주세요.', 'error');
-      return;
-    }
-
-    const sideText = isBuy ? '매수' : '매도';
-    const typeText = orderTypeSelect.value === '01' ? '시장가' : `지정가 (${price.toLocaleString()}원)`;
-    const settings = Broker.getSettings();
-
-    const confirmed = confirm(
-      `🔮 [주문 최종 확인]\n\n` +
-      `- 주문 종목: ${ticker}\n` +
-      `- 주문 구분: ${sideText}\n` +
-      `- 주문 수량: ${qty}주\n` +
-      `- 주문 호가: ${typeText}\n` +
-      `- 실행 계좌: ${settings.account} (${settings.isMock ? '모의투자' : '실전투자'})\n\n` +
-      `정말로 KIS API를 통해 실시간 주문을 즉시 전송하시겠습니까?`
-    );
-
-    if (!confirmed) return;
-
-    toast('⏳ 주문 전송 중...', 'info');
-    try {
-      const result = await Broker.placeOrder({
-        pdno: ticker,
-        qty: qty,
-        price: orderTypeSelect.value === '01' ? 0 : price,
-        ordDvsn: orderTypeSelect.value,
-        isBuy: isBuy
-      });
-      toast(`✅ 주문 완료! 주문번호: ${result.orderNo}`, 'success', 5000);
-      
-      // 인풋 초기화
-      tickerInput.value = '';
-      qtyInput.value = '';
-      priceInput.value = '';
-
-      // 잔고 재조회
-      await renderBrokerTab();
-    } catch (e) {
-      console.error(e);
-      toast(`❌ 주문 실패: ${e.message}`, 'error', 5000);
-    }
-  });
-
-  // 설정 저장 버튼
-  document.getElementById('btn-save-broker-settings')?.addEventListener('click', async () => {
-    const appkey = document.getElementById('input-kis-appkey').value.trim();
-    const secret = document.getElementById('input-kis-secret').value.trim();
-    const account = document.getElementById('input-kis-account').value.trim();
-    const isMock = document.getElementById('input-kis-mock').value === 'true';
-    const proxyUrl = document.getElementById('input-kis-proxy')?.value.trim() || '';
-    const autoTrade = document.getElementById('input-kis-autotrade').checked;
-    const autoTradeAmount = parseInt(document.getElementById('input-kis-autotrade-amount').value, 10) || 500000;
-
-    if (!appkey || !secret || !account) {
-      toast('⚠️ 필수 설정 항목(AppKey, Secret, 계좌번호)을 입력해주세요.', 'error');
-      return;
-    }
-    if (!proxyUrl) {
-      toast('⚠️ KIS 프록시 URL이 필요합니다. cloudflare-worker 폴더 안내대로 배포 후 주소를 입력하세요.', 'error');
-      return;
-    }
-
-    try {
-      Broker.saveSettings({ appkey, secret, account, isMock, proxyUrl, autoTrade, autoTradeAmount });
-      toast('💾 KIS 연동 설정이 브라우저에 저장되었습니다.', 'success');
-      
-      await renderBrokerTab();
-    } catch (e) {
-      toast('⚠️ 설정 저장 후 데이터 로드 실패: ' + e.message, 'error');
-    }
-  });
-
-  // 설정 초기화 버튼
-  document.getElementById('btn-clear-broker-settings')?.addEventListener('click', () => {
-    if (!confirm('정말로 KIS 연동 설정을 모두 초기화하고 로그아웃 하시겠습니까?\n저장된 API 키와 설정이 브라우저에서 삭제됩니다.')) {
-      return;
-    }
-
-    localStorage.removeItem('toochangi_kis_appkey');
-    localStorage.removeItem('toochangi_kis_secret');
-    localStorage.removeItem('toochangi_kis_account');
-    localStorage.removeItem('toochangi_kis_mock');
-    localStorage.removeItem('toochangi_kis_autotrade');
-    localStorage.removeItem('toochangi_kis_autotrade_amount');
-    localStorage.removeItem('toochangi_kis_token');
-    localStorage.removeItem('toochangi_kis_token_expiry');
-
-    // 입력 필드 리셋
-    document.getElementById('input-kis-appkey').value = '';
-    document.getElementById('input-kis-secret').value = '';
-    document.getElementById('input-kis-account').value = '';
-    document.getElementById('input-kis-mock').value = 'true';
-    document.getElementById('input-kis-autotrade').checked = false;
-    document.getElementById('input-kis-autotrade-amount').value = '500000';
-
-    document.getElementById('broker-dashboard').classList.add('hidden');
-    toast('🧹 설정이 초기화되었습니다.', 'info');
-  });
-
-  // 실시간 동기화 버튼 (강제 새로고침 — 캐시 무시)
-  document.getElementById('refresh-broker-btn')?.addEventListener('click', async () => {
-    toast('⏳ 실시간 잔고 갱신 중...', 'info');
-    try {
-      await renderBrokerTab(true);
-      toast('✅ 잔고 갱신 완료', 'success');
-    } catch (e) {
-      toast('⚠️ 갱신 실패: ' + e.message, 'error');
-    }
-  });
-
-  // 관심 주식 추가/새로고침
-  document.getElementById('btn-add-watch')?.addEventListener('click', () => {
-    const t = document.getElementById('input-watch-ticker');
-    const n = document.getElementById('input-watch-name');
-    const ticker = (t?.value || '').trim();
-    if (!/^[0-9A-Za-z]{4,6}$/.test(ticker)) { toast('종목코드(6자리)를 입력하세요.', 'error'); return; }
-    Broker.addWatchlist(ticker, n?.value || '');
-    if (t) t.value = ''; if (n) n.value = '';
-    renderWatchlist(true);
-  });
-  document.getElementById('btn-refresh-watch')?.addEventListener('click', () => renderWatchlist(true));
-  document.getElementById('watchlist-tbody')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('.btn-watch-remove');
-    if (!btn) return;
-    Broker.removeWatchlist(btn.dataset.ticker);
-    renderWatchlist(false);
-  });
-
-  // 예약 주문 새로고침
-  document.getElementById('btn-refresh-reserved')?.addEventListener('click', () => renderReservedOrders());
-}
-
-async function renderBrokerTab(force = false) {
-  const settings = Broker.getSettings();
-
-  // 모의투자 탭의 '미설정 안내' 표시 토글 (대시보드와 반대로 동작)
-  const emptyEl = document.getElementById('mocktrade-empty');
-  const showEmpty = (show) => { if (emptyEl) emptyEl.classList.toggle('hidden', !show); };
-
-  // UI 인풋 필드에 저장된 값 뿌려주기 (처음 열었을 때 등)
-  const appkeyEl = document.getElementById('input-kis-appkey');
-  const secretEl = document.getElementById('input-kis-secret');
-  const accountEl = document.getElementById('input-kis-account');
-  const mockEl = document.getElementById('input-kis-mock');
-  const proxyEl = document.getElementById('input-kis-proxy');
-  const autoEl = document.getElementById('input-kis-autotrade');
-  const autoAmtEl = document.getElementById('input-kis-autotrade-amount');
-
-  if (appkeyEl && !appkeyEl.value) appkeyEl.value = settings.appkey;
-  if (secretEl && !secretEl.value) secretEl.value = settings.secret;
-  if (accountEl && !accountEl.value) accountEl.value = settings.account;
-  if (mockEl) mockEl.value = settings.isMock ? 'true' : 'false';
-  if (proxyEl && !proxyEl.value) proxyEl.value = settings.proxyUrl || '';
-  if (autoEl) autoEl.checked = settings.autoTrade;
-  if (autoAmtEl && !autoAmtEl.value) autoAmtEl.value = settings.autoTradeAmount;
-
-  // 설정이 완비된 경우 대시보드 활성화 및 잔고 조회
-  if (settings.appkey && settings.secret && settings.account) {
-    document.getElementById('broker-dashboard').classList.remove('hidden');
-    showEmpty(false);
-
-    // 관심 주식은 '목록만' 즉시 표시. 시세·예약주문은 각 섹션의 🔄 버튼으로만 조회
-    // (탭 열 때마다 KIS를 호출해 모의 미지원 시 콘솔 500이 반복되는 문제 방지)
-    renderWatchlist(false);
-
-    try {
-      const data = await Broker.loadBalanceAndHoldings(force);
-
-      // 예수금, 평가금액 렌더링
-      document.getElementById('broker-cash').textContent = `${Math.floor(data.cash).toLocaleString()}원`;
-      document.getElementById('broker-eval-amt').textContent = `${Math.floor(data.evalAmt).toLocaleString()}원`;
-      
-      // 평가손익 & 수익률 부호 처리 및 스타일링
-      const pnlEl = document.getElementById('broker-pnl');
-      const yieldEl = document.getElementById('broker-yield');
-      const pnlCard = document.getElementById('broker-pnl-card');
-      const yieldCard = document.getElementById('broker-yield-card');
-
-      pnlEl.textContent = `${data.pnl >= 0 ? '+' : ''}${Math.floor(data.pnl).toLocaleString()}원`;
-      yieldEl.textContent = `${data.yield >= 0 ? '+' : ''}${data.yield.toFixed(2)}%`;
-
-      // 색상 리셋 및 설정 (서구식 3색: 이익 초록 / 손실 빨강 / 0 회색 — 다른 메뉴와 동일)
-      pnlCard.className = 'metric-card';
-      yieldCard.className = 'metric-card';
-      pnlEl.style.color = 'var(--text-muted)';
-      yieldEl.style.color = 'var(--text-muted)';
-
-      if (data.pnl > 0) {
-        pnlCard.classList.add('accent-green');
-        pnlEl.style.color = 'var(--accent-green)';
-      } else if (data.pnl < 0) {
-        pnlCard.classList.add('accent-red');
-        pnlEl.style.color = 'var(--accent-red)';
-      }
-
-      if (data.yield > 0) {
-        yieldCard.classList.add('accent-green');
-        yieldEl.style.color = 'var(--accent-green)';
-      } else if (data.yield < 0) {
-        yieldCard.classList.add('accent-red');
-        yieldEl.style.color = 'var(--accent-red)';
-      }
-
-      // 보유 주식 테이블 렌더링
-      const tbody = document.getElementById('broker-holdings-tbody');
-      if (tbody) {
-        if (data.holdings.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="9" class="empty-state">조회된 보유 종목이 없습니다.</td></tr>`;
-        } else {
-          tbody.innerHTML = data.holdings.map(h => {
-            const pnlText = `${h.pnl >= 0 ? '+' : ''}${Math.floor(h.pnl).toLocaleString()}원`;
-            const yieldText = `${h.yield >= 0 ? '+' : ''}${h.yield.toFixed(2)}%`;
-            // 서구식 3색(다른 메뉴와 동일): 이익 초록 / 손실 빨강 / 0 회색
-            const pnlColor = h.pnl > 0 ? 'var(--accent-green)' : (h.pnl < 0 ? 'var(--accent-red)' : 'var(--text-muted)');
-            const yieldColor = h.yield > 0 ? 'var(--accent-green)' : (h.yield < 0 ? 'var(--accent-red)' : 'var(--text-muted)');
-
-            return `
-              <tr>
-                <td style="font-weight: 600;">${escapeHtml(h.name)}</td>
-                <td><code style="background:var(--bg-elevated); padding:2px 6px; border-radius:4px;">${escapeHtml(h.ticker)}</code></td>
-                <td>${h.qty.toLocaleString()}주</td>
-                <td>${Math.floor(h.avgPrice).toLocaleString()}원</td>
-                <td>${Math.floor(h.curPrice).toLocaleString()}원</td>
-                <td style="font-weight: 500;">${Math.floor(h.value).toLocaleString()}원</td>
-                <td style="color: ${pnlColor}; font-weight: 500;">${pnlText}</td>
-                <td style="color: ${yieldColor}; font-weight: 500;">${yieldText}</td>
-                <td>
-                  <div style="display: flex; gap: 4px;">
-                    <button class="btn-primary-sm" style="padding: 2px 8px; font-size:11px; background:#ef4444; border-color:#ef4444;" onclick="quickOrder('${escapeHtml(h.ticker)}', 'buy')">매수</button>
-                    <button class="btn-primary-sm" style="padding: 2px 8px; font-size:11px; background:#3b82f6; border-color:#3b82f6;" onclick="quickOrder('${escapeHtml(h.ticker)}', 'sell')">매도</button>
-                  </div>
-                </td>
-              </tr>
-            `;
-          }).join('');
-        }
-      }
-    } catch (e) {
-      console.error(e);
-      document.getElementById('broker-dashboard').classList.add('hidden');
-      showEmpty(true);
-      toast('⚠️ KIS 잔고 조회 실패: ' + e.message, 'error', 5000);
-    }
-  } else {
-    document.getElementById('broker-dashboard').classList.add('hidden');
-    showEmpty(true);
-  }
-}
-
-// ⭐ 관심 주식: localStorage 목록 즉시 표시 (+ fetchPrices=true 일 때만 KIS 실시간 시세 조회)
-// 탭 자동 진입에서는 fetchPrices=false 로 목록만 표시 → 불필요한 KIS 호출/콘솔 500 방지. 🔄 버튼이 true.
-async function renderWatchlist(fetchPrices = false) {
-  const tbody = document.getElementById('watchlist-tbody');
-  if (!tbody || typeof Broker === 'undefined') return;
-  const esc = escapeHtml;
-  const list = Broker.getWatchlist();
-  if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">관심 종목을 추가하세요. 추가 후 🔄를 누르면 현재가를 조회합니다. (모의투자는 시세 미지원일 수 있음)</td></tr>`;
-    return;
-  }
-  const ph = fetchPrices ? '…' : '–';
-  // 1) 즉시 목록 렌더
-  tbody.innerHTML = list.map(w => `
-    <tr data-ticker="${esc(w.ticker)}">
-      <td style="font-weight:600;">${esc(w.name || '-')}</td>
-      <td><code style="background:var(--bg-elevated); padding:2px 6px; border-radius:4px;">${esc(w.ticker)}</code></td>
-      <td class="wl-price" style="text-align:right;">${ph}</td>
-      <td class="wl-change" style="text-align:right;">${ph}</td>
-      <td class="wl-rate" style="text-align:right;">${ph}</td>
-      <td><button class="btn-watch-remove btn-primary-sm" data-ticker="${esc(w.ticker)}" style="padding:2px 8px; font-size:11px; background:var(--accent-red); border-color:var(--accent-red);">삭제</button></td>
-    </tr>`).join('');
-
-  if (!fetchPrices) return; // 목록만 표시(자동 진입). 시세는 🔄로 조회
-
-  // 2) 종목별 시세 비동기 채움(서구식 3색)
-  const settings = Broker.getSettings();
-  if (!settings.appkey || !settings.secret) {
-    tbody.querySelectorAll('.wl-price, .wl-change, .wl-rate').forEach(c => c.textContent = '-');
-    return;
-  }
-  for (const w of list) {
-    const row = tbody.querySelector(`tr[data-ticker="${CSS.escape(w.ticker)}"]`);
-    if (!row) continue;
-    try {
-      const q = await Broker.getCurrentPrice(w.ticker);
-      const up = q.change > 0, down = q.change < 0;
-      const color = up ? 'var(--accent-green)' : (down ? 'var(--accent-red)' : 'var(--text-muted)');
-      const sign = up ? '+' : '';
-      row.querySelector('.wl-price').textContent = `${Math.floor(q.price).toLocaleString()}원`;
-      const chg = row.querySelector('.wl-change'); chg.textContent = `${sign}${Math.floor(q.change).toLocaleString()}`; chg.style.color = color;
-      const rt = row.querySelector('.wl-rate'); rt.textContent = `${sign}${q.rate.toFixed(2)}%`; rt.style.color = color;
-    } catch (e) {
-      row.querySelector('.wl-price').textContent = '-';
-      row.querySelector('.wl-change').textContent = '-';
-      row.querySelector('.wl-rate').textContent = '-';
-    }
-  }
-}
-
-// ⏰ 예약 주문: KIS 예약주문 조회(모의 미지원 가능 → 안내)
-async function renderReservedOrders() {
-  const tbody = document.getElementById('reserved-orders-tbody');
-  if (!tbody || typeof Broker === 'undefined') return;
-  const esc = escapeHtml;
-  const settings = Broker.getSettings();
-  if (!settings.appkey || !settings.secret || !settings.account) {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">KIS 설정 후 이용할 수 있습니다.</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = `<tr><td colspan="7" class="empty-state">⏳ 예약 주문을 불러오는 중...</td></tr>`;
-  let orders = [];
-  try {
-    orders = await Broker.getReservedOrders();
-  } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty-state" style="color:var(--text-muted)">예약 주문을 불러오지 못했습니다. (모의투자는 미지원일 수 있음)<br/><span style="font-size:11px;">${esc(e.message)}</span></td></tr>`;
-    return;
-  }
-  if (!orders.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">예약된 주문이 없습니다.</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = orders.map(o => {
-    const sideColor = o.side === '매수' ? 'var(--accent-red)' : 'var(--accent-blue)';
-    return `
-      <tr>
-        <td style="font-weight:600;">${esc(o.name)}</td>
-        <td><code style="background:var(--bg-elevated); padding:2px 6px; border-radius:4px;">${esc(o.ticker)}</code></td>
-        <td style="color:${sideColor}; font-weight:600;">${esc(o.side)}</td>
-        <td style="text-align:right;">${(o.qty || 0).toLocaleString()}주</td>
-        <td style="text-align:right;">${o.price ? Math.floor(o.price).toLocaleString() + '원' : '시장가'}</td>
-        <td>${esc(o.date)}</td>
-        <td>${esc(o.status)}</td>
-      </tr>`;
-  }).join('');
-}
-
-// 퀵 오더 헬퍼
-window.quickOrder = (ticker, side) => {
-  const tickerInput = document.getElementById('input-order-ticker');
-  if (tickerInput) {
-    tickerInput.value = ticker;
-  }
-  
-  const sideBtn = side === 'buy' 
-    ? document.getElementById('order-side-buy') 
-    : document.getElementById('order-side-sell');
-    
-  if (sideBtn) {
-    sideBtn.click();
-  }
-  
-  // 포커스
-  document.getElementById('input-order-qty')?.focus();
-  toast(`⚡️ ${ticker} 종목 주문이 설정되었습니다.`, 'info');
-};
-
-// KIS 자동매매 주문 최종 승인용 커스텀 모달 노출 헬퍼
-window.showKisOrderConfirmModal = (params) => {
-  return new Promise((resolve) => {
-    const modal = document.getElementById('modal-kis-order');
-    if (!modal) {
-      const ok = confirm(`[주문 최종 확인] ${params.name}(${params.ticker}) ${params.qty}주 주문하시겠습니까?`);
-      resolve({ confirmed: ok, qty: params.qty }); // 호출부가 {confirmed, qty}를 기대 → 형태 일치
-      return;
-    }
-
-    document.getElementById('kis-modal-side').textContent = params.isBuy ? '매수' : '매도';
-    document.getElementById('kis-modal-side').style.color = params.isBuy ? 'var(--accent-red)' : 'var(--accent-blue)';
-    document.getElementById('kis-modal-stock').textContent = `${params.name || ''} (${params.ticker})`;
-    document.getElementById('kis-modal-price').textContent = params.price || '시장가 (Market)';
-    
-    // 수량 기본값 주입
-    const qtyInput = document.getElementById('kis-modal-qty-input');
-    if (qtyInput) qtyInput.value = params.qty;
-
-    const settings = Broker.getSettings();
-    document.getElementById('kis-modal-account').textContent = `${settings.account} (${settings.isMock ? '모의' : '실전'})`;
-
-    modal.classList.remove('hidden');
-
-    const confirmBtn = document.getElementById('btn-kis-order-confirm');
-    const closeBtns = modal.querySelectorAll('.modal-close, .btn-cancel');
-
-    const cleanUp = () => {
-      modal.classList.add('hidden');
-      // 복제하여 이벤트 리스너 제거
-      const newConfirmBtn = confirmBtn.cloneNode(true);
-      confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-      
-      closeBtns.forEach(btn => {
-        const newBtn = btn.cloneNode(true);
-        btn.parentNode.replaceChild(newBtn, btn);
-      });
-    };
-
-    function onConfirm() {
-      const finalQty = parseInt(document.getElementById('kis-modal-qty-input').value, 10) || params.qty;
-      cleanUp();
-      resolve({ confirmed: true, qty: finalQty });
-    }
-
-    function onCancel() {
-      cleanUp();
-      resolve({ confirmed: false });
-    }
-
-    // 신규 리스너 바인딩
-    document.getElementById('btn-kis-order-confirm').addEventListener('click', onConfirm);
-    modal.querySelectorAll('.modal-close, .btn-cancel').forEach(btn => {
-      btn.addEventListener('click', onCancel);
-    });
-  });
-};
 
 // 스크린샷 판독 모달 생성 및 데이터 주입 헬퍼
 // ── 환경 설정 이벤트 ───────────────────────────────────────────
