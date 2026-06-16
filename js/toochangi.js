@@ -752,16 +752,38 @@ ${searchInstructions}
     if (isPortfolioTab && _chartPortfolioAllocation) _chartPortfolioAllocation.destroy();
     if (!isPortfolioTab && _chartAllocation) _chartAllocation.destroy();
 
-    const labels = _portfolio.length > 0
-      ? _portfolio.map(p => p.name)
-      : ['현금','미설정'];
-    const data = _portfolio.length > 0
-      ? _portfolio.map(p => p._weight || 0)
-      : [100, 0];
-    const colors = [
+    // 같은 종목(티커 우선, 없으면 이름) 합산 — 계좌·명의가 달라도 한 슬라이스로 묶음
+    const merged = new Map();
+    _portfolio.forEach(p => {
+      const key = ((p.ticker || '').trim()) || (p.name || '미설정');
+      const prev = merged.get(key);
+      if (prev) prev.weight += (p._weight || 0);
+      else merged.set(key, { name: p.name || '미설정', weight: p._weight || 0 });
+    });
+
+    // 비중 내림차순 정렬 후 상위 N개만 표시, 나머지는 '기타'로 합산
+    const TOP_N = 8;
+    let items = Array.from(merged.values()).sort((a, b) => b.weight - a.weight);
+    if (items.length > TOP_N) {
+      const rest = items.slice(TOP_N);
+      const restWeight = rest.reduce((s, it) => s + it.weight, 0);
+      items = items.slice(0, TOP_N);
+      items.push({ name: `기타 (${rest.length}종목)`, weight: restWeight, _isEtc: true });
+    }
+
+    const hasData = _portfolio.length > 0 && items.length > 0;
+    const labels = hasData ? items.map(it => it.name) : ['현금', '미설정'];
+    const data = hasData ? items.map(it => it.weight) : [100, 0];
+
+    // 12색 팔레트(반복 최소화) + '기타'는 회색 고정
+    const palette = [
       '#8b5cf6','#3b82f6','#10b981','#f59e0b',
       '#ef4444','#06b6d4','#ec4899','#84cc16',
+      '#f97316','#14b8a6','#a855f7','#eab308',
     ];
+    const colors = (hasData ? items : [{}, {}]).map((it, i) =>
+      it._isEtc ? '#6b7280' : palette[i % palette.length]
+    );
 
     const chart = new Chart(ctx, {
       type: 'doughnut',
