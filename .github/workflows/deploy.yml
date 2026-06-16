@@ -1,0 +1,32 @@
+name: Deploy to Cloudflare Pages
+
+# main에 push될 때마다 toochangi(Cloudflare Pages, Direct Upload)로 자동 배포.
+# Actions 탭에서 수동 실행(workflow_dispatch)도 가능.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy toochangi to Cloudflare Pages
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # 계정 ID는 비밀이 아니므로 직접 명시(필요 Secret을 API 토큰 1개로 최소화)
+          accountId: 311759d19647dd30c10f969bd7503c72
+          wranglerVersion: "4.101.0"
+          # 정적 사이트 → 빌드 없음. 루트(.)를 업로드하되 .assetsignore가
+          # node_modules/.git/.github/*.md/js/config.js 등을 제외함.
+          # --branch=main → 프리뷰가 아닌 '프로덕션'(toochangi.pages.dev)으로 배포.
+          command: pages deploy . --project-name=toochangi --branch=main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
