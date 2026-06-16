@@ -619,14 +619,14 @@ function renderPortfolioTab() {
   Toochangi.renderMarketAllocationChart();
   
   if (portfolio.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12" class="empty-state">종목을 추가해주세요</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="14" class="empty-state">종목을 추가해주세요</td></tr>';
     const chkAll = document.getElementById('chk-portfolio-all');
     if (chkAll) chkAll.checked = false;
     updateBulkActionsVisibility();
     return;
   }
   updatePortfolioSortIndicators();
-  tbody.innerHTML = applyPortfolioSort(portfolio).map(p => {
+  tbody.innerHTML = applyPortfolioSort(portfolio).map((p, i) => {
     const yieldStr = p._yield >= 0 ? `+${p._yield.toFixed(2)}%` : `${p._yield.toFixed(2)}%`;
     // 서구식: 상승(+) 초록, 하락(−) 빨강, 0% 중립
     const yieldColor = p._yield > 0 ? 'var(--accent-green)' : (p._yield < 0 ? 'var(--accent-red)' : 'var(--text-muted)');
@@ -634,6 +634,7 @@ function renderPortfolioTab() {
       <td style="text-align: center;">
         <input type="checkbox" class="chk-portfolio-row" data-rowindex="${p.rowIndex}" style="cursor:pointer;" />
       </td>
+      <td style="text-align: center; color: var(--text-muted);">${i + 1}</td>
       <td>${escapeHtml(p.name)}</td>
       <td style="color:var(--text-muted)">${escapeHtml(formatStockTicker(p.ticker))}</td>
       <td><span class="market-pill" data-market="${escapeHtml(p.market || '기타')}">${escapeHtml(p.market)}</span></td>
