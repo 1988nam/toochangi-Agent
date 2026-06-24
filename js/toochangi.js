@@ -127,12 +127,24 @@ const Toochangi = (() => {
 
   // ── OpenAI(GPT) 호출 헬퍼 ───────────────────────────────────────
   // 시스템/유저 프롬프트를 받아 Chat Completions로 텍스트 응답을 반환 (실시간 검색 없음)
-  async function _callOpenAI(systemPrompt, userPrompt) {
+  // images: [{ mimeType, data(base64) }] — 있으면 vision(content 배열) 형식으로 전송
+  async function _callOpenAI(systemPrompt, userPrompt, images) {
     const apiKey = window.TOOCHANGI_CONFIG.OPENAI_API_KEY;
     if (!apiKey || apiKey.startsWith('YOUR_')) {
       throw new Error('OpenAI API 키가 설정되지 않았습니다. 환경설정에서 입력해주세요.');
     }
     const model = window.TOOCHANGI_CONFIG.OPENAI_MODEL || 'gpt-4o';
+    const hasImages = Array.isArray(images) && images.length > 0;
+    // 이미지가 있으면 OpenAI vision 포맷(텍스트 + image_url 데이터 URI)으로 user content 구성
+    const userContent = hasImages
+      ? [
+          { type: 'text', text: userPrompt },
+          ...images.map(img => ({
+            type: 'image_url',
+            image_url: { url: `data:${img.mimeType};base64,${img.data}` },
+          })),
+        ]
+      : userPrompt;
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
@@ -143,7 +155,7 @@ const Toochangi = (() => {
           model,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
+            { role: 'user', content: userContent },
           ],
           max_completion_tokens: 4000,
         };
@@ -497,11 +509,13 @@ URL : (검색으로 찾은 실제 링크. 못 찾으면 관련 뉴스/채널 링
   }
 
   // ── Gemini AI 분석 ──────────────────────────────────────────────
-  async function runGeminiAnalysis(query) {
+  // images: [{ mimeType, data(base64) }] — 첨부 시 텍스트와 함께 멀티모달로 분석
+  async function runGeminiAnalysis(query, images) {
     const provider = _aiProvider();
     if (provider === 'gemini' && !_hasGeminiAuth()) {
       return '⚠️ Gemini 인증이 없습니다. 구글 로그인(OAuth) 또는 js/config.js의 GEMINI_API_KEY를 설정해주세요.';
     }
+    const imgs = Array.isArray(images) ? images.filter(im => im && im.data && im.mimeType) : [];
 
     const stocksSummary = _portfolio.length > 0
       ? _portfolio.map(p => `- ${p.name}(${p.ticker}): ${p.qty}주, 평단 ${p.avgPrice.toLocaleString()}원, 현재가 ${(p.curPrice||p.avgPrice).toLocaleString()}원 (비중 ${(p._weight || 0).toFixed(1)}%, 용도: ${p.memo || '투자'})`).join('\n')
@@ -556,17 +570,24 @@ ${assetSummary}
 ${gachangiContext}
 
 질문에 대해 구체적이고 실행 가능한 투자 의견을 한국어로 답하세요.
-분석 시 3단계 필터 기준을 명시하고, 투자 의견(매수/매도/관망)과 기간(단기/중기/장기)을 반드시 포함하세요.`;
+분석 시 3단계 필터 기준을 명시하고, 투자 의견(매수/매도/관망)과 기간(단기/중기/장기)을 반드시 포함하세요.${imgs.length > 0 ? `
+
+[첨부 이미지 분석 지침]
+- 사용자가 차트·계좌 잔고·뉴스 기사·종목 화면 등의 이미지를 ${imgs.length}장 첨부했습니다.
+- 이미지에서 읽을 수 있는 종목명·가격·수익률·차트 패턴·기사 내용 등 핵심 정보를 먼저 정리한 뒤, 이를 분석에 반영하세요.
+- 이미지가 흐리거나 판독이 불확실한 부분은 추측하지 말고 그렇다고 명시하세요.` : ''}`;
 
     // GPT 선택 시 OpenAI로 분석 (실시간 검색 없음 → 출처 비움)
     if (provider === 'gpt') {
-      const text = await _callOpenAI(systemPrompt, query);
+      const text = await _callOpenAI(systemPrompt, query, imgs);
       return { text, sources: [], ..._answerModelInfo('gpt') };
     }
 
+    const parts = [{ text: query }];
+    imgs.forEach(im => parts.push({ inlineData: { mimeType: im.mimeType, data: im.data } }));
     const body = {
       system_instruction: { parts: [{ text: systemPrompt }] },
-      contents: [{ parts: [{ text: query }] }],
+      contents: [{ parts }],
       tools: [{ googleSearch: {} }], // Enables Google Search Grounding for real-time news/YouTube search
       // 2.5-pro는 thinking 토큰을 소비(끌 수 없음) → 출력 한도를 넉넉히 잡아 중간 잘림 방지
       generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },

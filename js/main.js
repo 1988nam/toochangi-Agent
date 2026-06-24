@@ -1445,14 +1445,88 @@ async function renderNewsHistory() {
 // ── 수동 AI 분석 이벤트 ───────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 let _lastAnalysisResult = null;
+// 🖼️ 수동 AI 분석에 첨부한 이미지들: [{ mimeType, data(base64), dataUrl, name }]
+let _analysisImages = [];
+const ANALYSIS_MAX_IMAGES = 4;
+const ANALYSIS_MAX_IMG_BYTES = 8 * 1024 * 1024; // 이미지 1장당 최대 8MB
+
+// File → { mimeType, data(base64, 접두사 제외), dataUrl, name }
+function _readImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = String(reader.result || '');
+      const m = url.match(/^data:([^;]+);base64,(.*)$/);
+      if (!m) { reject(new Error('이미지 인코딩 실패')); return; }
+      resolve({ mimeType: m[1], data: m[2], dataUrl: url, name: file.name });
+    };
+    reader.onerror = () => reject(reader.error || new Error('파일 읽기 실패'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function _renderAnalysisImagePreview() {
+  const wrap = document.getElementById('analysis-image-preview');
+  if (!wrap) return;
+  // dataUrl은 로컬에서 읽은 base64 data URI(신뢰 가능) → src에 직접 사용
+  wrap.innerHTML = _analysisImages.map((img, i) => `
+    <div class="analysis-thumb">
+      <img src="${img.dataUrl}" alt="${escapeHtml(img.name || `첨부 이미지 ${i + 1}`)}">
+      <button type="button" class="thumb-remove" data-idx="${i}" title="제거">✕</button>
+    </div>`).join('');
+}
+
+async function _handleAnalysisImageFiles(fileList) {
+  const files = Array.from(fileList || []);
+  for (const file of files) {
+    if (_analysisImages.length >= ANALYSIS_MAX_IMAGES) {
+      toast(`사진은 최대 ${ANALYSIS_MAX_IMAGES}장까지 첨부할 수 있습니다`, 'error');
+      break;
+    }
+    if (!file.type.startsWith('image/')) { toast('이미지 파일만 첨부할 수 있습니다', 'error'); continue; }
+    if (file.size > ANALYSIS_MAX_IMG_BYTES) { toast(`${file.name}: 이미지가 너무 큽니다(최대 8MB)`, 'error'); continue; }
+    try {
+      _analysisImages.push(await _readImageFile(file));
+    } catch (e) {
+      toast('이미지 읽기 실패: ' + e.message, 'error');
+    }
+  }
+  _renderAnalysisImagePreview();
+}
 
 function bindManualAnalysisEvents() {
   const runBtn  = document.getElementById('run-analysis-btn');
   const saveBtn = document.getElementById('save-analysis-btn');
+  const attachBtn = document.getElementById('attach-image-btn');
+  const fileInput = document.getElementById('analysis-image-input');
+  const previewWrap = document.getElementById('analysis-image-preview');
+  const textarea = document.getElementById('analysis-input');
+
+  // 🖼️ 사진 첨부: 버튼 → 파일선택, 변경 시 읽기, 썸네일 ✕로 제거, 붙여넣기(Ctrl+V) 지원
+  attachBtn?.addEventListener('click', () => fileInput?.click());
+  fileInput?.addEventListener('change', async () => {
+    await _handleAnalysisImageFiles(fileInput.files);
+    fileInput.value = ''; // 같은 파일 재선택 허용
+  });
+  previewWrap?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.thumb-remove');
+    if (!btn) return;
+    const idx = parseInt(btn.dataset.idx, 10);
+    if (!isNaN(idx)) { _analysisImages.splice(idx, 1); _renderAnalysisImagePreview(); }
+  });
+  textarea?.addEventListener('paste', (e) => {
+    const imgFiles = Array.from(e.clipboardData?.items || [])
+      .filter(it => it.type.startsWith('image/'))
+      .map(it => it.getAsFile())
+      .filter(Boolean);
+    if (imgFiles.length) { e.preventDefault(); _handleAnalysisImageFiles(imgFiles); }
+  });
 
   runBtn?.addEventListener('click', async () => {
     const query = document.getElementById('analysis-input').value.trim();
-    if (!query) { toast('분석할 내용을 입력해주세요', 'error'); return; }
+    if (!query && _analysisImages.length === 0) { toast('분석할 내용이나 사진을 입력해주세요', 'error'); return; }
+    const images = _analysisImages.slice();
+    const effectiveQuery = query || '첨부한 이미지를 분석해주세요.';
 
     const resultEl = document.getElementById('analysis-result');
     const sourcesContainer = document.getElementById('analysis-sources-container');
@@ -1466,7 +1540,7 @@ function bindManualAnalysisEvents() {
     saveBtn?.classList.add('hidden');
 
     try {
-      const result = await Toochangi.runGeminiAnalysis(query);
+      const result = await Toochangi.runGeminiAnalysis(effectiveQuery, images);
       const { text, sources } = result;
       resultEl.textContent = text;
       const ml = aiModelLabel(result);
@@ -1476,7 +1550,8 @@ function bindManualAnalysisEvents() {
         mb.textContent = ml;
         resultEl.appendChild(mb);
       }
-      _lastAnalysisResult = { query, result: text, sources };
+      const savedQuery = effectiveQuery + (images.length ? ` [이미지 ${images.length}장 첨부]` : '');
+      _lastAnalysisResult = { query: savedQuery, result: text, sources };
 
       // Render search sources/citations
       if (sourcesContainer && sourcesDiv && sources && sources.length > 0) {

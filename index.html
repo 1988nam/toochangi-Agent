@@ -637,7 +637,16 @@
           <div class="analysis-input-area">
             <label class="input-label">분석할 종목 또는 내용 입력</label>
             <textarea id="analysis-input" class="analysis-textarea"
-              placeholder="예: 삼성전자 현재 매수 적절한가요?&#10;현재 포트폴리오 리스크 평가해줘&#10;2차전지 섹터 지금 진입 타이밍인지 3단계 필터로 분석해줘"></textarea>
+              placeholder="예: 삼성전자 현재 매수 적절한가요?&#10;현재 포트폴리오 리스크 평가해줘&#10;2차전지 섹터 지금 진입 타이밍인지 3단계 필터로 분석해줘&#10;(사진을 첨부하면 차트·계좌·기사 캡처도 함께 분석합니다)"></textarea>
+
+            <!-- 🖼️ 사진 첨부 (차트/계좌/기사 캡처 등) -->
+            <input type="file" id="analysis-image-input" accept="image/*" multiple hidden>
+            <div class="analysis-attach-row">
+              <button type="button" id="attach-image-btn" class="btn-attach-image">🖼️ 사진 첨부</button>
+              <span class="attach-hint">차트·계좌·기사 캡처 등 이미지를 함께 분석 (최대 4장)</span>
+            </div>
+            <div id="analysis-image-preview" class="analysis-image-preview"></div>
+
             <button id="run-analysis-btn" class="btn-analyze">
               <span id="analyze-btn-text">🔮 AI 분석 실행</span>
             </button>
