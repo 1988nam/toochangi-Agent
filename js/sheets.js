@@ -1099,16 +1099,21 @@ const SheetsAPI = (() => {
 
   async function appendAnalysis(row) {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
-    const values = [[
-      new Date().toLocaleDateString('ko-KR'),
-      row.query, row.result, row.stocks || '', row.opinion || '', row.duration || '',
-    ]];
+    const entry = {
+      date:     new Date().toLocaleDateString('ko-KR'),
+      query:    row.query || '',
+      result:   row.result || '',
+      stocks:   row.stocks || '',
+      opinion:  row.opinion || '',
+      duration: row.duration || '',
+    };
     await gapi.client.sheets.spreadsheets.values.append({
       spreadsheetId: id,
       range: '분석기록!A:F',
       valueInputOption: 'RAW',
-      resource: { values },
+      resource: { values: [[entry.date, entry.query, entry.result, entry.stocks, entry.opinion, entry.duration]] },
     });
+    return entry;
   }
 
   // ── 3단계 필터 저장 ──────────────────────────────────────────────

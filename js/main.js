@@ -1563,7 +1563,22 @@ function bindManualAnalysisEvents() {
         }).join('');
       }
 
-      saveBtn?.classList.remove('hidden');
+      // 분석 완료 → 분석기록 시트에 자동 저장 (별도 저장 버튼 불필요)
+      try {
+        let finalResult = text;
+        if (sources && sources.length > 0) {
+          finalResult += '\n\n🔍 [구글 실시간 검색 출처]\n' +
+            sources.map((s, idx) => `${idx + 1}. ${s.title}: ${s.url}`).join('\n');
+        }
+        await Toochangi.saveAnalysis({ query: savedQuery, result: finalResult });
+        renderManualAnalysisTab();
+        toast('✅ 분석 완료 · 히스토리에 자동 저장됨', 'success');
+      } catch (saveErr) {
+        // 자동 저장이 실패한 경우에만 수동 저장 버튼을 노출(재시도용)
+        console.error('[분석] 자동 저장 실패:', saveErr);
+        saveBtn?.classList.remove('hidden');
+        toast('⚠️ 히스토리 자동 저장 실패 — 💾 버튼으로 다시 시도하세요', 'error');
+      }
     } catch (e) {
       resultEl.textContent = `❌ 분석 실패: ${e.message}`;
     } finally {

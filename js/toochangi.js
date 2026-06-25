@@ -1266,8 +1266,9 @@ ${searchInstructions}
     return 'added';
   }
   async function saveAnalysis(row) {
-    await SheetsAPI.appendAnalysis(row);
-    _analysisHistory.push(row);
+    const entry = await SheetsAPI.appendAnalysis(row);
+    _analysisHistory.push(entry || row);
+    return entry;
   }
   async function saveFilter(row) {
     await SheetsAPI.appendFilter(row);
