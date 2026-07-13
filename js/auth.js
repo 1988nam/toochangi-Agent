@@ -144,7 +144,11 @@ const Auth = (() => {
   // (전체 scope URL 'https://.../auth/generative-language.retriever' 안에 포함되는지 확인)
   function hasScope(s) { return !!grantedScopes && grantedScopes.indexOf(s) !== -1; }
   function isLoggedIn() { return !!accessToken; }
-  function onLogin(cb) { onLoginCallback = cb; }
+  // 콜백 등록 시 로컬 캐시 로그인을 즉시 재확인한다.
+  // (스크립트 onload가 DOMContentLoaded보다 먼저 뛰어 initGis/initGapi의 _tryLocalLogin이
+  //  onLoginCallback=null 상태로 지나가면, 콜백을 여기서 다시 태워야 리다이렉트가 걸린다.
+  //  이게 없으면 캐시 토큰이 있어도 로그인 화면에 갇혀 수동 새로고침을 해야 했다.)
+  function onLogin(cb) { onLoginCallback = cb; _tryLocalLogin(); }
 
   return { initGapi, initGis, login, logout, getToken, getTokenScopes, hasScope, isLoggedIn, onLogin };
 })();
