@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20260617_67" />
+  <link rel="stylesheet" href="style.css?v=20260720_68" />
 </head>
 <body>
 
@@ -69,6 +69,9 @@
       </button>
       <button class="nav-item" data-tab="portfolio" id="nav-portfolio">
         <span class="nav-icon">💼</span><span>주식</span>
+      </button>
+      <button class="nav-item" data-tab="pension" id="nav-pension">
+        <span class="nav-icon">🪙</span><span>연금저축</span>
       </button>
 
       <div class="nav-section">주식 매매</div>
@@ -271,6 +274,113 @@
             </thead>
             <tbody id="portfolio-tbody">
               <tr><td colspan="14" class="empty-state">종목을 추가해주세요</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── 연금저축 탭 (주식과 동일 구조, 대시보드·자산현황에는 미반영) ── -->
+    <div id="tab-pension" class="tab-panel hidden">
+      <!-- 상단: 연금저축 자산 / 총 수익률 / 투자 금액 -->
+      <div class="metrics-grid" style="margin-bottom: 18px; grid-template-columns: repeat(3, 1fr);">
+        <div class="metric-card accent-purple">
+          <div class="metric-label">연금저축 자산</div>
+          <div class="metric-value" id="pension-total-asset">—</div>
+          <div class="metric-sub" id="pension-total-asset-sub">평가금액 기준</div>
+          <div class="metric-delta" id="pension-total-asset-delta"></div>
+        </div>
+        <div class="metric-card accent-green">
+          <div class="metric-label">총 수익률</div>
+          <div class="metric-value" id="pension-total-yield">—</div>
+          <div class="metric-sub" id="pension-total-yield-sub">전체 보유 종목 기준</div>
+        </div>
+        <div class="metric-card accent-blue">
+          <div class="metric-label">투자 금액</div>
+          <div class="metric-value" id="pension-invested">—</div>
+          <div class="metric-sub">최초 투자 원금 (수량 × 평균단가)</div>
+        </div>
+      </div>
+
+      <!-- 하단: 코스피 / 나스닥 / 정현 / 혜영 수익률 -->
+      <div class="metrics-grid">
+        <div class="metric-card accent-blue">
+          <div class="metric-label">코스피 수익률</div>
+          <div class="metric-value" id="pension-kospi-yield">—</div>
+          <div class="metric-sub" id="pension-kospi-yield-sub">코스피 보유 종목 기준</div>
+        </div>
+        <div class="metric-card accent-orange">
+          <div class="metric-label">나스닥 수익률</div>
+          <div class="metric-value" id="pension-nasdaq-yield">—</div>
+          <div class="metric-sub" id="pension-nasdaq-yield-sub">나스닥 보유 종목 기준</div>
+        </div>
+        <div class="metric-card accent-purple">
+          <div class="metric-label">정현 수익률</div>
+          <div class="metric-value" id="pension-jeonghyeon-yield">—</div>
+          <div class="metric-sub" id="pension-jeonghyeon-yield-sub">정현 명의 종목 기준</div>
+        </div>
+        <div class="metric-card accent-green">
+          <div class="metric-label">혜영 수익률</div>
+          <div class="metric-value" id="pension-hyeyoung-yield">—</div>
+          <div class="metric-sub" id="pension-hyeyoung-yield-sub">혜영 명의 종목 기준</div>
+        </div>
+      </div>
+
+      <!-- 연금저축 투자 현황 도넛 그래프 -->
+      <div class="chart-row">
+        <div class="card chart-card">
+          <div class="card-header">
+            <span class="card-title">연금저축 투자 현황 (종목 기준)</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-pension-allocation"></canvas>
+          </div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-header">
+            <span class="card-title">연금저축 투자 현황 (시장 기준)</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-pension-market-allocation"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🪙 연금저축 보유 종목 현황</span>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <a id="btn-open-sheet-pension" class="btn-primary-sm" href="#" target="_blank" style="background:#10b981; border-color:#10b981; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600; padding:6px 12px; border-radius:6px; font-size:12px;">📊 구글 시트 열기</a>
+            <button id="btn-bulk-edit-pension" class="btn-primary-sm hidden" style="background:#4f46e5; border-color:#4f46e5; font-weight:600;">✏️ 선택 수정</button>
+            <button id="btn-bulk-delete-pension" class="btn-primary-sm hidden" style="background:#dc2626; border-color:#dc2626; font-weight:600;">🗑️ 선택 삭제</button>
+            <button id="apply-formulas-pension-btn" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 실시간 주가 수식 반영</button>
+            <button id="restore-pension-btn" class="btn-primary-sm" style="background:#4b5563; border-color:#6b7280;">↩️ 직전 작업 취소 (원복)</button>
+            <button id="add-pension-btn" class="btn-primary-sm">+ 종목 추가</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="pension-table">
+            <thead>
+              <tr>
+                <th style="width: 40px; text-align: center;"><input type="checkbox" id="chk-pension-all" style="cursor:pointer;" /></th>
+                <th style="width: 44px; text-align: center;">NO</th>
+                <th class="sortable" onclick="sortPension('name')">종목명<span class="sort-ind" data-col="name"></span></th>
+                <th class="sortable" onclick="sortPension('ticker')">티커<span class="sort-ind" data-col="ticker"></span></th>
+                <th class="sortable" onclick="sortPension('market')">시장<span class="sort-ind" data-col="market"></span></th>
+                <th class="sortable" onclick="sortPension('owner')">명의<span class="sort-ind" data-col="owner"></span></th>
+                <th class="sortable" onclick="sortPension('memo')">보유 계좌/증권사<span class="sort-ind" data-col="memo"></span></th>
+                <th class="sortable" onclick="sortPension('qty')">보유수량<span class="sort-ind" data-col="qty"></span></th>
+                <th class="sortable" onclick="sortPension('avgPrice')">평균단가<span class="sort-ind" data-col="avgPrice"></span></th>
+                <th class="sortable" onclick="sortPension('curPrice')">현재가<span class="sort-ind" data-col="curPrice"></span></th>
+                <th class="sortable" onclick="sortPension('value')">평가금액<span class="sort-ind" data-col="value"></span></th>
+                <th class="sortable" onclick="sortPension('yield')">수익률<span class="sort-ind" data-col="yield"></span></th>
+                <th class="sortable" onclick="sortPension('weight')">비중<span class="sort-ind" data-col="weight"></span></th>
+                <th style="width: 110px; text-align: center;">작업</th>
+              </tr>
+            </thead>
+            <tbody id="pension-tbody">
+              <tr><td colspan="14" class="empty-state">연금저축 종목을 추가해주세요</td></tr>
             </tbody>
           </table>
         </div>
@@ -1219,6 +1329,67 @@
   </div>
 </div>
 
+<!-- ════════════ 연금저축 종목 추가/수정 모달 ════════════ -->
+<div id="modal-pension" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>종목 추가</h3>
+      <button class="modal-close" data-modal="modal-pension">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="input-pension-row-index" />
+      <div class="form-group">
+        <label>종목명 *</label>
+        <input type="text" id="input-pension-name" placeholder="예: TIGER 미국S&P500" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>티커</label>
+          <input type="text" id="input-pension-ticker" placeholder="예: 360750" />
+        </div>
+        <div class="form-group">
+          <label>시장</label>
+          <select id="input-pension-market">
+            <option>코스피</option><option>코스닥</option>
+            <option>나스닥</option><option>NYSE</option><option>기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>명의</label>
+          <select id="input-pension-owner">
+            <option value="">선택</option>
+            <option value="정현">정현</option>
+            <option value="혜영">혜영</option>
+            <option value="아챙">아챙</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>보유수량 *</label>
+          <input type="number" step="any" id="input-pension-qty" placeholder="0" />
+        </div>
+        <div class="form-group">
+          <label>평균단가 (원) *</label>
+          <input type="number" step="any" id="input-pension-avg" placeholder="0" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>현재가 (원)</label>
+        <input type="number" step="any" id="input-pension-cur" placeholder="0 (비워두면 수동 업데이트)" />
+      </div>
+      <div class="form-group">
+        <label>보유 계좌 / 증권사</label>
+        <input type="text" id="input-pension-memo" placeholder="예: 미래에셋 연금저축, 삼성 IRP 등" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" data-modal="modal-pension">취소</button>
+      <button id="save-pension-btn" class="btn-primary">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- ════════════ 매매기록 모달 ════════════ -->
 <div id="modal-trade" class="modal-overlay hidden">
   <div class="modal">
@@ -1320,6 +1491,41 @@
     <div class="modal-footer">
       <button class="btn-cancel" data-modal="modal-bulk-edit-portfolio">취소</button>
       <button id="btn-save-bulk-edit" class="btn-primary">변경사항 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ 연금저축 다중 수정 모달 ════════════ -->
+<div id="modal-bulk-edit-pension" class="modal-overlay hidden">
+  <div class="modal" style="max-width: 800px; width: 90vw;">
+    <div class="modal-header">
+      <h3>연금저축 보유 종목 다중 수정</h3>
+      <button class="modal-close" data-modal="modal-bulk-edit-pension">✕</button>
+    </div>
+    <div class="modal-body" style="padding: 20px 24px;">
+      <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 15px;">
+        💡 선택한 종목들의 수량, 평균단가, 보유 계좌 정보를 한 번에 수정할 수 있습니다.
+      </div>
+      <div class="table-wrap" style="max-height: 300px; overflow-y: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>종목명</th>
+              <th>티커</th>
+              <th style="width: 120px;">보유수량 *</th>
+              <th style="width: 160px;">평균단가(원) *</th>
+              <th>보유 계좌 / 메모</th>
+            </tr>
+          </thead>
+          <tbody id="bulk-edit-pension-tbody">
+            <!-- 선택한 종목들이 동적으로 채워집니다 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" data-modal="modal-bulk-edit-pension">취소</button>
+      <button id="btn-save-bulk-edit-pension" class="btn-primary">변경사항 저장</button>
     </div>
   </div>
 </div>
@@ -1571,6 +1777,7 @@
       TRADE_LOG: '매매일지',
       ANALYSIS: '분석기록',
       ASSET: '자산현황',
+      PENSION: '연금저축',
     },
     ASSET_CATEGORIES: [
       '현금/보통예금',
@@ -1698,10 +1905,10 @@
     console.error('Gemini OAuth 스코프 적용 실패:', e);
   }
 </script>
-<script src="js/auth.js?v=20260617_67"></script>
-<script src="js/sheets.js?v=20260617_67"></script>
-<script src="js/toochangi.js?v=20260617_67"></script>
-<script src="js/main.js?v=20260617_67"></script>
+<script src="js/auth.js?v=20260720_68"></script>
+<script src="js/sheets.js?v=20260720_68"></script>
+<script src="js/toochangi.js?v=20260720_68"></script>
+<script src="js/main.js?v=20260720_68"></script>
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 

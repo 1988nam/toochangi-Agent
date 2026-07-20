@@ -39,6 +39,10 @@ const SheetsAPI = (() => {
     '\uC0C1\uD658\uB144\uC218',
     '\uB4F1\uB85D\uC77C'
   ]];
+  // \uC5F0\uAE08\uC800\uCD95 \u2014 \uC8FC\uC2DD(\uD3EC\uD2B8\uD3F4\uB9AC\uC624)\uACFC \uB3D9\uC77C\uD55C 12\uC5F4 \uC2A4\uD0A4\uB9C8
+  const PENSION_SHEET = '\uC5F0\uAE08\uC800\uCD95';
+  const PENSION_HEADER_RANGE = `${PENSION_SHEET}!A1:L1`;
+  const PENSION_HEADERS = [['\uC885\uBAA9\uBA85','\uD2F0\uCEE4','\uC2DC\uC7A5','\uBCF4\uC720\uC218\uB7C9','\uD3C9\uADE0\uB2E8\uAC00(\uC6D0)','\uD604\uC7AC\uAC00(\uC6D0)','\uD3C9\uAC00\uAE08\uC561','\uC218\uC775\uB960(%)','\uBE44\uC911(%)','\uBA85\uC758','\uBA54\uBAA8','\uCD5C\uC885\uC218\uC815\uC77C']];
 
   // 시트 셀 숫자 파싱 (천 단위 콤마 제거 — 기본 FORMATTED_VALUE로 "1,234,567"이 와도 안전)
   function _num(v) { return parseFloat(String(v == null ? '' : v).replace(/,/g, '')) || 0; }
@@ -134,6 +138,31 @@ const SheetsAPI = (() => {
     });
   }
 
+  // 연금저축 탭이 없으면 생성하고 헤더를 보장 (기존 사용자 시트에 신규 탭 자동 추가)
+  async function ensurePensionSheet(spreadsheetId) {
+    const metaRes = await gapi.client.sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties(title)'
+    });
+    const titles = (metaRes.result.sheets || []).map(s => s.properties.title);
+    if (!titles.includes(PENSION_SHEET)) {
+      await gapi.client.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        resource: {
+          requests: [{ addSheet: { properties: { title: PENSION_SHEET } } }]
+        }
+      });
+    }
+
+    // 헤더 행(A1:L1)만 갱신 — 데이터 행의 GOOGLEFINANCE 수식은 건드리지 않음
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: PENSION_HEADER_RANGE,
+      valueInputOption: 'RAW',
+      resource: { values: PENSION_HEADERS }
+    });
+  }
+
   function ensureGapiWrapped() {
     if (!window.gapi || !gapi.client || !gapi.client.sheets) return;
     if (gapi.client.sheets._wrapped) return;
@@ -209,6 +238,7 @@ const SheetsAPI = (() => {
         { properties: { title: '3단계필터',  index: 3 } },
         { properties: { title: '예적금',     index: 4 } },
         { properties: { title: '부동산',     index: 5 } },
+        { properties: { title: '연금저축',   index: 6 } },
       ],
     });
 
@@ -231,7 +261,7 @@ const SheetsAPI = (() => {
       const sheets = metaRes.result.sheets || [];
       const titles = sheets.map(s => s.properties.title);
 
-      const requiredTabs = ['포트폴리오', '매매일지', '분석기록', '3단계필터', '예적금', '부동산'];
+      const requiredTabs = ['포트폴리오', '매매일지', '분석기록', '3단계필터', '예적금', '부동산', '연금저축'];
       const requests = [];
 
       requiredTabs.forEach(tab => {
@@ -253,7 +283,8 @@ const SheetsAPI = (() => {
         
         const headers = {
           '예적금': [['자산명','금융기관','명의','계좌번호','예적금종류','금리(%)','잔액(원)','만기일','자산용도','메모','등록일','월납입액(원)','납입기준일','납입시작일']],
-          '부동산': [['부동산명','매입가(원)','현재평가액(원)','담보대출액(원)','대출금리(%)','전세보증금(원)','연간 상환액(원리금)','자산용도','메모','대출실행일','상환년수','등록일']]
+          '부동산': [['부동산명','매입가(원)','현재평가액(원)','담보대출액(원)','대출금리(%)','전세보증금(원)','연간 상환액(원리금)','자산용도','메모','대출실행일','상환년수','등록일']],
+          '연금저축': [['종목명','티커','시장','보유수량','평균단가(원)','현재가(원)','평가금액','수익률(%)','비중(%)','명의','메모','최종수정일']]
         };
         
         const batchData = [];
@@ -285,6 +316,7 @@ const SheetsAPI = (() => {
     const filterHeaders    = [['날짜','시장신호','섹터신호','종목신호','최종판단','메모']];
     const savingsHeaders   = [['자산명','금융기관','명의','계좌번호','예적금종류','금리(%)','잔액(원)','만기일','자산용도','메모','등록일','월납입액(원)','납입기준일','납입시작일']];
     const realEstateHeaders = [['부동산명','매입가(원)','현재평가액(원)','담보대출액(원)','대출금리(%)','전세보증금(원)','연간 상환액(원리금)','자산용도','메모','대출실행일','상환년수','등록일']];
+    const pensionHeaders   = [['종목명','티커','시장','보유수량','평균단가(원)','현재가(원)','평가금액','수익률(%)','비중(%)','명의','메모','최종수정일']];
 
     const batchData = [
       { range: '포트폴리오!A1', values: portfolioHeaders },
@@ -293,6 +325,7 @@ const SheetsAPI = (() => {
       { range: '3단계필터!A1',  values: filterHeaders },
       { range: '예적금!A1',     values: savingsHeaders },
       { range: '부동산!A1',     values: realEstateHeaders },
+      { range: '연금저축!A1',   values: pensionHeaders },
     ];
 
     await gapi.client.sheets.spreadsheets.values.batchUpdate({
@@ -918,6 +951,219 @@ const SheetsAPI = (() => {
     });
   }
 
+  // ── 연금저축 ──────────────────────────────────────────────────
+  // 주식(포트폴리오)과 동일한 구조·수식(GOOGLEFINANCE)으로 관리하되 별도 '연금저축' 시트에 저장.
+  // 대시보드·자산현황에는 반영하지 않고 연금저축 탭에서만 별도 관리된다.
+  async function getPension() {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (!id || id.startsWith('YOUR_')) return [];
+    try {
+      await ensurePensionSheet(id); // 기존 사용자 시트에 연금저축 탭이 없으면 자동 생성
+      const res = await gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: id, range: '연금저축!A2:L',
+      });
+      return (res.result.values || []).map((r, idx) => {
+        const hasOwnerColumns = r.length >= 12;
+        return {
+        rowIndex: idx + 2, // 헤더가 1행이므로 데이터는 2행부터 시작
+        name:    r[0]  || '',
+        ticker:  r[1]  || '',
+        market:  r[2]  || '',
+        qty:     _num(r[3]),
+        avgPrice:_num(r[4]),
+        curPrice:_num(r[5]),
+        value:   _num(r[6]),
+        yield:   _num(r[7]),
+        weight:  _num(r[8]),
+        owner:   hasOwnerColumns ? (r[9] || '') : '',
+        memo:    hasOwnerColumns ? (r[10] || '') : (r[9] || ''),
+        date:    hasOwnerColumns ? (r[11] || '') : (r[10] || ''),
+      };
+      });
+    } catch (e) {
+      console.warn('[SheetsAPI] 연금저축 로드 실패:', e);
+      return [];
+    }
+  }
+
+  async function appendPension(row) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    const now = new Date().toLocaleDateString('ko-KR');
+
+    await backupPension();
+
+    const pension = await getPension();
+    const nextRow = pension.length + 2;
+
+    const fFormula = `=IF(ISBLANK(B${nextRow}), 0, IF(OR(ISNUMBER(B${nextRow}), REGEXMATCH(TO_TEXT(B${nextRow}), "[0-9]")), INT(GOOGLEFINANCE("KRX:" & IF(ISNUMBER(B${nextRow}), TEXT(B${nextRow},"000000"), TO_TEXT(B${nextRow})))), INT(GOOGLEFINANCE(B${nextRow}) * GOOGLEFINANCE("CURRENCY:USDKRW"))))`;
+    const gFormula = `=D${nextRow}*F${nextRow}`;
+    const hFormula = `=IF(E${nextRow}>0, (F${nextRow}-E${nextRow})/E${nextRow}, 0)`;
+    const iFormula = `=IF(SUM(G$2:G$100)>0, G${nextRow}/SUM(G$2:G$100), 0)`;
+
+    const values = [[
+      row.name, tickerCell(row.ticker), row.market,
+      row.qty, row.avgPrice, fFormula,
+      gFormula, hFormula, iFormula, row.owner || '', row.memo || '구글파이낸스 연동', now,
+    ]];
+
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: id,
+      range: '연금저축!A:L',
+      valueInputOption: 'USER_ENTERED',
+      resource: { values },
+    });
+  }
+
+  async function updatePension(rowIndex, row) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    const now = new Date().toLocaleDateString('ko-KR');
+
+    await backupPension();
+
+    const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(ISNUMBER(B${rowIndex}), REGEXMATCH(TO_TEXT(B${rowIndex}), "[0-9]")), INT(GOOGLEFINANCE("KRX:" & IF(ISNUMBER(B${rowIndex}), TEXT(B${rowIndex},"000000"), TO_TEXT(B${rowIndex})))), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("CURRENCY:USDKRW"))))`;
+    const gFormula = `=D${rowIndex}*F${rowIndex}`;
+    const hFormula = `=IF(E${rowIndex}>0, (F${rowIndex}-E${rowIndex})/E${rowIndex}, 0)`;
+    const iFormula = `=IF(SUM(G$2:G$100)>0, G${rowIndex}/SUM(G$2:G$100), 0)`;
+
+    const values = [[
+      row.name, tickerCell(row.ticker), row.market,
+      row.qty, row.avgPrice, fFormula,
+      gFormula, hFormula, iFormula, row.owner || '', row.memo || '수동 업데이트', now,
+    ]];
+
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: id,
+      range: `연금저축!A${rowIndex}:L${rowIndex}`,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values },
+    });
+  }
+
+  async function deletePension(rowIndex) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    await backupPension();
+    const metaRes = await gapi.client.sheets.spreadsheets.get({
+      spreadsheetId: id,
+      fields: 'sheets.properties(title,sheetId)'
+    });
+    const sheet = (metaRes.result.sheets || []).find(s => s.properties.title === '연금저축');
+    if (!sheet) throw new Error('연금저축 시트를 찾을 수 없습니다.');
+    const sheetId = sheet.properties.sheetId;
+
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: id,
+      resource: {
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex - 1,
+              endIndex: rowIndex
+            }
+          }
+        }]
+      }
+    });
+  }
+
+  async function updatePensionRows(updates) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    const now = new Date().toLocaleDateString('ko-KR');
+
+    await backupPension();
+
+    const data = updates.map(({ rowIndex, row }) => {
+      const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(ISNUMBER(B${rowIndex}), REGEXMATCH(TO_TEXT(B${rowIndex}), "[0-9]")), INT(GOOGLEFINANCE("KRX:" & IF(ISNUMBER(B${rowIndex}), TEXT(B${rowIndex},"000000"), TO_TEXT(B${rowIndex})))), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("CURRENCY:USDKRW"))))`;
+      const gFormula = `=D${rowIndex}*F${rowIndex}`;
+      const hFormula = `=IF(E${rowIndex}>0, (F${rowIndex}-E${rowIndex})/E${rowIndex}, 0)`;
+      const iFormula = `=IF(SUM(G$2:G$100)>0, G${rowIndex}/SUM(G$2:G$100), 0)`;
+
+      return {
+        range: `연금저축!A${rowIndex}:L${rowIndex}`,
+        values: [[
+          row.name, tickerCell(row.ticker), row.market,
+          row.qty, row.avgPrice, fFormula,
+          gFormula, hFormula, iFormula, row.owner || '', row.memo || '수동 업데이트', now,
+        ]]
+      };
+    });
+
+    await gapi.client.sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: id,
+      resource: {
+        valueInputOption: 'USER_ENTERED',
+        data
+      }
+    });
+  }
+
+  async function deletePensionRows(rowIndices) {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    await backupPension();
+    const metaRes = await gapi.client.sheets.spreadsheets.get({
+      spreadsheetId: id,
+      fields: 'sheets.properties(title,sheetId)'
+    });
+    const sheet = (metaRes.result.sheets || []).find(s => s.properties.title === '연금저축');
+    if (!sheet) throw new Error('연금저축 시트를 찾을 수 없습니다.');
+    const sheetId = sheet.properties.sheetId;
+
+    const sortedIndices = [...rowIndices].sort((a, b) => b - a);
+
+    const requests = sortedIndices.map(rIdx => ({
+      deleteDimension: {
+        range: {
+          sheetId,
+          dimension: 'ROWS',
+          startIndex: rIdx - 1,
+          endIndex: rIdx
+        }
+      }
+    }));
+
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: id,
+      resource: { requests }
+    });
+  }
+
+  async function applyFormulasToPension() {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (!id || id.startsWith('YOUR_')) return;
+
+    await backupPension();
+
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: id, range: '연금저축!A2:L',
+    });
+    const rows = res.result.values || [];
+    if (rows.length === 0) return;
+
+    const data = [];
+    rows.forEach((r, index) => {
+      const rowIndex = index + 2; // 2행부터 시작
+      const range = `연금저축!F${rowIndex}:I${rowIndex}`;
+      const fFormula = `=IF(ISBLANK(B${rowIndex}), 0, IF(OR(ISNUMBER(B${rowIndex}), REGEXMATCH(TO_TEXT(B${rowIndex}), "[0-9]")), INT(GOOGLEFINANCE("KRX:" & IF(ISNUMBER(B${rowIndex}), TEXT(B${rowIndex},"000000"), TO_TEXT(B${rowIndex})))), INT(GOOGLEFINANCE(B${rowIndex}) * GOOGLEFINANCE("CURRENCY:USDKRW"))))`;
+      const gFormula = `=D${rowIndex}*F${rowIndex}`;
+      const hFormula = `=IF(E${rowIndex}>0, (F${rowIndex}-E${rowIndex})/E${rowIndex}, 0)`;
+      const iFormula = `=IF(SUM(G$2:G$100)>0, G${rowIndex}/SUM(G$2:G$100), 0)`;
+
+      data.push({
+        range,
+        values: [[fFormula, gFormula, hFormula, iFormula]]
+      });
+    });
+
+    await gapi.client.sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: id,
+      resource: {
+        valueInputOption: 'USER_ENTERED',
+        data: data
+      }
+    });
+  }
+
   // ── 매매일지 ──────────────────────────────────────────────────
   async function getTradeLog() {
     const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
@@ -1422,10 +1668,90 @@ const SheetsAPI = (() => {
     console.log('✅ 백업으로부터 포트폴리오 복원 완료');
   }
 
+  async function backupPension() {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (!id || id.startsWith('YOUR_')) return;
+
+    try {
+      const res = await gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: id,
+        range: '연금저축!A1:L',
+        valueRenderOption: 'FORMULA'
+      });
+      const values = res.result.values;
+      if (!values || values.length === 0) return;
+
+      const metaRes = await gapi.client.sheets.spreadsheets.get({
+        spreadsheetId: id,
+        fields: 'sheets.properties(title,sheetId)'
+      });
+      const sheets = metaRes.result.sheets || [];
+      const backupSheet = sheets.find(s => s.properties.title === '연금저축_백업');
+
+      if (!backupSheet) {
+        await gapi.client.sheets.spreadsheets.batchUpdate({
+          spreadsheetId: id,
+          resource: {
+            requests: [{
+              addSheet: {
+                properties: { title: '연금저축_백업' }
+              }
+            }]
+          }
+        });
+      }
+
+      await gapi.client.sheets.spreadsheets.values.clear({
+        spreadsheetId: id,
+        range: '연금저축_백업!A1:L'
+      });
+
+      await gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId: id,
+        range: '연금저축_백업!A1',
+        valueInputOption: 'USER_ENTERED',
+        resource: { values }
+      });
+      console.log('✅ 연금저축 백업 완료 (연금저축_백업)');
+    } catch (e) {
+      console.warn('⚠️ 연금저축 백업 실패:', e);
+    }
+  }
+
+  async function restorePensionFromBackup() {
+    const id = TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (!id || id.startsWith('YOUR_')) return;
+
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: id,
+      range: '연금저축_백업!A1:L',
+      valueRenderOption: 'FORMULA'
+    });
+    const values = res.result.values;
+    if (!values || values.length === 0) {
+      throw new Error('복원할 백업 데이터가 존재하지 않습니다.');
+    }
+
+    await gapi.client.sheets.spreadsheets.values.clear({
+      spreadsheetId: id,
+      range: '연금저축!A1:L'
+    });
+
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: id,
+      range: '연금저축!A1',
+      valueInputOption: 'USER_ENTERED',
+      resource: { values }
+    });
+    console.log('✅ 백업으로부터 연금저축 복원 완료');
+  }
+
   const api = {
     setupToochangiSheet,
     getPortfolio, appendPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, applyFormulasToPortfolio,
     backupPortfolio, restorePortfolioFromBackup,
+    getPension, appendPension, updatePension, deletePension, updatePensionRows, deletePensionRows, applyFormulasToPension,
+    backupPension, restorePensionFromBackup,
     getSavings, appendSavings, updateSavings, deleteSavings, updateSavingsRows, deleteSavingsRows, backupSavings, restoreSavingsFromBackup,
     getRealEstate, appendRealEstate, updateRealEstate, deleteRealEstate, updateRealEstateRows, deleteRealEstateRows,
     getTradeLog, appendTrade,

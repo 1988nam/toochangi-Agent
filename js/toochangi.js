@@ -12,11 +12,12 @@ const Toochangi = (() => {
   let _gachangiAccounts = [];
   let _savings = [];
   let _realEstate = [];
+  let _pension = [];
 
   // ── 데이터 로드 ─────────────────────────────────────────────────
   async function loadAll() {
     try {
-      [_portfolio, _tradelog, _analysisHistory, _gachangiData, _assetHistory, _gachangiAccounts, _savings, _realEstate] = await Promise.all([
+      [_portfolio, _tradelog, _analysisHistory, _gachangiData, _assetHistory, _gachangiAccounts, _savings, _realEstate, _pension] = await Promise.all([
         SheetsAPI.getPortfolio(),
         SheetsAPI.getTradeLog(),
         SheetsAPI.getAnalysisHistory(),
@@ -25,6 +26,7 @@ const Toochangi = (() => {
         SheetsAPI.getGachangiAccounts ? SheetsAPI.getGachangiAccounts() : [],
         SheetsAPI.getSavings ? SheetsAPI.getSavings() : [],
         SheetsAPI.getRealEstate ? SheetsAPI.getRealEstate() : [],
+        SheetsAPI.getPension ? SheetsAPI.getPension() : [],
       ]);
       console.log('[Toochangi] 데이터 로드 완료');
     } catch (e) {
@@ -65,6 +67,29 @@ const Toochangi = (() => {
 
     // 비중 계산
     _portfolio.forEach(p => {
+      p._value  = p.qty * (p.curPrice || p.avgPrice);
+      p._weight = totalValue > 0 ? (p._value / totalValue) * 100 : 0;
+      p._pnl    = p._value - (p.qty * p.avgPrice);
+      p._yield  = p.avgPrice > 0 ? ((p.curPrice || p.avgPrice) - p.avgPrice) / p.avgPrice * 100 : 0;
+    });
+
+    return { totalCost, totalValue, totalPnL, totalYield };
+  }
+
+  // ── 연금저축 계산 (주식과 동일 로직, 별도 _pension 배열 기준) ────────
+  function calcPensionMetrics() {
+    let totalCost = 0, totalValue = 0;
+    _pension.forEach(p => {
+      const cost = p.qty * p.avgPrice;
+      const val  = p.qty * (p.curPrice || p.avgPrice);
+      totalCost  += cost;
+      totalValue += val;
+    });
+    const totalPnL   = totalValue - totalCost;
+    const totalYield = totalCost > 0 ? (totalPnL / totalCost) * 100 : 0;
+
+    // 비중 계산
+    _pension.forEach(p => {
       p._value  = p.qty * (p.curPrice || p.avgPrice);
       p._weight = totalValue > 0 ? (p._value / totalValue) * 100 : 0;
       p._pnl    = p._value - (p.qty * p.avgPrice);
@@ -764,6 +789,8 @@ ${searchInstructions}
   let _chartAllocation = null;
   let _chartPortfolioAllocation = null;
   let _chartPortfolioMarketAllocation = null;
+  let _chartPensionAllocation = null;
+  let _chartPensionMarketAllocation = null;
   let _chartMonthly    = null;
 
   function renderAllocationChart(canvasId = 'chart-allocation', isPortfolioTab = false) {
@@ -866,6 +893,111 @@ ${searchInstructions}
     }
 
     _chartPortfolioMarketAllocation = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#111827' }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Outfit', size: 12 }, boxWidth: 12 } },
+          tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw.toFixed(1)}%` } },
+        },
+        cutout: '65%',
+      },
+    });
+  }
+
+  // ── 연금저축 도넛 차트 (주식과 동일, _pension 기준) ──────────────
+  function renderPensionAllocationChart(canvasId = 'chart-pension-allocation') {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+    if (_chartPensionAllocation) _chartPensionAllocation.destroy();
+
+    // 같은 종목(티커 우선, 없으면 이름) 합산
+    const merged = new Map();
+    _pension.forEach(p => {
+      const key = ((p.ticker || '').trim()) || (p.name || '미설정');
+      const prev = merged.get(key);
+      if (prev) prev.weight += (p._weight || 0);
+      else merged.set(key, { name: p.name || '미설정', weight: p._weight || 0 });
+    });
+
+    const TOP_N = 8;
+    let items = Array.from(merged.values()).sort((a, b) => b.weight - a.weight);
+    if (items.length > TOP_N) {
+      const rest = items.slice(TOP_N);
+      const restWeight = rest.reduce((s, it) => s + it.weight, 0);
+      items = items.slice(0, TOP_N);
+      items.push({ name: `기타 (${rest.length}종목)`, weight: restWeight, _isEtc: true });
+    }
+
+    const hasData = _pension.length > 0 && items.length > 0;
+    const labels = hasData ? items.map(it => it.name) : ['현금', '미설정'];
+    const data = hasData ? items.map(it => it.weight) : [100, 0];
+
+    const palette = [
+      '#8b5cf6','#3b82f6','#10b981','#f59e0b',
+      '#ef4444','#06b6d4','#ec4899','#84cc16',
+      '#f97316','#14b8a6','#a855f7','#eab308',
+    ];
+    const colors = (hasData ? items : [{}, {}]).map((it, i) =>
+      it._isEtc ? '#6b7280' : palette[i % palette.length]
+    );
+
+    _chartPensionAllocation = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#111827' }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Outfit', size: 12 }, boxWidth: 12 } },
+          tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw.toFixed(1)}%` } },
+        },
+        cutout: '65%',
+      },
+    });
+  }
+
+  function renderPensionMarketAllocationChart(canvasId = 'chart-pension-market-allocation') {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+    if (_chartPensionMarketAllocation) _chartPensionMarketAllocation.destroy();
+
+    const marketTotals = {};
+    let grandTotal = 0;
+
+    _pension.forEach(p => {
+      const market = p.market || '기타';
+      const value = p.qty * (p.curPrice || p.avgPrice);
+      marketTotals[market] = (marketTotals[market] || 0) + value;
+      grandTotal += value;
+    });
+
+    const labels = Object.keys(marketTotals);
+    const data = labels.map(market =>
+      grandTotal > 0 ? (marketTotals[market] / grandTotal) * 100 : 0
+    );
+
+    const marketColors = {
+      '코스피': '#8b5cf6',
+      '코스닥': '#3b82f6',
+      '나스닥': '#10b981',
+      'NYSE': '#f59e0b',
+      '기타': '#ef4444'
+    };
+    const colors = labels.map(market => marketColors[market] || '#84cc16');
+
+    if (labels.length === 0) {
+      labels.push('데이터 없음');
+      data.push(1);
+    }
+
+    _chartPensionMarketAllocation = new Chart(ctx, {
       type: 'doughnut',
       data: {
         labels,
@@ -1089,6 +1221,7 @@ ${searchInstructions}
   function getGachangiAccounts() { return _gachangiAccounts; }
   function getSavings()   { return _savings; }
   function getRealEstate() { return _realEstate; }
+  function getPension()   { return _pension; }
 
   // ── 예적금 자동 납입(누적) 계산 ──────────────────────────────
   // 'YYYY-MM-DD' 또는 'YYYY.MM.DD' 형식의 문자열을 Date로 파싱 (실패 시 null)
@@ -1148,6 +1281,36 @@ ${searchInstructions}
   }
   async function deletePortfolioRows(rowIndices) {
     await SheetsAPI.deletePortfolioRows(rowIndices);
+    await loadAll();
+  }
+
+  // ── 연금저축 CRUD (주식과 동일) ──
+  async function addPension(row) {
+    await SheetsAPI.appendPension(row);
+    await loadAll();
+  }
+  async function updatePension(rowIndex, row) {
+    await SheetsAPI.updatePension(rowIndex, row);
+    await loadAll();
+  }
+  async function deletePension(rowIndex) {
+    await SheetsAPI.deletePension(rowIndex);
+    await loadAll();
+  }
+  async function updatePensionRows(updates) {
+    await SheetsAPI.updatePensionRows(updates);
+    await loadAll();
+  }
+  async function deletePensionRows(rowIndices) {
+    await SheetsAPI.deletePensionRows(rowIndices);
+    await loadAll();
+  }
+  async function applyFormulasToPension() {
+    await SheetsAPI.applyFormulasToPension();
+    await loadAll();
+  }
+  async function restorePensionFromBackup() {
+    await SheetsAPI.restorePensionFromBackup();
     await loadAll();
   }
 
@@ -1370,6 +1533,9 @@ ${searchInstructions}
     getLatestRecommendation, getRecommendationHistory, saveRecommendation,
     renderAllocationChart,
     renderMarketAllocationChart,
+    renderPensionAllocationChart, renderPensionMarketAllocationChart,
+    calcPensionMetrics, getPension,
+    addPension, updatePension, deletePension, updatePensionRows, deletePensionRows, applyFormulasToPension, restorePensionFromBackup,
     getPortfolio, getTradeLog, getAnalysis, getGachangiData, getGachangiAccounts, getSavings, getRealEstate, calcSavingsBalance,
     addPortfolio, updatePortfolio, deletePortfolio, updatePortfolioRows, deletePortfolioRows, addTrade, saveAnalysis, saveFilter, applyFormulasToPortfolio, restorePortfolioFromBackup,
     addSavings, updateSavings, deleteSavings, updateSavingsRows, deleteSavingsRows, restoreSavingsFromBackup,

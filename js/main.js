@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindNavEvents();
   bindFilterEvents();
   bindModalEvents();
+  bindPensionEvents();
   bindAutoAnalysisEvents();
   bindManualAnalysisEvents();
   bindTopbarEvents();
@@ -138,6 +139,7 @@ async function refreshAll() {
     await Toochangi.loadAll();
     renderDashboard();
     renderPortfolioTab();
+    renderPensionTab();
     renderSavingsTab();
     renderGachangiAccountsTable();
     renderRealestateTab();
@@ -229,6 +231,7 @@ function switchTab(tab) {
 
   const titles = {
     dashboard: '대시보드', portfolio: '주식',
+    pension: '연금저축',
     savings: '예적금', realestate: '부동산',
     filter: '3단계 필터', tradelog: '주식 매매일지',
     assets: '자산현황',
@@ -242,6 +245,9 @@ function switchTab(tab) {
   if (tab === 'dashboard') renderDashboard();
   if (tab === 'portfolio') {
     renderPortfolioTab(); // 표+요약+차트 모두 갱신(차트만 그리던 stale 위험 제거)
+  }
+  if (tab === 'pension') {
+    renderPensionTab();
   }
   if (tab === 'savings') renderSavingsTab();
   if (tab === 'realestate') renderRealestateTab();
@@ -2759,6 +2765,440 @@ async function deleteBulkHoldings() {
   } catch (err) {
     toast('⚠️ 선택 삭제 실패: ' + err.message, 'error');
   }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── 연금저축 탭 (주식과 동일 기능, 대시보드·자산현황에는 미반영) ──
+// 퇴직연금 DC 전환 연금저축을 별도 시트/상태에서만 관리한다.
+// 주식과 달리 delta(전월대비)·renderDashboard()는 호출하지 않는다(자산현황 스냅샷 미기록).
+// ══════════════════════════════════════════════════════════════
+function renderPensionSummaryCards(pension, metrics) {
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+    return el;
+  };
+
+  setText('pension-total-asset', metrics.totalValue > 0 ? `${Math.floor(metrics.totalValue).toLocaleString()}원` : '—');
+  setText('pension-total-asset-sub', '평가금액 기준');
+
+  setText('pension-invested', metrics.totalCost > 0 ? `${Math.floor(metrics.totalCost).toLocaleString()}원` : '—');
+
+  const totalYieldEl = setText(
+    'pension-total-yield',
+    metrics.totalValue > 0 || metrics.totalCost > 0
+      ? `${metrics.totalYield >= 0 ? '+' : ''}${metrics.totalYield.toFixed(2)}%`
+      : '—'
+  );
+  if (totalYieldEl) {
+    totalYieldEl.style.color = (metrics.totalValue > 0 || metrics.totalCost > 0)
+      ? (metrics.totalYield > 0 ? 'var(--accent-green)' : (metrics.totalYield < 0 ? 'var(--accent-red)' : 'var(--text-muted)'))
+      : '';
+  }
+  setText('pension-total-yield-sub',
+    (metrics.totalValue > 0 || metrics.totalCost > 0)
+      ? `평가손익 ${metrics.totalPnL >= 0 ? '+' : ''}${Math.floor(metrics.totalPnL).toLocaleString()}원`
+      : '전체 보유 종목 기준');
+
+  const kospiItems = pension.filter((item) => (item.market || '').trim() === '코스피');
+  const kospiYield = computeMarketYield(kospiItems);
+  const kospiYieldEl = setText(
+    'pension-kospi-yield',
+    kospiYield === null ? '—' : `${kospiYield >= 0 ? '+' : ''}${kospiYield.toFixed(2)}%`
+  );
+  if (kospiYieldEl) {
+    kospiYieldEl.style.color = kospiYield === null ? '' : (kospiYield > 0 ? 'var(--accent-green)' : (kospiYield < 0 ? 'var(--accent-red)' : 'var(--text-muted)'));
+  }
+  setText('pension-kospi-yield-sub', kospiItems.length > 0 ? `코스피 ${kospiItems.length}종목 기준` : '코스피 보유 종목 없음');
+
+  const nasdaqItems = pension.filter((item) => (item.market || '').trim() === '나스닥');
+  const nasdaqYield = computeMarketYield(nasdaqItems);
+  const nasdaqYieldEl = setText(
+    'pension-nasdaq-yield',
+    nasdaqYield === null ? '—' : `${nasdaqYield >= 0 ? '+' : ''}${nasdaqYield.toFixed(2)}%`
+  );
+  if (nasdaqYieldEl) {
+    nasdaqYieldEl.style.color = nasdaqYield === null ? '' : (nasdaqYield > 0 ? 'var(--accent-green)' : (nasdaqYield < 0 ? 'var(--accent-red)' : 'var(--text-muted)'));
+  }
+  setText('pension-nasdaq-yield-sub', nasdaqItems.length > 0 ? `나스닥 ${nasdaqItems.length}종목 기준` : '나스닥 보유 종목 없음');
+
+  const renderOwnerYield = (owner, valId, subId) => {
+    const items = pension.filter(item => (item.owner || '').trim() === owner);
+    const oYield = computeMarketYield(items);
+    const el = setText(valId, oYield === null ? '—' : `${oYield >= 0 ? '+' : ''}${oYield.toFixed(2)}%`);
+    if (el) el.style.color = oYield === null ? '' : (oYield > 0 ? 'var(--accent-green)' : (oYield < 0 ? 'var(--accent-red)' : 'var(--text-muted)'));
+    setText(subId, items.length > 0 ? `${owner} 명의 ${items.length}종목 기준` : `${owner} 명의 종목 없음`);
+  };
+  renderOwnerYield('정현', 'pension-jeonghyeon-yield', 'pension-jeonghyeon-yield-sub');
+  renderOwnerYield('혜영', 'pension-hyeyoung-yield', 'pension-hyeyoung-yield-sub');
+}
+
+// ── 연금저축 리스트 정렬 상태/로직 (주식과 동일, 별도 상태) ──
+let pensionSortKey = null;
+let pensionSortDir = 'asc';
+
+function applyPensionSort(list) {
+  if (!pensionSortKey) return list;
+  const dir = pensionSortDir === 'asc' ? 1 : -1;
+  const isNum = PORTFOLIO_NUMERIC_KEYS.includes(pensionSortKey);
+  return [...list].sort((a, b) => {
+    const va = portfolioSortValue(a, pensionSortKey);
+    const vb = portfolioSortValue(b, pensionSortKey);
+    if (isNum) return (va - vb) * dir;
+    return String(va).localeCompare(String(vb), 'ko') * dir;
+  });
+}
+
+function updatePensionSortIndicators() {
+  document.querySelectorAll('#pension-table th .sort-ind').forEach(span => {
+    span.textContent = (span.dataset.col === pensionSortKey)
+      ? (pensionSortDir === 'asc' ? ' ▲' : ' ▼')
+      : '';
+  });
+}
+
+// 헤더 클릭 핸들러 (전역): 같은 컬럼이면 방향 토글, 다른 컬럼이면 오름차순으로 시작
+function sortPension(key) {
+  if (pensionSortKey === key) {
+    pensionSortDir = pensionSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    pensionSortKey = key;
+    pensionSortDir = 'asc';
+  }
+  renderPensionTab();
+}
+
+function renderPensionTab() {
+  const sheetLink = document.getElementById('btn-open-sheet-pension');
+  if (sheetLink) {
+    const sheetId = (window.TOOCHANGI_CONFIG || {}).TOOCHANGI_SHEET_ID;
+    sheetLink.href = sheetId ? `https://docs.google.com/spreadsheets/d/${sheetId}/edit` : '#';
+  }
+
+  const metrics = Toochangi.calcPensionMetrics();
+
+  const tbody = document.getElementById('pension-tbody');
+  if (!tbody) return;
+  const pension = Toochangi.getPension();
+  renderPensionSummaryCards(pension, metrics);
+
+  // 도넛 그래프 렌더링 (연금저축 투자 현황 - 종목 기준, 시장 기준)
+  Toochangi.renderPensionAllocationChart('chart-pension-allocation');
+  Toochangi.renderPensionMarketAllocationChart('chart-pension-market-allocation');
+
+  if (pension.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="14" class="empty-state">연금저축 종목을 추가해주세요</td></tr>';
+    const chkAll = document.getElementById('chk-pension-all');
+    if (chkAll) chkAll.checked = false;
+    updatePensionBulkActionsVisibility();
+    return;
+  }
+  updatePensionSortIndicators();
+  tbody.innerHTML = applyPensionSort(pension).map((p, i) => {
+    const yieldStr = p._yield >= 0 ? `+${p._yield.toFixed(2)}%` : `${p._yield.toFixed(2)}%`;
+    const yieldColor = p._yield > 0 ? 'var(--accent-green)' : (p._yield < 0 ? 'var(--accent-red)' : 'var(--text-muted)');
+    return `<tr data-rowindex="${p.rowIndex}">
+      <td style="text-align: center;">
+        <input type="checkbox" class="chk-pension-row" data-rowindex="${p.rowIndex}" style="cursor:pointer;" />
+      </td>
+      <td style="text-align: center; color: var(--text-muted);">${i + 1}</td>
+      <td>${escapeHtml(p.name)}</td>
+      <td style="color:var(--text-muted)">${escapeHtml(formatStockTicker(p.ticker))}</td>
+      <td><span class="market-pill" data-market="${escapeHtml(p.market || '기타')}">${escapeHtml(p.market)}</span></td>
+      <td>${escapeHtml(p.owner || '-')}</td>
+      <td>${escapeHtml(p.memo || '-')}</td>
+      <td>${p.qty.toLocaleString()}</td>
+      <td>${Math.floor(p.avgPrice).toLocaleString()}원</td>
+      <td>${Math.floor(p.curPrice || p.avgPrice).toLocaleString()}원</td>
+      <td>${Math.floor(p._value || 0).toLocaleString()}원</td>
+      <td style="color: ${yieldColor}; font-weight: 600;">${yieldStr}</td>
+      <td style="color:var(--text-muted)">${(p._weight || 0).toFixed(1)}%</td>
+      <td style="text-align: center;">
+        <div style="display:flex; gap:4px; justify-content:center;">
+          <button class="btn-primary-sm edit-pension-btn" data-rowindex="${p.rowIndex}" style="padding: 2px 8px; font-size: 11px;">수정</button>
+          <button class="btn-primary-sm delete-pension-btn" style="padding: 2px 8px; font-size: 11px; background:var(--accent-red); border-color:var(--accent-red);" data-rowindex="${p.rowIndex}">삭제</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // 개별 수정 버튼 바인딩
+  tbody.querySelectorAll('.edit-pension-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const rIdx = parseInt(e.target.dataset.rowindex, 10);
+      const item = pension.find(p => p.rowIndex === rIdx);
+      if (!item) return;
+
+      document.getElementById('input-pension-row-index').value = rIdx;
+      document.getElementById('input-pension-name').value = item.name;
+      document.getElementById('input-pension-ticker').value = formatStockTicker(item.ticker);
+      document.getElementById('input-pension-market').value = item.market;
+      document.getElementById('input-pension-qty').value = item.qty;
+      document.getElementById('input-pension-avg').value = item.avgPrice;
+      document.getElementById('input-pension-cur').value = item.curPrice || item.avgPrice;
+      if (document.getElementById('input-pension-owner')) document.getElementById('input-pension-owner').value = item.owner || '';
+      document.getElementById('input-pension-memo').value = item.memo || '';
+
+      document.querySelector('#modal-pension h3').textContent = '종목 수정';
+      document.getElementById('modal-pension').classList.remove('hidden');
+    });
+  });
+
+  // 개별 삭제 버튼 바인딩
+  tbody.querySelectorAll('.delete-pension-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const rIdx = parseInt(e.target.dataset.rowindex, 10);
+      const item = pension.find(p => p.rowIndex === rIdx);
+      if (!item) return;
+
+      if (!confirm(`"${item.name}" 종목을 정말로 삭제하시겠습니까?`)) return;
+
+      toast('⏳ 종목 삭제 중...', 'info');
+      try {
+        await Toochangi.deletePension(rIdx);
+        toast(`✅ ${item.name} 삭제 완료`, 'success');
+        renderPensionTab();
+        updatePensionBulkActionsVisibility();
+      } catch (err) {
+        toast('⚠️ 삭제 실패: ' + err.message, 'error');
+      }
+    });
+  });
+
+  // 개별 체크박스 선택 시 다중 선택 액션 버튼 가시성 제어
+  tbody.querySelectorAll('.chk-pension-row').forEach(chk => {
+    chk.addEventListener('change', () => {
+      updatePensionBulkActionsVisibility();
+    });
+  });
+
+  // 전체 선택 체크박스 상태 동기화 및 가시성 제어
+  const chkAll = document.getElementById('chk-pension-all');
+  if (chkAll) {
+    const newChkAll = chkAll.cloneNode(true);
+    chkAll.parentNode.replaceChild(newChkAll, chkAll);
+    newChkAll.checked = false;
+    newChkAll.addEventListener('change', (e) => {
+      const checked = e.target.checked;
+      tbody.querySelectorAll('.chk-pension-row').forEach(chk => {
+        chk.checked = checked;
+      });
+      updatePensionBulkActionsVisibility();
+    });
+  }
+}
+
+function updatePensionBulkActionsVisibility() {
+  const checked = document.querySelectorAll('.chk-pension-row:checked');
+  const bulkEditBtn = document.getElementById('btn-bulk-edit-pension');
+  const bulkDeleteBtn = document.getElementById('btn-bulk-delete-pension');
+  if (bulkEditBtn && bulkDeleteBtn) {
+    if (checked.length > 0) {
+      bulkEditBtn.classList.remove('hidden');
+      bulkDeleteBtn.classList.remove('hidden');
+    } else {
+      bulkEditBtn.classList.add('hidden');
+      bulkDeleteBtn.classList.add('hidden');
+    }
+  }
+}
+
+// 연금저축 다중 수정 모달 채우기 및 열기
+function openPensionBulkEditModal() {
+  const checked = document.querySelectorAll('.chk-pension-row:checked');
+  if (checked.length === 0) return;
+
+  const pension = Toochangi.getPension();
+  const tbody = document.getElementById('bulk-edit-pension-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = Array.from(checked).map(chk => {
+    const rIdx = parseInt(chk.dataset.rowindex, 10);
+    const item = pension.find(p => p.rowIndex === rIdx);
+    if (!item) return '';
+
+    return `<tr data-rowindex="${rIdx}">
+      <td style="font-weight: 600;">${escapeHtml(item.name)}</td>
+      <td><code style="background:var(--bg-elevated); padding:2px 6px; border-radius:4px;">${escapeHtml(item.ticker)}</code></td>
+      <td><input type="number" step="any" class="bulk-qty" value="${item.qty || 0}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px; text-align: right;" /></td>
+      <td><input type="number" step="any" class="bulk-avg" value="${item.avgPrice || 0}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px; text-align: right;" /></td>
+      <td><input type="text" class="bulk-memo" value="${escapeHtml(item.memo || '')}" style="width: 100%; box-sizing: border-box; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 6px;" /></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('modal-bulk-edit-pension').classList.remove('hidden');
+}
+
+// 연금저축 다중 수정 사항 저장
+async function savePensionBulkEdit() {
+  const tbody = document.getElementById('bulk-edit-pension-tbody');
+  if (!tbody) return;
+
+  const rows = tbody.querySelectorAll('tr');
+  if (rows.length === 0) return;
+
+  toast('⏳ 다중 수정사항 저장 중...', 'info');
+  document.getElementById('modal-bulk-edit-pension').classList.add('hidden');
+
+  try {
+    const pension = Toochangi.getPension();
+    const updates = [];
+    for (const row of rows) {
+      const rIdx = parseInt(row.dataset.rowindex, 10);
+      const item = pension.find(p => p.rowIndex === rIdx);
+      if (!item) continue;
+
+      const qty = parseFloat(row.querySelector('.bulk-qty').value) || 0;
+      const avgPrice = parseFloat(row.querySelector('.bulk-avg').value) || 0;
+      const memo = row.querySelector('.bulk-memo').value.trim();
+
+      if (qty <= 0 || avgPrice <= 0) continue;
+
+      updates.push({
+        rowIndex: rIdx,
+        row: {
+          name: item.name,
+          ticker: item.ticker,
+          market: item.market,
+          qty,
+          avgPrice,
+          curPrice: item.curPrice || avgPrice,
+          owner: item.owner || '',
+          memo
+        }
+      });
+    }
+
+    if (updates.length > 0) {
+      await Toochangi.updatePensionRows(updates);
+    }
+
+    toast('✅ 다중 수정 완료!', 'success');
+    renderPensionTab();
+    updatePensionBulkActionsVisibility();
+  } catch (err) {
+    toast('⚠️ 다중 수정 실패: ' + err.message, 'error');
+  }
+}
+
+// 연금저축 선택 종목 다중 삭제
+async function deletePensionHoldings() {
+  const checked = document.querySelectorAll('.chk-pension-row:checked');
+  if (checked.length === 0) return;
+
+  if (!confirm(`선택한 ${checked.length}개 종목을 정말로 모두 삭제하시겠습니까?`)) return;
+
+  toast('⏳ 다중 종목 삭제 중...', 'info');
+
+  try {
+    const rowIndices = Array.from(checked).map(chk => parseInt(chk.dataset.rowindex, 10));
+    await Toochangi.deletePensionRows(rowIndices);
+
+    toast('✅ 선택 삭제 완료!', 'success');
+    renderPensionTab();
+    updatePensionBulkActionsVisibility();
+  } catch (err) {
+    toast('⚠️ 선택 삭제 실패: ' + err.message, 'error');
+  }
+}
+
+// 연금저축 모달/버튼 이벤트 바인딩 (모달 닫기·오버레이 클릭은 bindModalEvents의 전역 핸들러가 처리)
+function bindPensionEvents() {
+  // 종목 추가 모달 열기
+  document.getElementById('add-pension-btn')?.addEventListener('click', () => {
+    document.querySelector('#modal-pension h3').textContent = '종목 추가';
+    document.getElementById('input-pension-row-index').value = '';
+    document.getElementById('input-pension-name').value = '';
+    document.getElementById('input-pension-ticker').value = '';
+    document.getElementById('input-pension-qty').value = '';
+    document.getElementById('input-pension-avg').value = '';
+    document.getElementById('input-pension-cur').value = '';
+    document.getElementById('input-pension-memo').value = '';
+    if (document.getElementById('input-pension-owner')) document.getElementById('input-pension-owner').value = '';
+    document.getElementById('modal-pension').classList.remove('hidden');
+  });
+
+  // 다중 수정/삭제
+  document.getElementById('btn-bulk-edit-pension')?.addEventListener('click', openPensionBulkEditModal);
+  document.getElementById('btn-bulk-delete-pension')?.addEventListener('click', deletePensionHoldings);
+  document.getElementById('btn-save-bulk-edit-pension')?.addEventListener('click', savePensionBulkEdit);
+
+  // 실시간 주가 수식 반영
+  document.getElementById('apply-formulas-pension-btn')?.addEventListener('click', async () => {
+    if (!Auth.isLoggedIn()) { toast('먼저 로그인해주세요', 'error'); return; }
+    if (!confirm('현재 연금저축의 모든 종목에 구글 파이낸스 실시간 수식을 적용하시겠습니까?\n기존에 입력된 현재가와 평가금액이 자동으로 업데이트되는 수식으로 바뀝니다.')) return;
+
+    toast('⏳ 실시간 주가 수식 반영 중...', 'info');
+    try {
+      await Toochangi.applyFormulasToPension();
+      toast('✅ 실시간 주가 수식 반영 완료!', 'success');
+      renderPensionTab();
+    } catch (e) {
+      toast('⚠️ 수식 반영 실패: ' + e.message, 'error');
+    }
+  });
+
+  // 직전 작업 취소 (원복)
+  document.getElementById('restore-pension-btn')?.addEventListener('click', async () => {
+    if (!Auth.isLoggedIn()) { toast('먼저 로그인해주세요', 'error'); return; }
+    if (!confirm('정말로 직전 작업(수식 반영, 추가, 수정, 삭제 등)을 취소하고 원래 상태로 되돌리시겠습니까?\n백업된 데이터로 구글 시트가 덮어씌워집니다.')) return;
+
+    toast('⏳ 데이터 복원 중...', 'info');
+    try {
+      await Toochangi.restorePensionFromBackup();
+      toast('✅ 직전 작업 취소 완료!', 'success');
+      renderPensionTab();
+    } catch (e) {
+      toast('⚠️ 복원 실패: ' + e.message, 'error');
+    }
+  });
+
+  // 종목 저장 (추가/수정)
+  document.getElementById('save-pension-btn')?.addEventListener('click', async () => {
+    const name = document.getElementById('input-pension-name').value.trim();
+    const qty  = parseFloat(document.getElementById('input-pension-qty').value);
+    const avg  = parseFloat(document.getElementById('input-pension-avg').value);
+    const memo = document.getElementById('input-pension-memo').value.trim();
+    const rowIndex = document.getElementById('input-pension-row-index')?.value;
+    const currentPension = Toochangi.getPension ? Toochangi.getPension() : [];
+    const existingItem = rowIndex ? currentPension.find(p => p.rowIndex === parseInt(rowIndex, 10)) : null;
+    const ownerInput = document.getElementById('input-pension-owner');
+    const owner = ownerInput ? ownerInput.value.trim() : (existingItem?.owner || '');
+    if (!name || !qty || !avg) { toast('필수 항목을 입력해주세요', 'error'); return; }
+
+    try {
+      const data = {
+        name, ticker: document.getElementById('input-pension-ticker').value,
+        market: document.getElementById('input-pension-market').value,
+        qty, avgPrice: avg,
+        curPrice: parseFloat(document.getElementById('input-pension-cur').value) || avg,
+        owner,
+        memo,
+      };
+
+      if (rowIndex) {
+        await Toochangi.updatePension(parseInt(rowIndex, 10), data);
+        toast(`✅ ${name} 수정 완료`, 'success');
+      } else {
+        await Toochangi.addPension(data);
+        toast(`✅ ${name} 추가 완료`, 'success');
+      }
+      document.getElementById('modal-pension').classList.add('hidden');
+
+      document.getElementById('input-pension-name').value = '';
+      document.getElementById('input-pension-ticker').value = '';
+      document.getElementById('input-pension-qty').value = '';
+      document.getElementById('input-pension-avg').value = '';
+      document.getElementById('input-pension-cur').value = '';
+      document.getElementById('input-pension-memo').value = '';
+      if (document.getElementById('input-pension-owner')) document.getElementById('input-pension-owner').value = '';
+      if (document.getElementById('input-pension-row-index')) document.getElementById('input-pension-row-index').value = '';
+
+      renderPensionTab();
+    } catch (e) {
+      toast('⚠️ 저장 실패: ' + e.message, 'error');
+    }
+  });
 }
 
 // ── 예적금 / 부동산 탭 렌더링 및 벌크 액션 ──
