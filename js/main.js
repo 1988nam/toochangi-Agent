@@ -54,7 +54,7 @@ function _accordionToggle(e) {
   if (arrow) arrow.textContent = expanded ? '▼' : '▲';
 }
 function bindAccordions() {
-  ['recent-analysis-list', 'rec-history-list', 'news-history-list', 'dash-rec-cards', 'filter-passed-cards']
+  ['recent-analysis-list', 'analysis-history-list', 'rec-history-list', 'news-history-list', 'dash-rec-cards', 'filter-passed-cards']
     .forEach(id => document.getElementById(id)?.addEventListener('click', _accordionToggle));
 }
 
@@ -760,16 +760,25 @@ function renderManualAnalysisTab() {
     historyList.innerHTML = '<div class="empty-state">저장된 분석이 없습니다</div>';
     return;
   }
-  historyList.innerHTML = history.map(a => `
-    <div class="analysis-item">
+  historyList.innerHTML = history.map(a => {
+    const r = escapeHtml(a.result);
+    const preview = r.slice(0, 160);
+    const trunc = (a.result || '').length > 160;
+    const full = _linkifyUrls(r.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')).replace(/\n/g, '<br>');
+    return `
+    <div class="analysis-item rec-hist-item" data-expanded="0" style="cursor:pointer;" title="클릭하면 전체 분석을 펼치거나 접습니다">
       <div class="analysis-item-header">
         <span class="analysis-item-date">${escapeHtml(a.date)}</span>
-        ${a.opinion ? `<span class="badge-${a.opinion === '매수' ? 'buy' : 'sell'}">${escapeHtml(a.opinion)}</span>` : ''}
+        <span style="display:flex; align-items:center; gap:8px;">
+          ${a.opinion ? `<span class="badge-${a.opinion === '매수' ? 'buy' : 'sell'}">${escapeHtml(a.opinion)}</span>` : ''}
+          <span class="rec-hist-arrow" style="font-size:11px; color:var(--text-muted);">▼</span>
+        </span>
       </div>
       <div class="analysis-item-query">${escapeHtml(a.query)}</div>
-      <div class="analysis-item-preview">${escapeHtml(a.result)}</div>
-    </div>
-  `).join('');
+      <div class="rec-hist-preview analysis-item-preview">${preview}${trunc ? '…' : ''}</div>
+      <div class="rec-hist-full" style="display:none; white-space:pre-wrap; line-height:1.6; font-size:13px; color:var(--text-secondary); margin-top:4px;">${full || '(내용 없음)'}</div>
+    </div>`;
+  }).join('');
 }
 
 // ══════════════════════════════════════════════════════════════
