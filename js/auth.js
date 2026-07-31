@@ -110,7 +110,10 @@ const Auth = (() => {
 
   function login() {
     if (tokenClient) {
-      tokenClient.requestAccessToken({ prompt: 'consent' });
+      // (버그수정) 'consent'는 이미 동의했더라도 매번 동의 화면을 다시 띄우라는 강제 옵션이라,
+      // 로그인할 때마다 미확인 앱 경고('확인하지 않은 앱' → 고급 → 이동)를 다시 통과해야 했다.
+      // ''로 두면 이미 승인된 스코프는 동의 화면 없이 토큰만 재발급된다(최초 1회만 승인).
+      tokenClient.requestAccessToken({ prompt: '' });
       return;
     }
     let retries = 0;
@@ -118,7 +121,10 @@ const Auth = (() => {
       retries++;
       if (tokenClient) {
         clearInterval(interval);
-        tokenClient.requestAccessToken({ prompt: 'consent' });
+        // (버그수정) 'consent'는 이미 동의했더라도 매번 동의 화면을 다시 띄우라는 강제 옵션이라,
+        // 로그인할 때마다 미확인 앱 경고('확인하지 않은 앱' → 고급 → 이동)를 다시 통과해야 했다.
+        // ''로 두면 이미 승인된 스코프는 동의 화면 없이 토큰만 재발급된다(최초 1회만 승인).
+        tokenClient.requestAccessToken({ prompt: '' });
       } else if (retries >= 5) {
         clearInterval(interval);
         alert('⚠️ Google 인증 모듈 로드 실패\n\n인터넷 연결을 확인하거나 페이지를 새로고침(F5) 해주세요.');
