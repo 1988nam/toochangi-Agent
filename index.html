@@ -4,27 +4,27 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <!-- 인라인 SVG 이모지 파비콘: 별도 파일 없이 /favicon.ico 404 방지 -->
-  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='.9em'%20font-size='90'%3E🐤%3C/text%3E%3C/svg%3E" />
-  <title>투챙이 🔮 투자 분석 대시보드</title>
+  <link rel="icon" href="/shared/favicon.svg" type="image/svg+xml" />
+  <title>투챙이 · 투자 · 올챙이 Agent</title>
   <meta name="description" content="흰챙이 가족 AI 투자 비서 - 포트폴리오 관리, 3단계 필터, Gemini AI 분석" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="style.css?v=20260724_69" />
-</head>
-<body>
+<link rel="stylesheet" href="/shared/shell.css"></head>
+<body data-agent="toochangi" data-suite-base="https://olchangi.pages.dev">
 
 <!-- ════════════════════════════ LOGIN SCREEN ════════════════════════════ -->
 <div id="login-screen" class="login-screen">
   <div class="login-bg-grid"></div>
   <div class="login-card">
-    <div class="login-logo">🔮</div>
+    <div class="login-logo"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18V5m0 13h16M8 14l4-4 3 2 5-7m-5 0h5v5"/></svg></div>
     <h1 class="login-title">투챙이</h1>
     <p class="login-subtitle">흰챙이 가족 AI 투자 비서</p>
     <div class="login-features">
-      <div class="feature-item">📊 포트폴리오 실시간 현황</div>
-      <div class="feature-item">🚦 3단계 매수/매도 필터</div>
-      <div class="feature-item">🤖 Gemini AI 투자 분석</div>
+      <div class="feature-item"> 포트폴리오 실시간 현황</div>
+      <div class="feature-item"> 3단계 매수/매도 필터</div>
+      <div class="feature-item"> Gemini AI 투자 분석</div>
     </div>
     <button id="login-btn" class="btn-login">
       <svg width="20" height="20" viewBox="0 0 24 24">
@@ -36,7 +36,7 @@
       Google로 로그인
     </button>
     <p class="login-note">Google Sheets · Drive 권한이 필요합니다</p>
-    <button id="open-config-btn" class="btn-text">⚙️ API 설정</button>
+    <button id="open-config-btn" class="btn-text"> API 설정</button>
   </div>
 </div>
 
@@ -46,55 +46,55 @@
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <span class="brand-icon">🔮</span>
+      <span class="brand-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18V5m0 13h16M8 14l4-4 3 2 5-7m-5 0h5v5"/></svg></span>
       <span class="brand-name">투챙이</span>
-      <button id="sidebar-toggle" class="btn-sidebar-toggle" title="메뉴 접기/열기">☰</button>
-      <button id="sidebar-close-btn" class="sidebar-close-btn" title="메뉴 닫기" style="display: none;">✕</button>
+      <button id="sidebar-toggle" class="btn-sidebar-toggle" title="메뉴 접기/열기" aria-label="메뉴 열기"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <button id="sidebar-close-btn" class="sidebar-close-btn" title="메뉴 닫기" style="display: none;" aria-label="닫기"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section">개요</div>
       <button class="nav-item active" data-tab="dashboard" id="nav-dashboard">
-        <span class="nav-icon">📊</span><span>대시보드</span>
+        <span class="nav-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18V5m0 13h16M8 14l4-4 3 2 5-7m-5 0h5v5"/></svg></span><span>대시보드</span>
       </button>
       <button class="nav-item" data-tab="assets" id="nav-assets">
-        <span class="nav-icon">💰</span><span>자산현황</span>
+        <span class="nav-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h14v4M3 9h18v12H3V9Zm12 4h6v4h-6v-4"/></svg></span><span>자산현황</span>
       </button>
 
       <div class="nav-section">보유 자산</div>
       <button class="nav-item" data-tab="realestate" id="nav-realestate">
-        <span class="nav-icon">🏠</span><span>부동산</span>
+        <span class="nav-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v12h14V9M9 21v-8h6v8"/></svg></span><span>부동산</span>
       </button>
       <button class="nav-item" data-tab="savings" id="nav-savings">
-        <span class="nav-icon">🏦</span><span>예적금</span>
+        <span class="nav-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h14v4M3 9h18v12H3V9Zm12 4h6v4h-6v-4"/></svg></span><span>예적금</span>
       </button>
       <button class="nav-item" data-tab="portfolio" id="nav-portfolio">
-        <span class="nav-icon">💼</span><span>주식</span>
+        <span class="nav-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h14v4M3 9h18v12H3V9Zm12 4h6v4h-6v-4"/></svg></span><span>주식</span>
       </button>
       <button class="nav-item" data-tab="pension" id="nav-pension">
-        <span class="nav-icon">🪙</span><span>연금저축</span>
+        <span class="nav-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h14v4M3 9h18v12H3V9Zm12 4h6v4h-6v-4"/></svg></span><span>연금저축</span>
       </button>
 
       <div class="nav-section">주식 매매</div>
       <button class="nav-item" data-tab="tradelog" id="nav-tradelog">
-        <span class="nav-icon">📋</span><span>주식 매매일지</span>
+        <span class="nav-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h12M8 12h12M8 19h12M4 5h.01M4 12h.01M4 19h.01"/></svg></span><span>주식 매매일지</span>
       </button>
       <button class="nav-item" data-tab="filter" id="nav-filter">
-        <span class="nav-icon">🚦</span><span>3단계 필터</span>
+        <span class="nav-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h12M8 12h12M8 19h12M4 5h.01M4 12h.01M4 19h.01"/></svg></span><span>3단계 필터</span>
       </button>
       <div class="nav-section">AI 분석</div>
       <button class="nav-item" data-tab="auto-analysis" id="nav-auto-analysis">
-        <span class="nav-icon">🤖</span><span>자동 투자 추천</span>
+        <span class="nav-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></svg></span><span>자동 투자 추천</span>
       </button>
       <button class="nav-item" data-tab="ai-news" id="nav-ai-news">
-        <span class="nav-icon">📺</span><span>AI 뉴스</span>
+        <span class="nav-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h12M8 12h12M8 19h12M4 5h.01M4 12h.01M4 19h.01"/></svg></span><span>AI 뉴스</span>
       </button>
       <button class="nav-item" data-tab="manual-analysis" id="nav-manual-analysis">
-        <span class="nav-icon">🔮</span><span>수동 AI 분석</span>
+        <span class="nav-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></svg></span><span>수동 AI 분석</span>
       </button>
 
       <div class="nav-section">시스템</div>
       <button class="nav-item" data-tab="settings" id="nav-settings">
-        <span class="nav-icon">⚙️</span><span>환경 설정</span>
+        <span class="nav-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6l1 4 4 1v7l-4 1-1 5H9l-1-5-4-1V8l4-1 1-4Zm3 6a3 3 0 1 0 0 6 3 3 0 0 0 0-6"/></svg></span><span>환경 설정</span>
       </button>
     </nav>
     <div class="sidebar-footer">
@@ -102,7 +102,7 @@
         <span class="user-avatar">🤍</span>
         <span id="user-name-sidebar">흰챙이</span>
       </div>
-      <button id="logout-btn" class="btn-logout" title="로그아웃">↩</button>
+      <button id="logout-btn" class="btn-logout" title="로그아웃" aria-label="로그아웃"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3H4v18h6m3-14 5 5-5 5m-5-5h13"/></svg></button>
     </div>
   </aside>
 
@@ -112,13 +112,13 @@
     <!-- TOPBAR -->
     <div class="topbar">
       <div class="topbar-left">
-        <button id="sidebar-toggle-btn" class="sidebar-toggle-btn" style="display: none;">☰</button>
+        <button id="sidebar-toggle-btn" class="sidebar-toggle-btn" style="display: none;" aria-label="메뉴 열기"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
         <h2 id="page-title" class="page-title">대시보드</h2>
         <span id="last-updated" class="last-updated"></span>
       </div>
       <div class="topbar-right">
-        <button id="sync-btn" class="btn-icon" title="데이터 새로고침">🔄</button>
-        <button id="setup-sheet-btn" class="btn-primary-sm">📋 시트 초기화</button>
+        <button id="sync-btn" class="btn-icon" title="데이터 새로고침" aria-label="새로고침"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5"/></svg></button>
+        <button id="setup-sheet-btn" class="btn-primary-sm"> 시트 초기화</button>
       </div>
     </div>
 
@@ -154,7 +154,7 @@
       <!-- 최근 분석 -->
       <div class="card">
         <div class="card-header">
-          <span class="card-title">🤖 최근 AI 분석</span>
+          <span class="card-title"> 최근 AI 분석</span>
           <button class="btn-text-sm" id="go-analysis-btn">전체 보기 →</button>
         </div>
         <div id="recent-analysis-list" class="analysis-list">
@@ -165,11 +165,11 @@
       <!-- AI 추천 종목 -->
       <div class="card" style="margin-top: 20px;">
         <div class="card-header">
-          <span class="card-title">🤖 최근 AI 추천 종목 <span id="dash-rec-time" style="color: var(--text-muted); font-weight: 400; font-size: 12px; margin-left: 6px;"></span></span>
+          <span class="card-title"> 최근 AI 추천 종목 <span id="dash-rec-time" style="color: var(--text-muted); font-weight: 400; font-size: 12px; margin-left: 6px;"></span></span>
           <button class="btn-text-sm" onclick="switchTab('auto-analysis')">자동 추천 →</button>
         </div>
         <div id="dash-rec-cards" style="padding-top: 6px;">
-          <div class="empty-state">🤖 "자동 투자 추천 → 지금 시장 분석하기"를 실행하면 추천 종목·이슈·3단계 필터가 카드로 표시됩니다.</div>
+          <div class="empty-state"> "자동 투자 추천 → 지금 시장 분석하기"를 실행하면 추천 종목·이슈·3단계 필터가 카드로 표시됩니다.</div>
         </div>
       </div>
     </div>
@@ -242,13 +242,13 @@
 
       <div class="card">
         <div class="card-header">
-          <span class="card-title">💼 보유 종목 현황</span>
+          <span class="card-title"> 보유 종목 현황</span>
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <a id="btn-open-sheet" class="btn-primary-sm" href="#" target="_blank" style="background:#10b981; border-color:#10b981; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600; padding:6px 12px; border-radius:6px; font-size:12px;">📊 구글 시트 열기</a>
-            <button id="btn-bulk-edit" class="btn-primary-sm hidden" style="background:#4f46e5; border-color:#4f46e5; font-weight:600;">✏️ 선택 수정</button>
-            <button id="btn-bulk-delete" class="btn-primary-sm hidden" style="background:#dc2626; border-color:#dc2626; font-weight:600;">🗑️ 선택 삭제</button>
-            <button id="apply-formulas-btn" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 실시간 주가 수식 반영</button>
-            <button id="restore-portfolio-btn" class="btn-primary-sm" style="background:#4b5563; border-color:#6b7280;">↩️ 직전 작업 취소 (원복)</button>
+            <a id="btn-open-sheet" class="btn-primary-sm" href="#" target="_blank" style="background:#10b981; border-color:#10b981; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600; padding:6px 12px; border-radius:6px; font-size:12px;"> 구글 시트 열기</a>
+            <button id="btn-bulk-edit" class="btn-primary-sm hidden" style="background:#4f46e5; border-color:#4f46e5; font-weight:600;"> 선택 수정</button>
+            <button id="btn-bulk-delete" class="btn-primary-sm hidden" style="background:#dc2626; border-color:#dc2626; font-weight:600;"> 선택 삭제</button>
+            <button id="apply-formulas-btn" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;"> 실시간 주가 수식 반영</button>
+            <button id="restore-portfolio-btn" class="btn-primary-sm" style="background:#4b5563; border-color:#6b7280;"> 직전 작업 취소 (원복)</button>
             <button id="add-holding-btn" class="btn-primary-sm">+ 종목 추가</button>
           </div>
         </div>
@@ -349,13 +349,13 @@
 
       <div class="card">
         <div class="card-header">
-          <span class="card-title">🪙 연금저축 보유 종목 현황</span>
+          <span class="card-title"> 연금저축 보유 종목 현황</span>
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <a id="btn-open-sheet-pension" class="btn-primary-sm" href="#" target="_blank" style="background:#10b981; border-color:#10b981; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600; padding:6px 12px; border-radius:6px; font-size:12px;">📊 구글 시트 열기</a>
-            <button id="btn-bulk-edit-pension" class="btn-primary-sm hidden" style="background:#4f46e5; border-color:#4f46e5; font-weight:600;">✏️ 선택 수정</button>
-            <button id="btn-bulk-delete-pension" class="btn-primary-sm hidden" style="background:#dc2626; border-color:#dc2626; font-weight:600;">🗑️ 선택 삭제</button>
-            <button id="apply-formulas-pension-btn" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 실시간 주가 수식 반영</button>
-            <button id="restore-pension-btn" class="btn-primary-sm" style="background:#4b5563; border-color:#6b7280;">↩️ 직전 작업 취소 (원복)</button>
+            <a id="btn-open-sheet-pension" class="btn-primary-sm" href="#" target="_blank" style="background:#10b981; border-color:#10b981; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600; padding:6px 12px; border-radius:6px; font-size:12px;"> 구글 시트 열기</a>
+            <button id="btn-bulk-edit-pension" class="btn-primary-sm hidden" style="background:#4f46e5; border-color:#4f46e5; font-weight:600;"> 선택 수정</button>
+            <button id="btn-bulk-delete-pension" class="btn-primary-sm hidden" style="background:#dc2626; border-color:#dc2626; font-weight:600;"> 선택 삭제</button>
+            <button id="apply-formulas-pension-btn" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;"> 실시간 주가 수식 반영</button>
+            <button id="restore-pension-btn" class="btn-primary-sm" style="background:#4b5563; border-color:#6b7280;"> 직전 작업 취소 (원복)</button>
             <button id="add-pension-btn" class="btn-primary-sm">+ 종목 추가</button>
           </div>
         </div>
@@ -407,12 +407,12 @@
 
       <div class="card">
         <div class="card-header">
-          <span class="card-title">💵 예적금 보유 현황</span>
+          <span class="card-title"> 예적금 보유 현황</span>
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <a id="btn-savings-open-sheet" class="btn-primary-sm" href="#" target="_blank" style="background:#10b981; border-color:#10b981; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600; padding:6px 12px; border-radius:6px; font-size:12px;">📊 구글 시트 열기</a>
-            <button id="btn-savings-bulk-edit" class="btn-primary-sm hidden" style="background:#4f46e5; border-color:#4f46e5; font-weight:600;">✏️ 선택 수정</button>
-            <button id="btn-savings-bulk-delete" class="btn-primary-sm hidden" style="background:#dc2626; border-color:#dc2626; font-weight:600;">🗑️ 선택 삭제</button>
-            <button id="restore-savings-btn" class="btn-primary-sm" style="background:#4b5563; border-color:#6b7280;">↩️ 직전 작업 취소 (원복)</button>
+            <a id="btn-savings-open-sheet" class="btn-primary-sm" href="#" target="_blank" style="background:#10b981; border-color:#10b981; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600; padding:6px 12px; border-radius:6px; font-size:12px;"> 구글 시트 열기</a>
+            <button id="btn-savings-bulk-edit" class="btn-primary-sm hidden" style="background:#4f46e5; border-color:#4f46e5; font-weight:600;"> 선택 수정</button>
+            <button id="btn-savings-bulk-delete" class="btn-primary-sm hidden" style="background:#dc2626; border-color:#dc2626; font-weight:600;"> 선택 삭제</button>
+            <button id="restore-savings-btn" class="btn-primary-sm" style="background:#4b5563; border-color:#6b7280;"> 직전 작업 취소 (원복)</button>
             <button id="add-savings-btn" class="btn-primary-sm">+ 예적금 추가</button>
           </div>
         </div>
@@ -444,7 +444,7 @@
       </div>
       <div class="card" style="margin-top: 20px;">
         <div class="card-header">
-          <span class="card-title">🏦 보유 계좌</span>
+          <span class="card-title"> 보유 계좌</span>
           <span class="card-desc" style="color: var(--text-muted); font-size: 13px;">가챙이 카드 계좌 리스트의 보유 계좌를 연동합니다.</span>
         </div>
         <div class="table-wrap">
@@ -496,9 +496,9 @@
 
       <div class="card">
         <div class="card-header">
-          <span class="card-title">🏠 부동산 보유 현황</span>
+          <span class="card-title"> 부동산 보유 현황</span>
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <a id="btn-realestate-open-sheet" class="btn-primary-sm" href="#" target="_blank" style="background:#10b981; border-color:#10b981; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600; padding:6px 12px; border-radius:6px; font-size:12px;">📊 구글 시트 열기</a>
+            <a id="btn-realestate-open-sheet" class="btn-primary-sm" href="#" target="_blank" style="background:#10b981; border-color:#10b981; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600; padding:6px 12px; border-radius:6px; font-size:12px;"> 구글 시트 열기</a>
             <button id="add-realestate-btn" class="btn-primary-sm">+ 부동산 추가</button>
           </div>
         </div>
@@ -546,7 +546,7 @@
         <div class="filter-card" id="filter-card-1">
           <div class="filter-number">1</div>
           <div class="filter-body">
-            <h3 class="filter-title">🌍 시장 흐름</h3>
+            <h3 class="filter-title"> 시장 흐름</h3>
             <p class="filter-desc">글로벌/국내 시장 전반의 추세 확인</p>
             <div class="signal-display" id="signal-1">
               <span class="signal-dot gray"></span>
@@ -564,7 +564,7 @@
         <div class="filter-card" id="filter-card-2">
           <div class="filter-number">2</div>
           <div class="filter-body">
-            <h3 class="filter-title">🏭 섹터 흐름</h3>
+            <h3 class="filter-title"> 섹터 흐름</h3>
             <p class="filter-desc">관심 섹터의 상대 강도 확인</p>
             <div class="signal-display" id="signal-2">
               <span class="signal-dot gray"></span>
@@ -582,7 +582,7 @@
         <div class="filter-card" id="filter-card-3">
           <div class="filter-number">3</div>
           <div class="filter-body">
-            <h3 class="filter-title">📈 개별 종목</h3>
+            <h3 class="filter-title"> 개별 종목</h3>
             <p class="filter-desc">매수 대상 종목의 기술적/펀더멘탈 확인</p>
             <div class="signal-display" id="signal-3">
               <span class="signal-dot gray"></span>
@@ -607,7 +607,7 @@
       <!-- AI 추천 중 3단계(시장·섹터·종목) 모두 통과한 종목 -->
       <div class="card" style="margin-top: 20px;">
         <div class="card-header">
-          <span class="card-title">✅ AI 추천 · 3단계 모두 통과 종목</span>
+          <span class="card-title"> AI 추천 · 3단계 모두 통과 종목</span>
           <button class="btn-text-sm" onclick="switchTab('auto-analysis')">자동 추천 →</button>
         </div>
         <div id="filter-passed-cards" style="padding-top: 6px;">
@@ -620,7 +620,7 @@
     <div id="tab-tradelog" class="tab-panel hidden">
       <div class="card">
         <div class="card-header">
-          <span class="card-title">📋 주식 매매일지</span>
+          <span class="card-title"> 주식 매매일지</span>
           <button id="add-trade-btn" class="btn-primary-sm">+ 매매 기록</button>
         </div>
         <div class="table-wrap">
@@ -646,7 +646,7 @@
         <div class="auto-rec-card" id="auto-rec-card">
           <div class="auto-rec-header">
             <div class="auto-rec-title">
-              🤖 자동 투자 추천
+               자동 투자 추천
               <span class="auto-rec-badge">AI POWERED</span>
             </div>
             <div style="display:flex; align-items:center; gap:12px;">
@@ -654,7 +654,7 @@
                 <span id="auto-rec-generated-at" style="display:none;"></span>
               </div>
               <button id="btn-auto-recommend" class="btn-auto-recommend">
-                ✨ 지금 시장 분석하기
+                 지금 시장 분석하기
               </button>
               <button id="btn-auto-recommend-kospi" class="btn-auto-recommend" style="background: linear-gradient(135deg, #2563eb, #1d4ed8);">
                 🇰🇷 코스피 분석하기
@@ -667,7 +667,7 @@
               <div class="empty-icon">🔮</div>
               <div><strong>버튼을 누르면 Gemini가 지금 시장을 자동 분석합니다</strong></div>
               <div style="margin-top:8px; font-size:13px; line-height:1.7;">
-                📰 최신 뉴스 · 📺 유튜브 구독 채널 여론을 통합하여<br>
+                 최신 뉴스 ·  유튜브 구독 채널 여론을 통합하여<br>
                 흰챙이 가족 3단계 필터에 맞는 종목을 자동 발굴합니다
               </div>
             </div>
@@ -684,7 +684,7 @@
             <div id="auto-rec-result" class="auto-rec-result hidden"></div>
             <!-- 출처 -->
             <div id="auto-rec-sources-wrap" class="auto-rec-sources hidden">
-              <div class="auto-rec-sources-title">🔍 실시간 검색 참고 출처</div>
+              <div class="auto-rec-sources-title"> 실시간 검색 참고 출처</div>
               <div id="auto-rec-source-chips" class="auto-rec-source-chips"></div>
             </div>
           </div>
@@ -693,8 +693,8 @@
         <!-- 추천 히스토리 (구글 시트 'AI추천기록') -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">📚 자동 추천 히스토리</span>
-            <button id="btn-refresh-rec-history" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 새로고침</button>
+            <span class="card-title"> 자동 추천 히스토리</span>
+            <button id="btn-refresh-rec-history" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;"> 새로고침</button>
           </div>
           <div id="rec-history-list" class="analysis-list">
             <div class="empty-state">저장된 자동 추천 기록이 없습니다. (자동 추천을 실행하면 구글 시트 'AI추천기록'에 쌓입니다)</div>
@@ -709,8 +709,8 @@
         <!-- 📺 경제 영상 AI 요약 카드 -->
         <div class="card youtube-feed-card">
           <div class="card-header">
-            <span class="card-title">📺 경제 영상 AI 요약</span>
-            <button id="btn-refresh-youtube" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 요약 받기</button>
+            <span class="card-title"> 경제 영상 AI 요약</span>
+            <button id="btn-refresh-youtube" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;"> 요약 받기</button>
           </div>
           <div class="youtube-feed-body" style="padding-top: 15px;">
             <div id="youtube-feed-loading" class="youtube-feed-spinner hidden" style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 30px; color: var(--text-muted);">
@@ -718,7 +718,7 @@
               <span>유튜브 피드를 가져오는 중...</span>
             </div>
             <div id="youtube-feed-list" class="youtube-feed-list">
-              <div class="empty-state">🔄 "요약 받기"를 누르면 AI가 최근 경제·투자 유튜브 핵심을 실시간 검색해 요약합니다.</div>
+              <div class="empty-state"> "요약 받기"를 누르면 AI가 최근 경제·투자 유튜브 핵심을 실시간 검색해 요약합니다.</div>
             </div>
           </div>
         </div>
@@ -726,8 +726,8 @@
         <!-- 요약 히스토리 (구글 시트 '영상요약기록') -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">📚 요약 히스토리</span>
-            <button id="btn-refresh-news-history" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 새로고침</button>
+            <span class="card-title"> 요약 히스토리</span>
+            <button id="btn-refresh-news-history" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;"> 새로고침</button>
           </div>
           <div id="news-history-list" class="analysis-list">
             <div class="empty-state">저장된 요약 기록이 없습니다. ("요약 받기"를 실행하면 구글 시트 '영상요약기록'에 쌓입니다)</div>
@@ -742,7 +742,7 @@
         <!-- 분석 실행 패널 -->
         <div class="card analysis-input-card">
           <div class="card-header">
-            <span class="card-title">🤖 Gemini AI 투자 분석 (수동)</span>
+            <span class="card-title"> Gemini AI 투자 분석 (수동)</span>
           </div>
           <div class="analysis-input-area">
             <label class="input-label">분석할 종목 또는 내용 입력</label>
@@ -752,13 +752,13 @@
             <!-- 🖼️ 사진 첨부 (차트/계좌/기사 캡처 등) -->
             <input type="file" id="analysis-image-input" accept="image/*" multiple hidden>
             <div class="analysis-attach-row">
-              <button type="button" id="attach-image-btn" class="btn-attach-image">🖼️ 사진 첨부</button>
+              <button type="button" id="attach-image-btn" class="btn-attach-image"> 사진 첨부</button>
               <span class="attach-hint">차트·계좌·기사 캡처 등 이미지를 함께 분석 (최대 4장)</span>
             </div>
             <div id="analysis-image-preview" class="analysis-image-preview"></div>
 
             <button id="run-analysis-btn" class="btn-analyze">
-              <span id="analyze-btn-text">🔮 AI 분석 실행</span>
+              <span id="analyze-btn-text"> AI 분석 실행</span>
             </button>
           </div>
         </div>
@@ -767,7 +767,7 @@
         <div class="card analysis-result-card">
           <div class="card-header">
             <span class="card-title">분석 결과</span>
-            <button id="save-analysis-btn" class="btn-text-sm hidden">💾 시트에 저장</button>
+            <button id="save-analysis-btn" class="btn-text-sm hidden"> 시트에 저장</button>
           </div>
           <div id="analysis-result" class="analysis-result">
             <div class="empty-state">분석을 실행하면 결과가 표시됩니다</div>
@@ -775,7 +775,7 @@
           <!-- 🔍 실시간 구글 검색 참고 출처 -->
           <div id="analysis-sources-container" class="hidden" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); font-size: 13px;">
             <div style="font-weight: 600; color: var(--accent-orange); display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
-              🔍 구글 실시간 검색 참고 출처
+               구글 실시간 검색 참고 출처
             </div>
             <div id="analysis-sources" style="display: flex; flex-wrap: wrap; gap: 8px;">
             </div>
@@ -785,7 +785,7 @@
         <!-- 분석 히스토리 -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">📚 분석 히스토리</span>
+            <span class="card-title"> 분석 히스토리</span>
           </div>
           <div id="analysis-history-list" class="analysis-list">
             <div class="empty-state">저장된 분석이 없습니다</div>
@@ -870,13 +870,13 @@
       <!-- 자산 상세 관리 및 동기화 -->
       <div class="card">
         <div class="card-header">
-          <span class="card-title">💰 월별 자산 스냅샷 (기록)</span>
+          <span class="card-title"> 월별 자산 스냅샷 (기록)</span>
           <div style="display: flex; gap: 8px; align-items: center;">
             <select id="asset-month-select" class="month-selector-sm" style="background:#1f2937; border:1px solid #374151; color:#f3f4f6; border-radius:4px; padding:4px 8px; font-family:Outfit; font-size:13px; outline:none; cursor:pointer;">
               <!-- JS로 연/월 옵션 생성 -->
             </select>
-            <button id="sync-portfolio-asset-btn" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;">🔄 포트폴리오 주식 동기화</button>
-            <button id="asset-backfill-btn" class="btn-primary-sm" style="background:#4f46e5; border-color:#4f46e5;">📅 과거 월별 입력</button>
+            <button id="sync-portfolio-asset-btn" class="btn-primary-sm" style="background:#374151; border-color:#4b5563;"> 포트폴리오 주식 동기화</button>
+            <button id="asset-backfill-btn" class="btn-primary-sm" style="background:#4f46e5; border-color:#4f46e5;"> 과거 월별 입력</button>
             <button id="add-asset-btn" class="btn-primary-sm">+ 자산 추가</button>
           </div>
         </div>
@@ -898,15 +898,15 @@
     <!-- ── 환경 설정 탭 ── -->
     <div id="tab-settings" class="tab-panel hidden">
       <div style="display: flex; flex-direction: column; gap: 20px; max-width: 800px; margin: 0 auto;">
-        
+
         <!-- Google API 설정 카드 -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">🔑 Google API 및 OAuth 설정</span>
+            <span class="card-title"> Google API 및 OAuth 설정</span>
           </div>
           <div class="card-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px;">
             <div style="background: rgba(139, 92, 246, 0.1); border-left: 4px solid var(--accent-purple); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
-              💡 GitHub Pages에 배포하여 사용할 때, API 키 유출을 방지하기 위해 개인 API 자격증명 정보를 안전하게 브라우저 로컬 저장소에 저장하여 사용합니다.
+               GitHub Pages에 배포하여 사용할 때, API 키 유출을 방지하기 위해 개인 API 자격증명 정보를 안전하게 브라우저 로컬 저장소에 저장하여 사용합니다.
             </div>
             <div class="form-group">
               <label>Google OAuth Client ID</label>
@@ -922,7 +922,7 @@
         <!-- Google Sheets & Drive 설정 카드 -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">📁 Google Sheets & Drive 연동 설정</span>
+            <span class="card-title"> Google Sheets & Drive 연동 설정</span>
           </div>
           <div class="card-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px;">
             <div class="form-row">
@@ -951,7 +951,7 @@
         <!-- Gemini AI 설정 카드 -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">🔮 AI 분석 설정 (Gemini / GPT)</span>
+            <span class="card-title"> AI 분석 설정 (Gemini / GPT)</span>
           </div>
           <div class="card-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px;">
             <div class="form-group">
@@ -971,12 +971,12 @@
                 <span style="font-size: 12px; color: #cbd5e1; line-height: 1.5;">
                   <b>Gemini를 OAuth(구글 로그인)로 호출</b> — 키를 브라우저에 안 둬도 됨.<br/>
                   <span style="color:#94a3b8;">체크 시 로그인 권한(SCOPES)에 <code>cloud-platform</code>이 추가됩니다. 이 기기뿐 아니라 <b>다른 기기에서도 이 설정을 불러오면 동일하게 적용</b>됩니다(config.js 불필요).<br/>
-                  ⚠️ 먼저 GCP에서 ① Generative Language API 활성화 ② 동의화면에 <code>cloud-platform</code> scope 등록을 끝내세요. 저장 후 <b>로그아웃→다시 로그인</b>해야 새 권한이 토큰에 반영됩니다. 준비 전이라도 켜두면 OAuth 시도 후 키로 자동 폴백되어 안전합니다.</span>
+                   먼저 GCP에서 ① Generative Language API 활성화 ② 동의화면에 <code>cloud-platform</code> scope 등록을 끝내세요. 저장 후 <b>로그아웃→다시 로그인</b>해야 새 권한이 토큰에 반영됩니다. 준비 전이라도 켜두면 OAuth 시도 후 키로 자동 폴백되어 안전합니다.</span>
                 </span>
               </label>
             </div>
             <div class="form-group">
-              <button type="button" id="btn-load-gemini-models" class="btn-cancel" style="background:#374151; color:#f3f4f6; padding:8px 14px;">🔄 사용 가능한 모델 불러오기</button>
+              <button type="button" id="btn-load-gemini-models" class="btn-cancel" style="background:#374151; color:#f3f4f6; padding:8px 14px;"> 사용 가능한 모델 불러오기</button>
               <span id="gemini-models-status" style="margin-left:10px; font-size:12px; color:#94a3b8;"></span>
               <div style="margin-top:6px; font-size:12px; color:#64748b; line-height:1.5;">
                 현재 인증(OAuth 또는 키)으로 <b>실제 호출 가능한 모델</b>을 가져와 아래 드롭다운 맨 위 '내 계정 사용 가능 모델' 그룹에 채웁니다. 거기서 골라 저장하세요.
@@ -1043,7 +1043,7 @@
         <!-- 🎯 투자 운용 원칙 및 필터 전략 설정 카드 -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">🎯 투자 운용 원칙 및 필터 전략 설정 (Strategy Context)</span>
+            <span class="card-title"> 투자 운용 원칙 및 필터 전략 설정 (Strategy Context)</span>
           </div>
           <div class="card-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 12px;">
             <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
@@ -1058,7 +1058,7 @@
         <!-- 📺 YouTube RSS 구독 채널 설정 카드 -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">📺 YouTube RSS 구독 채널 설정</span>
+            <span class="card-title"> YouTube RSS 구독 채널 설정</span>
           </div>
           <div class="card-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px;">
             <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
@@ -1066,7 +1066,7 @@
             </div>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
               <input type="text" id="youtube-channel-resolve-input" placeholder="유튜브 채널 URL 또는 핸들 (예: @syukaworld)" style="flex: 1; min-width: 280px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-primary); padding: 10px 12px; border-radius: 8px; font-size: 14px;" />
-              <button id="btn-add-youtube-channel" class="btn-primary" style="padding: 10px 20px; font-size: 14px; border-radius: 8px; background: var(--accent-purple); border-color: var(--accent-purple); white-space: nowrap;">➕ 채널 추가</button>
+              <button id="btn-add-youtube-channel" class="btn-primary" style="padding: 10px 20px; font-size: 14px; border-radius: 8px; background: var(--accent-purple); border-color: var(--accent-purple); white-space: nowrap;"> 채널 추가</button>
             </div>
             <div style="border-top: 1px solid var(--border); padding-top: 15px;">
               <label style="font-weight: 600; margin-bottom: 8px; display: block;">현재 구독 중인 채널 목록</label>
@@ -1080,24 +1080,24 @@
         <!-- 설정 내보내기/가져오기 카드 -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">🔄 설정 내보내기 & 가져오기</span>
+            <span class="card-title"> 설정 내보내기 & 가져오기</span>
           </div>
           <div class="card-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px;">
             <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid var(--accent-orange); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
-              💡 다른 기기(회사, 집, 모바일 등)에서 이 설정을 그대로 쓰시려면 아래의 **설정 토큰**을 복사하여 다른 기기에서 붙여넣고 가져오기를 진행해 주세요.
+               다른 기기(회사, 집, 모바일 등)에서 이 설정을 그대로 쓰시려면 아래의 **설정 토큰**을 복사하여 다른 기기에서 붙여넣고 가져오기를 진행해 주세요.
             </div>
             <div class="form-group">
               <label>현재 설정 토큰 (복사해서 다른 기기에 붙여넣으세요)</label>
               <div style="display: flex; gap: 8px;">
                 <input type="text" id="setting-export-token" readonly style="flex: 1; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-muted); padding: 10px 12px; border-radius: 8px; font-size: 14px; box-sizing: border-box;" onclick="this.select()" />
-                <button id="btn-copy-settings-token" class="btn-primary" style="background: var(--bg-elevated); border-color: var(--border); color: var(--text-primary); padding: 10px 16px; font-size: 13px; white-space: nowrap; border-radius: 8px;">📋 복사</button>
+                <button id="btn-copy-settings-token" class="btn-primary" style="background: var(--bg-elevated); border-color: var(--border); color: var(--text-primary); padding: 10px 16px; font-size: 13px; white-space: nowrap; border-radius: 8px;"> 복사</button>
               </div>
             </div>
             <div class="form-group" style="margin-top: 8px;">
               <label>설정 토큰 가져오기 (다른 기기에서 복사한 토큰 붙여넣기)</label>
               <div style="display: flex; gap: 8px;">
                 <input type="text" id="setting-import-token" placeholder="여기에 설정 토큰을 붙여넣으세요" style="flex: 1; box-sizing: border-box; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-primary); padding: 10px 12px; border-radius: 8px; font-size: 14px;" />
-                <button id="btn-import-settings-token" class="btn-primary" style="background: var(--accent-orange); border-color: var(--accent-orange); padding: 10px 16px; font-size: 13px; white-space: nowrap; border-radius: 8px;">📥 가져오기</button>
+                <button id="btn-import-settings-token" class="btn-primary" style="background: var(--accent-orange); border-color: var(--accent-orange); padding: 10px 16px; font-size: 13px; white-space: nowrap; border-radius: 8px;"> 가져오기</button>
               </div>
             </div>
           </div>
@@ -1106,7 +1106,7 @@
         <!-- 저장 버튼 -->
         <div style="display: flex; gap: 10px; justify-content: flex-end; margin-bottom: 30px;">
           <button id="btn-reset-settings" class="btn-cancel" style="background:#374151; color:#f3f4f6;">설정 초기화</button>
-          <button id="btn-save-settings" class="btn-primary" style="background: var(--accent-purple); border-color: var(--accent-purple);">💾 설정 저장 & 적용</button>
+          <button id="btn-save-settings" class="btn-primary" style="background: var(--accent-purple); border-color: var(--accent-purple);"> 설정 저장 & 적용</button>
         </div>
 
       </div>
@@ -1119,17 +1119,17 @@
 <div id="modal-asset-backfill" class="modal-overlay hidden">
   <div class="modal" style="max-width: 660px;">
     <div class="modal-header">
-      <h3>📅 과거 월별 스냅샷 입력</h3>
-      <button class="modal-close" data-modal="modal-asset-backfill">✕</button>
+      <h3> 과거 월별 스냅샷 입력</h3>
+      <button class="modal-close" data-modal="modal-asset-backfill" aria-label="닫기"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
     </div>
     <div class="modal-body">
       <div style="background: rgba(59,130,246,0.1); border-left: 4px solid var(--accent-blue); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 14px;">
-        💡 각 월의 <strong>주식 평가액</strong>과 <strong>부동산 시세</strong>만 입력하면, 현금(예적금)과 부채(부동산 대출)는 <strong>자동 계산</strong>되어 순자산 추이에 반영됩니다. 빈 행은 저장되지 않습니다. (이미 입력한 월은 덮어씁니다)
+         각 월의 <strong>주식 평가액</strong>과 <strong>부동산 시세</strong>만 입력하면, 현금(예적금)과 부채(부동산 대출)는 <strong>자동 계산</strong>되어 순자산 추이에 반영됩니다. 빈 행은 저장되지 않습니다. (이미 입력한 월은 덮어씁니다)
       </div>
       <div style="margin-bottom: 14px;">
-        <label style="font-size: 12px; color: var(--text-muted); display:block; margin-bottom:6px;">📋 일괄 붙여넣기 <span style="font-weight:400;">— 한 줄에 <code>YYYY-MM 부동산금액</code> (주식도 있으면 <code>YYYY-MM 주식 부동산</code>) 형식으로 붙여넣고 채우기 버튼</span></label>
+        <label style="font-size: 12px; color: var(--text-muted); display:block; margin-bottom:6px;"> 일괄 붙여넣기 <span style="font-weight:400;">— 한 줄에 <code>YYYY-MM 부동산금액</code> (주식도 있으면 <code>YYYY-MM 주식 부동산</code>) 형식으로 붙여넣고 채우기 버튼</span></label>
         <textarea id="asset-backfill-paste" rows="4" placeholder="예)&#10;2025-01 822000000&#10;2025-03 802000000" style="width:100%; box-sizing:border-box; background:var(--bg-surface); border:1px solid var(--border); color:var(--text-primary); padding:8px 10px; border-radius:6px; font-family:monospace; font-size:12px; resize:vertical;"></textarea>
-        <button id="asset-backfill-paste-btn" class="btn-primary-sm" style="margin-top:8px; background:#4f46e5; border-color:#4f46e5;">📋 붙여넣기로 표 채우기</button>
+        <button id="asset-backfill-paste-btn" class="btn-primary-sm" style="margin-top:8px; background:#4f46e5; border-color:#4f46e5;"> 붙여넣기로 표 채우기</button>
       </div>
       <div class="table-wrap" style="max-height: 52vh; overflow-y: auto;">
         <table class="data-table">
@@ -1152,7 +1152,7 @@
   <div class="modal">
     <div class="modal-header">
       <h3 id="asset-modal-title">자산 추가</h3>
-      <button class="modal-close" data-modal="modal-asset">✕</button>
+      <button class="modal-close" data-modal="modal-asset" aria-label="닫기"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="input-asset-row-index" />
@@ -1273,7 +1273,7 @@
   <div class="modal">
     <div class="modal-header">
       <h3>종목 추가</h3>
-      <button class="modal-close" data-modal="modal-holding">✕</button>
+      <button class="modal-close" data-modal="modal-holding" aria-label="닫기"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="input-stock-row-index" />
@@ -1334,7 +1334,7 @@
   <div class="modal">
     <div class="modal-header">
       <h3>종목 추가</h3>
-      <button class="modal-close" data-modal="modal-pension">✕</button>
+      <button class="modal-close" data-modal="modal-pension" aria-label="닫기"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="input-pension-row-index" />
@@ -1395,7 +1395,7 @@
   <div class="modal">
     <div class="modal-header">
       <h3>매매 기록 추가</h3>
-      <button class="modal-close" data-modal="modal-trade">✕</button>
+      <button class="modal-close" data-modal="modal-trade" aria-label="닫기"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
     </div>
     <div class="modal-body">
       <div class="form-row">
@@ -1465,11 +1465,11 @@
   <div class="modal" style="max-width: 800px; width: 90vw;">
     <div class="modal-header">
       <h3>보유 종목 다중 수정</h3>
-      <button class="modal-close" data-modal="modal-bulk-edit-portfolio">✕</button>
+      <button class="modal-close" data-modal="modal-bulk-edit-portfolio" aria-label="닫기"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
     </div>
     <div class="modal-body" style="padding: 20px 24px;">
       <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 15px;">
-        💡 선택한 종목들의 수량, 평균단가, 보유 계좌 정보를 한 번에 수정할 수 있습니다.
+         선택한 종목들의 수량, 평균단가, 보유 계좌 정보를 한 번에 수정할 수 있습니다.
       </div>
       <div class="table-wrap" style="max-height: 300px; overflow-y: auto;">
         <table class="data-table">
@@ -1500,11 +1500,11 @@
   <div class="modal" style="max-width: 800px; width: 90vw;">
     <div class="modal-header">
       <h3>연금저축 보유 종목 다중 수정</h3>
-      <button class="modal-close" data-modal="modal-bulk-edit-pension">✕</button>
+      <button class="modal-close" data-modal="modal-bulk-edit-pension" aria-label="닫기"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
     </div>
     <div class="modal-body" style="padding: 20px 24px;">
       <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 15px;">
-        💡 선택한 종목들의 수량, 평균단가, 보유 계좌 정보를 한 번에 수정할 수 있습니다.
+         선택한 종목들의 수량, 평균단가, 보유 계좌 정보를 한 번에 수정할 수 있습니다.
       </div>
       <div class="table-wrap" style="max-height: 300px; overflow-y: auto;">
         <table class="data-table">
@@ -1535,7 +1535,7 @@
   <div class="modal">
     <div class="modal-header">
       <h3 id="savings-modal-title">예적금 추가</h3>
-      <button class="modal-close" data-modal="modal-savings-add-edit">✕</button>
+      <button class="modal-close" data-modal="modal-savings-add-edit" aria-label="닫기"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="input-savings-row-index" />
@@ -1595,7 +1595,7 @@
         </div>
       </div>
       <div class="form-group" style="border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px;">
-        <label style="color: var(--accent-green);">💰 자동 납입(누적) 설정 <span style="color: var(--text-muted); font-weight: 400; font-size: 12px;">— 매월 기준일마다 잔액이 자동으로 늘어납니다 (만기일까지)</span></label>
+        <label style="color: var(--accent-green);"> 자동 납입(누적) 설정 <span style="color: var(--text-muted); font-weight: 400; font-size: 12px;">— 매월 기준일마다 잔액이 자동으로 늘어납니다 (만기일까지)</span></label>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -1628,11 +1628,11 @@
   <div class="modal" style="max-width: 800px; width: 90vw;">
     <div class="modal-header">
       <h3>예적금 다중 수정</h3>
-      <button class="modal-close" data-modal="modal-savings-bulk-edit">✕</button>
+      <button class="modal-close" data-modal="modal-savings-bulk-edit" aria-label="닫기"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
     </div>
     <div class="modal-body" style="padding: 20px 24px;">
       <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); padding: 12px; border-radius: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 15px;">
-        💡 선택한 예적금의 잔액, 금리, 자산용도 정보를 한 번에 수정할 수 있습니다.
+         선택한 예적금의 잔액, 금리, 자산용도 정보를 한 번에 수정할 수 있습니다.
       </div>
       <div class="table-wrap" style="max-height: 300px; overflow-y: auto;">
         <table class="data-table">
@@ -1664,7 +1664,7 @@
   <div class="modal">
     <div class="modal-header">
       <h3 id="realestate-modal-title">부동산 추가</h3>
-      <button class="modal-close" data-modal="modal-realestate-add-edit">✕</button>
+      <button class="modal-close" data-modal="modal-realestate-add-edit" aria-label="닫기"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="input-realestate-row-index" />
@@ -1912,5 +1912,5 @@
 <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="alert('⚠️ 구글 API 스크립트(api.js) 로드 실패!\n네트워크 연결 상태나 차단 프로그램을 확인하세요.')"></script>
 <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="alert('⚠️ 구글 인증 스크립트(gsi/client) 로드 실패!\n광고 차단 프로그램(Adblock, Brave Shields 등)이 작동 중이거나 스크립트가 차단되었는지 확인해 주세요.')"></script>
 
-</body>
+<script src="/shared/shell.js"></script><script src="/shared/ui.js"></script></body>
 </html>

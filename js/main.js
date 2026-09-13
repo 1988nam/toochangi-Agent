@@ -1227,7 +1227,7 @@ function _videoFeedHtml(text, sources, metaLine) {
   const srcHtml = (sources && sources.length)
     ? `<div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:6px;">${sources.slice(0, 8).map(s => `<a href="${escapeHtml(s.url)}" target="_blank" class="source-link" title="${escapeHtml(s.title)}">🔗 <span>${escapeHtml(s.title)}</span></a>`).join('')}</div>`
     : '';
-  const metaHtml = metaLine ? `<div style="margin-top:8px;font-size:11px;color:#64748b;">${metaLine}</div>` : '';
+  const metaHtml = metaLine ? `<div style="margin-top:8px;font-size:11px;color:#647267;">${metaLine}</div>` : '';
   return `${body}${srcHtml}${metaHtml}`;
 }
 
@@ -1385,7 +1385,7 @@ async function renderAutoRecHistory() {
 
   const verdictBadge = (v) => v === '매수'
     ? `<span class="badge-buy">매수</span>`
-    : `<span style="display:inline-block; padding:1px 7px; border-radius:8px; font-size:11px; font-weight:600; background:rgba(148,163,184,.18); color:#94a3b8;">${esc(v || '대기')}</span>`;
+    : `<span style="display:inline-block; padding:1px 7px; border-radius:8px; font-size:11px; font-weight:600; background:rgba(148,163,184,.18); color:#647267;">${esc(v || '대기')}</span>`;
   const chipStyle = 'display:inline-flex; align-items:center; gap:5px; background:var(--bg-surface); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:12px;';
 
   listEl.innerHTML = history.map(rec => {
@@ -1561,7 +1561,7 @@ function bindManualAnalysisEvents() {
       const ml = aiModelLabel(result);
       if (ml) {
         const mb = document.createElement('div');
-        mb.style.cssText = 'margin-top:10px;font-size:11px;color:#64748b;';
+        mb.style.cssText = 'margin-top:10px;font-size:11px;color:#647267;';
         mb.textContent = ml;
         resultEl.appendChild(mb);
       }
@@ -2484,11 +2484,11 @@ function renderGeminiAuthBadge() {
   let line1;
   if (s.needsRelogin) {
     line1 = chip('🔄 재로그인 필요', '#92400e', 'rgba(245,158,11,0.18)')
-      + ' <span style="color:#94a3b8;">— scope는 설정됐지만 현재 토큰엔 미반영 (지금은 키로 폴백 중)</span>';
+      + ' <span style="color:#647267;">— scope는 설정됐지만 현재 토큰엔 미반영 (지금은 키로 폴백 중)</span>';
   } else if (s.lastUsed === 'oauth') {
-    line1 = chip('🔓 OAuth로 호출 중', '#065f46', 'rgba(16,185,129,0.18)') + ' <span style="color:#94a3b8;">— 키 없이 구글 로그인 토큰 사용</span>';
+    line1 = chip('🔓 OAuth로 호출 중', '#065f46', 'rgba(16,185,129,0.18)') + ' <span style="color:#647267;">— 키 없이 구글 로그인 토큰 사용</span>';
   } else if (s.lastUsed === 'key') {
-    line1 = chip('🔑 API 키로 호출 중', '#92400e', 'rgba(245,158,11,0.18)') + ' <span style="color:#94a3b8;">— 브라우저에 키 저장됨</span>';
+    line1 = chip('🔑 API 키로 호출 중', '#92400e', 'rgba(245,158,11,0.18)') + ' <span style="color:#647267;">— 브라우저에 키 저장됨</span>';
   } else {
     // 아직 호출 전 → 예상 경로
     const map = {
@@ -2499,12 +2499,12 @@ function renderGeminiAuthBadge() {
       none: [chip('⚠️ 인증 없음', '#991b1b', 'rgba(239,68,68,0.18)'), '키도 토큰도 없음'],
     };
     const m = map[s.expected] || map.none;
-    line1 = m[0] + ` <span style="color:#94a3b8;">— ${m[1]} (호출 시 확정)</span>`;
+    line1 = m[0] + ` <span style="color:#647267;">— ${m[1]} (호출 시 확정)</span>`;
   }
 
   // 상태 상세: config scope와 '토큰 실제 반영'을 구분 표시
-  const ok = (b) => b ? '<span style="color:#10b981;">●</span>' : '<span style="color:#64748b;">○</span>';
-  const line2 = `<div style="margin-top:6px;color:#94a3b8;">`
+  const ok = (b) => b ? '<span style="color:#10b981;">●</span>' : '<span style="color:#647267;">○</span>';
+  const line2 = `<div style="margin-top:6px;color:#647267;">`
     + `${ok(s.hasToken)} 로그인 토큰 &nbsp; `
     + `${ok(s.scopeConfigured)} scope 설정 &nbsp; `
     + `${ok(s.tokenHasScope)} 토큰에 반영 &nbsp; `
@@ -2516,7 +2516,7 @@ function renderGeminiAuthBadge() {
   if (s.needsRelogin) {
     hint = `<div style="margin-top:6px;color:#f59e0b;">➡️ <b>로그아웃 후 다시 로그인</b>하세요. 동의화면에서 <code>generative-language.retriever</code> 권한을 새로 허용해야 토큰에 반영됩니다. (재로그인해도 403이면 GCP에서 <b>Generative Language API 활성화</b> 또는 동의화면 <b>scope 등록</b> 확인)</div>`;
   } else if (s.hasToken && !s.scopeConfigured) {
-    hint = `<div style="margin-top:6px;color:#64748b;">키 없이 OAuth로 쓰려면: GCP에서 Generative Language API 활성화 + 동의화면에 <code>generative-language.retriever</code> scope 등록 → 아래 <b>‘Gemini를 OAuth로 호출’ 체크 후 저장</b> → 로그아웃·재로그인</div>`;
+    hint = `<div style="margin-top:6px;color:#647267;">키 없이 OAuth로 쓰려면: GCP에서 Generative Language API 활성화 + 동의화면에 <code>generative-language.retriever</code> scope 등록 → 아래 <b>‘Gemini를 OAuth로 호출’ 체크 후 저장</b> → 로그아웃·재로그인</div>`;
   }
 
   el.innerHTML = line1 + line2 + hint;
@@ -2575,7 +2575,7 @@ async function loadAvailableGeminiModels() {
   const status = document.getElementById('gemini-models-status');
   if (typeof Toochangi === 'undefined' || !Toochangi.listAvailableModels) return;
   if (btn) btn.disabled = true;
-  if (status) { status.style.color = '#94a3b8'; status.textContent = '⏳ 불러오는 중...'; }
+  if (status) { status.style.color = '#647267'; status.textContent = '⏳ 불러오는 중...'; }
   try {
     const models = await Toochangi.listAvailableModels();
     if (!models.length) {
