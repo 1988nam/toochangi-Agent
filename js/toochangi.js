@@ -15,29 +15,34 @@ const Toochangi = (() => {
   let _pension = [];
 
   // ── 데이터 로드 ─────────────────────────────────────────────────
-  async function loadAll() {
-    try {
-      [_portfolio, _tradelog, _analysisHistory, _gachangiData, _assetHistory, _gachangiAccounts, _savings, _realEstate, _pension] = await Promise.all([
-        SheetsAPI.getPortfolio(),
-        SheetsAPI.getTradeLog(),
-        SheetsAPI.getAnalysisHistory(),
-        SheetsAPI.getGachangiMonthlySavings(),
-        SheetsAPI.getAssetStatus(),
-        SheetsAPI.getGachangiAccounts ? SheetsAPI.getGachangiAccounts() : [],
-        SheetsAPI.getSavings ? SheetsAPI.getSavings() : [],
-        SheetsAPI.getRealEstate ? SheetsAPI.getRealEstate() : [],
-        SheetsAPI.getPension ? SheetsAPI.getPension() : [],
-      ]);
-      console.log('[Toochangi] 데이터 로드 완료');
-    } catch (e) {
-      console.error('[Toochangi] 데이터 로드 실패:', e);
-    }
-    // 최근 AI 추천(클라우드) 로드 — 실패해도 본 로드에 영향 없게 분리
-    try {
-      _lastRecommendation = (SheetsAPI.getLatestRecommendation ? await SheetsAPI.getLatestRecommendation() : null);
-    } catch (e) {
-      console.warn('[Toochangi] 추천기록 로드 실패:', e);
-    }
+  let _loadErrors = [];
+  let _loadPromise = null;
+  function getLoadErrors() { return _loadErrors.slice(); }
+  function loadAll(onProgress) {
+    if (_loadPromise) return _loadPromise;
+    _loadErrors = [];
+    const jobs = [
+      ['주식', () => SheetsAPI.getPortfolio(), value => { _portfolio = value; }],
+      ['매매일지', () => SheetsAPI.getTradeLog(), value => { _tradelog = value; }],
+      ['분석기록', () => SheetsAPI.getAnalysisHistory(), value => { _analysisHistory = value; }],
+      ['가계부', () => SheetsAPI.getGachangiMonthlySavings(), value => { _gachangiData = value; }],
+      ['자산 이력', () => SheetsAPI.getAssetStatus(), value => { _assetHistory = value; }],
+      ['계좌', () => SheetsAPI.getGachangiAccounts?.() || [], value => { _gachangiAccounts = value; }],
+      ['예적금', () => SheetsAPI.getSavings?.() || [], value => { _savings = value; }],
+      ['부동산', () => SheetsAPI.getRealEstate?.() || [], value => { _realEstate = value; }],
+      ['연금', () => SheetsAPI.getPension?.() || [], value => { _pension = value; }],
+      ['추천기록', () => SheetsAPI.getLatestRecommendation?.() || null, value => { _lastRecommendation = value; }],
+    ];
+    _loadPromise = Promise.all(jobs.map(async ([name, read, assign]) => {
+      try { assign(await read()); }
+      catch (error) {
+        _loadErrors.push({ name, message: String(error?.result?.error?.message || error?.message || '조회 실패').slice(0, 180) });
+        console.warn('[Toochangi] ' + name + ' 조회 실패:', error);
+      }
+      // Successful datasets are available immediately; an optional history cannot discard them.
+      try { onProgress?.(); } catch (error) { console.error('[Toochangi] 화면 갱신 실패:', error); }
+    })).then(() => ({ errors: getLoadErrors() })).finally(() => { _loadPromise = null; });
+    return _loadPromise;
   }
 
   let _lastRecommendation = null;
@@ -1523,7 +1528,7 @@ ${searchInstructions}
   }
 
   return {
-    loadAll,
+    loadAll, getLoadErrors,
     calcPortfolioMetrics,
     evaluateFilter, updateFilterSignal, evaluateFinalVerdict,
     runGeminiAnalysis,

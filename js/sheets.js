@@ -395,7 +395,7 @@ const SheetsAPI = (() => {
       });
     } catch (e) {
       console.warn('[SheetsAPI] 예적금 로드 실패:', e);
-      return [];
+      throw e;
     }
   }
 
@@ -427,7 +427,7 @@ const SheetsAPI = (() => {
       });
     } catch (e) {
       console.warn('[SheetsAPI] 부동산 로드 실패:', e);
-      return [];
+      throw e;
     }
   }
 
@@ -984,7 +984,7 @@ const SheetsAPI = (() => {
       });
     } catch (e) {
       console.warn('[SheetsAPI] 연금저축 로드 실패:', e);
-      return [];
+      throw e;
     }
   }
 

@@ -135,8 +135,13 @@ function renderGachangiAccountsTable() {
 // ── 데이터 새로고침 ─────────────────────────────────────────────
 async function refreshAll() {
   toast('📊 데이터 로드 중...', 'info');
+  const loadingStatus = document.getElementById('dashboard-data-status');
+  if (loadingStatus) { loadingStatus.hidden = false; loadingStatus.textContent = '데이터를 불러오는 중입니다…'; }
   try {
-    await Toochangi.loadAll();
+    const result = await Toochangi.loadAll(renderDashboard);
+    const errors = result.errors || [];
+    const status = document.getElementById('dashboard-data-status');
+    if (status) { status.hidden = errors.length === 0; status.textContent = errors.length ? '일부 조회 실패: ' + errors.map(e => e.name + ' (' + e.message + ')').join(' · ') + '. 성공한 데이터와 이전 조회값을 표시합니다. 새로고침으로 다시 조회해 주세요.' : ''; }
     renderDashboard();
     renderPortfolioTab();
     renderPensionTab();
@@ -157,7 +162,7 @@ async function refreshAll() {
 
     document.getElementById('last-updated').textContent =
       `최종 업데이트: ${new Date().toLocaleTimeString('ko-KR')}`;
-    toast('✅ 데이터 업데이트 완료', 'success');
+    toast(errors.length ? '일부 항목을 불러오지 못했습니다. 대시보드 안내를 확인해 주세요.' : '✅ 데이터 업데이트 완료', errors.length ? 'error' : 'success');
   } catch (e) {
     console.error('[Main] 새로고침 실패:', e);
     toast('⚠️ 데이터 로드 실패', 'error');
