@@ -220,9 +220,11 @@ const SheetsAPI = (() => {
    * 투챙이 전용 스프레드시트가 없으면 자동 생성 후 config에 ID 저장
    */
   async function setupToochangiSheet() {
-    const storedId = localStorage.getItem('toochangi_sheet_id');
-    if (storedId) {
+    if (window.Olchangi && !Olchangi.dataChecked('toochangi')) throw new Error('먼저 기존 투챙이 데이터를 연결해 주세요.');
+    const storedId = localStorage.getItem('toochangi_sheet_id') || TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID;
+    if (storedId && !storedId.startsWith('YOUR_')) {
       TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID = storedId;
+      localStorage.setItem('toochangi_sheet_id', storedId);
       console.log('[Sheets] 기존 투챙이 시트 ID 로드:', storedId);
       await _ensureSheetTabs(storedId);
       return storedId;
