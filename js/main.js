@@ -90,7 +90,7 @@ async function onLoginSuccess(user) {
     toast('📋 처음 사용 시 상단 "시트 초기화" 버튼을 눌러주세요!', 'info', 5000);
   } else {
     window.TOOCHANGI_CONFIG.TOOCHANGI_SHEET_ID = sheetId;
-    await refreshAll();
+    await refreshAll({ useCache: true });
   }
 }
 
@@ -133,7 +133,8 @@ function renderGachangiAccountsTable() {
 }
 
 // ── 데이터 새로고침 ─────────────────────────────────────────────
-async function refreshAll() {
+async function refreshAll({ useCache = false } = {}) {
+  if (!useCache) window.OlchangiCache?.clear();
   toast('📊 데이터 로드 중...', 'info');
   const loadingStatus = document.getElementById('dashboard-data-status');
   if (loadingStatus) { loadingStatus.hidden = false; loadingStatus.textContent = '데이터를 불러오는 중입니다…'; }
@@ -151,8 +152,10 @@ async function refreshAll() {
     renderSavingsLinkedAccountOptions();
     renderTradelogTab();
     renderManualAnalysisTab();
-    renderYouTubeFeed();
-    renderNewsHistory();
+    if (document.querySelector('.nav-item[data-tab="ai-news"].active')) {
+      renderYouTubeFeed();
+      renderNewsHistory();
+    }
 
     const assetsPanel = document.getElementById('tab-assets');
     if (assetsPanel && !assetsPanel.classList.contains('hidden')) {

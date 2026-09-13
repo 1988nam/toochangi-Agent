@@ -1786,5 +1786,9 @@ const SheetsAPI = (() => {
     }
   });
 
-  return api;
+  return window.OlchangiCache ? OlchangiCache.wrap(api,
+    () => ['toochangi', TOOCHANGI_CONFIG],
+    Object.keys(api).filter(name => name.startsWith('get')),
+    Object.keys(api).filter(name => !name.startsWith('get'))
+  ) : api;
 })();
