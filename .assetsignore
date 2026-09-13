@@ -12,3 +12,5 @@ package-lock.json
 .cursorrules
 js/config.js
 js/config.example.js
+olchangi-agent
+maintenance
