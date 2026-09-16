@@ -1,4 +1,4 @@
-﻿(() => {
+(() => {
   const id = document.body.dataset.agent || location.pathname.split('/')[1];
   document.body.dataset.agent = ['toochangi', 'gachangi', 'dachangi'].includes(id) ? id : 'home';
   const base = document.body.dataset.suiteBase || '';
@@ -45,7 +45,7 @@
     const footer = document.querySelector('.sidebar-footer, .side-foot');
     if (footer && ['gachangi', 'toochangi'].includes(id)) {
       footer.style.flexWrap = 'wrap';
-      note.style.flexBasis = '100%';
+      note.style.flex = '0 0 100%';
       note.style.minWidth = '0';
     }
     if (id === 'toochangi' && footer) {
