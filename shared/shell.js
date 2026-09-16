@@ -43,7 +43,32 @@
     note.style.cssText = 'font-size:12px;line-height:1.5;color:var(--ink-muted);margin:8px 0 0';
     note.textContent = '조회 결과는 최대 2분간 재사용합니다.';
     const footer = document.querySelector('.sidebar-footer, .side-foot');
-    if (id === 'gachangi' && footer) { footer.style.flexWrap = 'wrap'; note.style.flexBasis = '100%'; }
+    if (footer && ['gachangi', 'toochangi'].includes(id)) {
+      footer.style.flexWrap = 'wrap';
+      note.style.flexBasis = '100%';
+      note.style.minWidth = '0';
+    }
+    if (id === 'toochangi' && footer) {
+      const userInfo = footer.querySelector('.user-info');
+      const userName = footer.querySelector('#user-name-sidebar');
+      if (userInfo) userInfo.style.minWidth = '0';
+      if (userName) {
+        userName.style.whiteSpace = 'nowrap';
+        userName.style.overflow = 'hidden';
+        userName.style.textOverflow = 'ellipsis';
+      }
+
+      // 데스크톱에서 사이드바를 접으면 72px 폭이므로 캐시 설명은 숨긴다.
+      // 모바일은 접힘 클래스를 유지해도 실제 사이드바 폭이 넓게 열리므로 계속 표시한다.
+      const app = document.querySelector('#app');
+      const desktop = window.matchMedia('(min-width: 861px)');
+      const syncCacheNoteVisibility = () => {
+        note.hidden = Boolean(app?.classList.contains('collapsed') && desktop.matches);
+      };
+      if (app) new MutationObserver(syncCacheNoteVisibility).observe(app, { attributes: true, attributeFilter: ['class'] });
+      desktop.addEventListener('change', syncCacheNoteVisibility);
+      syncCacheNoteVisibility();
+    }
     footer?.append(note);
     let oldest = Date.now();
     window.addEventListener('olchangi-cache-hit', event => {
