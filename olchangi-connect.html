@@ -1,6 +1,6 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>올챙이 Agent 연결</title><script src="/shared/theme.js"></script><link rel="stylesheet" href="/shared/tokens.css"><style>body{font:15px/1.8 system-ui,sans-serif;background:var(--canvas);color:var(--ink);max-width:440px;margin:12vh auto;padding:25px}h1{font-size:27px}button{background:var(--brand);color:var(--on-accent);border:0;border-radius:8px;padding:13px 22px;cursor:pointer;font:inherit}button:disabled{opacity:.5}p{color:var(--ink-soft)}</style></head><body><h1>◕ 올챙이 Agent 연결</h1><p id="description"></p><button id="connect" disabled>연결 준비 중</button><p id="result" role="status"></p><script>window.OLCHANGI_CONNECT_CONFIG={"clientId":"651656383566-7tnom3kcpmp2595kt8htocgl0v35h80e.apps.googleusercontent.com","agent":"toochangi"};</script><script>(() => {
   const params = new URLSearchParams(location.hash.slice(1));
-  const origin = params.get('origin'), state = params.get('state'), mode = params.get('mode');
+  const origin = params.get('origin'), state = params.get('state'), mode = params.get('mode'), auto = params.get('auto') === '1';
   const allowed = new Set(['https://olchangi.pages.dev', 'https://toochangi.pages.dev', 'https://gachangi.pages.dev', 'https://dachangi.pages.dev', 'http://localhost:8788', 'http://127.0.0.1:8788']);
   const button = document.querySelector('#connect'), result = document.querySelector('#result');
   const { agent } = window.OLCHANGI_CONNECT_CONFIG;
@@ -36,6 +36,10 @@
       });
     }
     button.textContent = mode === 'login' ? 'Google 계정으로 연결' : '설정 가져오기'; button.disabled = false;
+    if (mode === 'login' && auto) {
+      button.disabled = true;
+      tokenClient.requestAccessToken({ prompt: '' });
+    }
   };
   button.addEventListener('click', () => {
     if (mode === 'login') { button.disabled = true; tokenClient.requestAccessToken({ prompt: '' }); }
